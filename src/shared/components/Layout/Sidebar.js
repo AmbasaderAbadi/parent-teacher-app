@@ -13,6 +13,7 @@ import {
   FiClipboard,
   FiChevronLeft,
   FiChevronRight,
+  FiMenu,
 } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -23,6 +24,21 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Detect mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Get user from store or localStorage
   useEffect(() => {
@@ -50,6 +66,10 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     localStorage.removeItem("user");
     toast.success("Logged out successfully");
     navigate("/login");
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const getMenuItems = () => {
@@ -114,12 +134,13 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
   const NavItem = ({ item }) => (
     <NavLink
       to={item.path}
+      onClick={() => isMobile && setMobileMenuOpen(false)}
       style={({ isActive }) => ({
         ...styles.navItem,
         ...(isActive ? styles.navItemActive : {}),
-        ...(isCollapsed ? styles.navItemCollapsed : {}),
+        ...(isCollapsed && !isMobile ? styles.navItemCollapsed : {}),
       })}
-      title={isCollapsed ? item.label : undefined}
+      title={isCollapsed && !isMobile ? item.label : undefined}
     >
       {({ isActive }) => (
         <>
@@ -131,7 +152,9 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
               color: isActive ? "#4f46e5" : "#6b7280",
             }}
           />
-          {!isCollapsed && <span style={styles.navLabel}>{item.label}</span>}
+          {(!isCollapsed || isMobile) && (
+            <span style={styles.navLabel}>{item.label}</span>
+          )}
         </>
       )}
     </NavLink>
@@ -143,6 +166,75 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     { path: "#", icon: FiLogOut, label: "Logout", isLogout: true },
   ];
 
+  // Mobile sidebar overlay
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile Menu Button */}
+        <button onClick={toggleMobileMenu} style={styles.mobileMenuBtn}>
+          <FiMenu size={24} />
+        </button>
+
+        {/* Mobile Sidebar Overlay */}
+        {mobileMenuOpen && (
+          <div style={styles.mobileOverlay} onClick={toggleMobileMenu}>
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ duration: 0.3 }}
+              style={styles.mobileSidebar}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Logo Section */}
+              <div style={styles.logoSection}>
+                <motion.div
+                  style={styles.logoIcon}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span style={styles.logoText}>PT</span>
+                </motion.div>
+                <span style={styles.logoName}>ParentTeacher</span>
+                <button
+                  onClick={toggleMobileMenu}
+                  style={styles.mobileCloseBtn}
+                >
+                  <FiChevronRight size={20} />
+                </button>
+              </div>
+
+              {/* Navigation */}
+              <nav style={styles.nav}>
+                {allItems.map((item) =>
+                  item.isLogout ? (
+                    <button
+                      key="logout"
+                      onClick={() => {
+                        handleLogout();
+                        setMobileMenuOpen(false);
+                      }}
+                      style={{
+                        ...styles.navItem,
+                        ...styles.logoutBtn,
+                      }}
+                    >
+                      <FiLogOut size={18} style={styles.navIcon} />
+                      <span style={styles.navLabel}>Logout</span>
+                    </button>
+                  ) : (
+                    <NavItem key={item.path} item={item} />
+                  ),
+                )}
+              </nav>
+            </motion.aside>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Desktop sidebar
   return (
     <motion.aside
       initial={false}
@@ -317,6 +409,60 @@ const styles = {
   logoutBtn: {
     color: "#dc2626",
     marginTop: "auto",
+  },
+  // Mobile styles
+  mobileMenuBtn: {
+    position: "fixed",
+    top: "16px",
+    left: "16px",
+    zIndex: 50,
+    width: "40px",
+    height: "40px",
+    borderRadius: "8px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  },
+  mobileOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 1000,
+  },
+  mobileSidebar: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "280px",
+    height: "100vh",
+    backgroundColor: "#ffffff",
+    borderRight: "1px solid #e5e7eb",
+    display: "flex",
+    flexDirection: "column",
+    zIndex: 1001,
+    fontFamily:
+      "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    overflow: "hidden",
+  },
+  mobileCloseBtn: {
+    marginLeft: "auto",
+    padding: "8px",
+    borderRadius: "8px",
+    border: "none",
+    background: "transparent",
+    color: "#9ca3af",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s ease",
   },
 };
 

@@ -286,6 +286,143 @@ const ContactUs = () => {
           </p>
         </div>
       </footer>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .contact-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .contact-info {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .info-card {
+            display: flex !important;
+            flex-direction: row !important;
+            text-align: left !important;
+            align-items: center !important;
+            gap: 16px !important;
+            padding: 20px !important;
+          }
+          .info-icon {
+            margin-bottom: 0 !important;
+            font-size: 36px !important;
+            flex-shrink: 0 !important;
+          }
+          .info-title {
+            margin-bottom: 4px !important;
+            font-size: 18px !important;
+          }
+          .info-detail {
+            font-size: 14px !important;
+          }
+          .info-sub {
+            font-size: 12px !important;
+          }
+          .contact-form {
+            padding: 24px !important;
+          }
+          .form-title {
+            font-size: 20px !important;
+          }
+          .section-title {
+            font-size: 24px !important;
+            margin-bottom: 32px !important;
+          }
+          .hero-title {
+            font-size: 36px !important;
+          }
+          .hero-subtitle {
+            font-size: 16px !important;
+          }
+          .call-to-action {
+            padding: 40px 20px !important;
+            margin: 40px 16px !important;
+          }
+          .cta-title {
+            font-size: 24px !important;
+          }
+          .footer-content {
+            grid-template-columns: 1fr !important;
+            text-align: center;
+            gap: 24px !important;
+          }
+          .footer-section {
+            align-items: center !important;
+          }
+          .nav-links {
+            display: none !important;
+          }
+          .nav-content {
+            justify-content: center !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .hero-title {
+            font-size: 28px !important;
+          }
+          .info-icon {
+            font-size: 28px !important;
+          }
+          .info-title {
+            font-size: 16px !important;
+          }
+          .info-detail {
+            font-size: 13px !important;
+          }
+          .input, .textarea {
+            padding: 10px 14px !important;
+            font-size: 16px !important;
+          }
+          .submit-btn {
+            padding: 10px 20px !important;
+            font-size: 14px !important;
+          }
+          .faq-question {
+            font-size: 14px !important;
+          }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        input:focus, textarea:focus {
+          border-color: #4f46e5;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .info-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        a:hover {
+          color: #667eea !important;
+        }
+        details summary::-webkit-details-marker {
+          display: none;
+        }
+        details summary {
+          list-style: none;
+          position: relative;
+          cursor: pointer;
+        }
+        details summary::before {
+          content: '▶';
+          position: absolute;
+          right: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #667eea;
+          font-size: 12px;
+        }
+        details[open] summary::before {
+          content: '▼';
+        }
+      `}</style>
     </div>
   );
 };
@@ -575,48 +712,5 @@ const styles = {
     color: "#a0aec0",
   },
 };
-
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
-  .info-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-  }
-  a:hover {
-    color: #667eea !important;
-  }
-  input:hover, textarea:hover {
-    border-color: #667eea;
-  }
-  input:focus, textarea:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-  details summary::-webkit-details-marker {
-    display: none;
-  }
-  details summary {
-    list-style: none;
-    position: relative;
-    cursor: pointer;
-  }
-  details summary::before {
-    content: '▶';
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #667eea;
-    font-size: 12px;
-  }
-  details[open] summary::before {
-    content: '▼';
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default ContactUs;

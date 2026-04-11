@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "../../../services/api/apiClient";
+import "../../../assets/styles/auth-pages.css";
 import {
   FiUser,
   FiLock,
@@ -28,6 +29,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("parent");
+  const [isMobile, setIsMobile] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -53,62 +55,46 @@ const RegisterPage = () => {
     parentPhone: "",
   });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleRoleChange = (role) => {
     setSelectedRole(role);
-    setFormData({ ...formData, role: role });
+    setFormData({ ...formData, role });
   };
-
-  const handleClose = () => {
-    navigate("/");
-  };
+  const handleClose = () => navigate("/");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (
       !formData.firstName ||
       !formData.lastName ||
       !formData.email ||
       !formData.password
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
-    if (selectedRole === "teacher") {
-      if (!formData.teacherId || !formData.subject) {
-        toast.error("Please fill in teacher ID and subject");
-        return;
-      }
-    }
-
-    if (selectedRole === "student") {
-      if (!formData.studentId || !formData.grade || !formData.parentEmail) {
-        toast.error("Please fill in all student details");
-        return;
-      }
-    }
-
-    if (selectedRole === "parent") {
-      if (!formData.childrenCount) {
-        toast.error("Please enter number of children");
-        return;
-      }
-    }
+    )
+      return toast.error("Please fill in all required fields");
+    if (formData.password !== formData.confirmPassword)
+      return toast.error("Passwords do not match");
+    if (formData.password.length < 6)
+      return toast.error("Password must be at least 6 characters");
+    if (
+      selectedRole === "teacher" &&
+      (!formData.teacherId || !formData.subject)
+    )
+      return toast.error("Please fill in teacher ID and subject");
+    if (
+      selectedRole === "student" &&
+      (!formData.studentId || !formData.grade || !formData.parentEmail)
+    )
+      return toast.error("Please fill in all student details");
+    if (selectedRole === "parent" && !formData.childrenCount)
+      return toast.error("Please enter number of children");
 
     setLoading(true);
     try {
@@ -146,11 +132,8 @@ const RegisterPage = () => {
           parentPhone: formData.parentPhone,
         }),
       });
-
       toast.success("Account created successfully! Please login.");
-      setTimeout(() => {
-        navigate("/login");
-      }, 1500);
+      setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed");
     } finally {
@@ -159,17 +142,15 @@ const RegisterPage = () => {
   };
 
   const roleIcons = {
-    teacher: <FaChalkboardTeacher size={24} />,
-    parent: <FaUsers size={24} />,
-    student: <FaUserGraduate size={24} />,
+    teacher: <FaChalkboardTeacher size={20} />,
+    parent: <FaUsers size={20} />,
+    student: <FaUserGraduate size={20} />,
   };
-
   const roleTitles = {
     teacher: "Join as Teacher",
     parent: "Join as Parent",
     student: "Join as Student",
   };
-
   const roleDescriptions = {
     teacher: "Manage classes, grade students, and communicate with parents",
     parent: "Monitor your child's progress and stay connected with teachers",
@@ -177,95 +158,79 @@ const RegisterPage = () => {
   };
 
   return (
-    <div style={styles.container}>
-      {/* Background Decoration */}
-      <div style={styles.bgDecoration}>
-        <div style={styles.bgCircle1}></div>
-        <div style={styles.bgCircle2}></div>
-        <div style={styles.bgCircle3}></div>
+    <div className="register-container">
+      <div className="bg-decoration">
+        <div className="bg-circle bg-circle-1"></div>
+        <div className="bg-circle bg-circle-2"></div>
+        <div className="bg-circle bg-circle-3"></div>
       </div>
-
-      {/* Close Button - X */}
-      <button onClick={handleClose} style={styles.closeButton}>
+      <button onClick={handleClose} className="close-button" aria-label="Close">
         <FiX size={24} />
       </button>
 
-      <div style={styles.wrapper}>
-        {/* Left Side - Info Panel */}
+      <div className="register-wrapper">
         <motion.div
-          initial={{ opacity: 0, x: -50 }}
+          initial={{ opacity: 0, x: isMobile ? 0 : -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          style={styles.infoPanel}
+          className="info-panel"
         >
-          <div style={styles.logo}>
-            <span style={styles.logoIcon}>PT</span>
-            <span style={styles.logoText}>ParentTeacher Portal</span>
+          <div className="logo">
+            <span className="logo-icon">PT</span>
+            <span className="logo-text">ParentTeacher Portal</span>
           </div>
-          <h2 style={styles.infoTitle}>{roleTitles[selectedRole]}</h2>
-          <p style={styles.infoDesc}>{roleDescriptions[selectedRole]}</p>
-          <div style={styles.infoFeatures}>
-            <div style={styles.infoFeature}>
-              <FiCheckCircle style={styles.infoIcon} />
+          <h2 className="info-title">{roleTitles[selectedRole]}</h2>
+          <p className="info-desc">{roleDescriptions[selectedRole]}</p>
+          <div className="info-features">
+            <div className="info-feature">
+              <FiCheckCircle className="info-icon" />
               <span>Real-time communication</span>
             </div>
-            <div style={styles.infoFeature}>
-              <FiCheckCircle style={styles.infoIcon} />
+            <div className="info-feature">
+              <FiCheckCircle className="info-icon" />
               <span>Track student progress</span>
             </div>
-            <div style={styles.infoFeature}>
-              <FiCheckCircle style={styles.infoIcon} />
+            <div className="info-feature">
+              <FiCheckCircle className="info-icon" />
               <span>Get instant notifications</span>
             </div>
           </div>
-
-          <div style={styles.alreadyAccount}>
+          <div className="already-account">
             <p>Already have an account?</p>
             <Link to="/login">
-              <button style={styles.signInBtn}>Sign In →</button>
+              <button className="sign-in-btn">Sign In →</button>
             </Link>
           </div>
         </motion.div>
 
-        {/* Right Side - Form */}
         <motion.div
-          initial={{ opacity: 0, x: 50 }}
+          initial={{ opacity: 0, x: isMobile ? 0 : 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          style={styles.formPanel}
+          className="form-panel"
         >
-          <div style={styles.formHeader}>
-            <h2 style={styles.formTitle}>Create Account</h2>
-            <p style={styles.formSubtitle}>
-              Fill in your details to get started
-            </p>
+          <div className="form-header">
+            <h2 className="form-title">Create Account</h2>
+            <p className="form-subtitle">Fill in your details to get started</p>
           </div>
 
-          {/* Role Selection */}
-          <div style={styles.roleContainer}>
+          <div className="role-container">
             {["parent", "teacher", "student"].map((role) => (
               <motion.button
                 key={role}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                style={{
-                  ...styles.roleButton,
-                  backgroundColor:
-                    selectedRole === role ? "#4f46e5" : "#f3f4f6",
-                  color: selectedRole === role ? "white" : "#374151",
-                  borderColor: selectedRole === role ? "#4f46e5" : "#e5e7eb",
-                }}
+                className={`role-button ${selectedRole === role ? "active" : ""}`}
                 onClick={() => handleRoleChange(role)}
               >
-                <span style={styles.roleIcon}>{roleIcons[role]}</span>
+                <span className="role-icon">{roleIcons[role]}</span>
                 <span>{role.charAt(0).toUpperCase() + role.slice(1)}</span>
               </motion.button>
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} style={styles.form}>
-            {/* Common Fields - Row 1 */}
-            <div style={styles.row}>
+          <form onSubmit={handleSubmit} className="form">
+            <div className="form-row">
               <Input
                 label="First Name"
                 name="firstName"
@@ -285,9 +250,7 @@ const RegisterPage = () => {
                 required
               />
             </div>
-
-            {/* Common Fields - Row 2 */}
-            <div style={styles.row}>
+            <div className="form-row">
               <Input
                 label="Email Address"
                 name="email"
@@ -309,7 +272,6 @@ const RegisterPage = () => {
                 required
               />
             </div>
-
             <Input
               label="Address"
               name="address"
@@ -320,7 +282,6 @@ const RegisterPage = () => {
             />
 
             <AnimatePresence mode="wait">
-              {/* Teacher Specific Fields */}
               {selectedRole === "teacher" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -328,8 +289,8 @@ const RegisterPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div style={styles.sectionTitle}>Teacher Information</div>
-                  <div style={styles.row}>
+                  <div className="section-title">Teacher Information</div>
+                  <div className="form-row">
                     <Input
                       label="Teacher ID"
                       name="teacherId"
@@ -349,7 +310,7 @@ const RegisterPage = () => {
                       required
                     />
                   </div>
-                  <div style={styles.row}>
+                  <div className="form-row">
                     <Input
                       label="Qualification"
                       name="qualification"
@@ -378,8 +339,6 @@ const RegisterPage = () => {
                   />
                 </motion.div>
               )}
-
-              {/* Student Specific Fields */}
               {selectedRole === "student" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -387,8 +346,8 @@ const RegisterPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div style={styles.sectionTitle}>Student Information</div>
-                  <div style={styles.row}>
+                  <div className="section-title">Student Information</div>
+                  <div className="form-row">
                     <Input
                       label="Student ID"
                       name="studentId"
@@ -404,11 +363,10 @@ const RegisterPage = () => {
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={handleChange}
-                      placeholder="YYYY-MM-DD"
                       icon={<FiCalendar />}
                     />
                   </div>
-                  <div style={styles.row}>
+                  <div className="form-row">
                     <Input
                       label="Grade/Year"
                       name="grade"
@@ -427,7 +385,7 @@ const RegisterPage = () => {
                       icon={<FaSchool />}
                     />
                   </div>
-                  <div style={styles.row}>
+                  <div className="form-row">
                     <Input
                       label="Parent's Email"
                       name="parentEmail"
@@ -450,8 +408,6 @@ const RegisterPage = () => {
                   </div>
                 </motion.div>
               )}
-
-              {/* Parent Specific Fields */}
               {selectedRole === "parent" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -459,8 +415,8 @@ const RegisterPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div style={styles.sectionTitle}>Parent Information</div>
-                  <div style={styles.row}>
+                  <div className="section-title">Parent Information</div>
+                  <div className="form-row">
                     <Input
                       label="Number of Children"
                       name="childrenCount"
@@ -480,15 +436,16 @@ const RegisterPage = () => {
                       icon={<FiBriefcase />}
                     />
                   </div>
-                  <div>
-                    <label style={styles.inputLabel}>
-                      Relationship to Student
+                  <div className="input-wrapper">
+                    <label className="input-label">
+                      Relationship to Student{" "}
+                      <span className="required">*</span>
                     </label>
                     <select
                       name="relationship"
                       value={formData.relationship}
                       onChange={handleChange}
-                      style={styles.select}
+                      className="select-field"
                       required
                     >
                       <option value="parent">Parent</option>
@@ -501,9 +458,8 @@ const RegisterPage = () => {
               )}
             </AnimatePresence>
 
-            {/* Password Fields */}
-            <div style={styles.sectionTitle}>Security</div>
-            <div style={styles.row}>
+            <div className="section-title">Security</div>
+            <div className="form-row">
               <Input
                 label="Password"
                 name="password"
@@ -530,23 +486,22 @@ const RegisterPage = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              style={styles.submitButton}
+              className="submit-button"
               disabled={loading}
             >
               {loading ? (
-                <span style={styles.loadingSpinner}></span>
+                <span className="loading-spinner"></span>
               ) : (
                 <>
-                  Create Account
-                  <FiArrowRight style={styles.buttonIcon} />
+                  Create Account <FiArrowRight className="button-icon" />
                 </>
               )}
             </motion.button>
 
-            <div style={styles.toggleContainer}>
-              <p style={styles.toggleText}>
+            <div className="toggle-container">
+              <p className="toggle-text">
                 Already have an account?{" "}
-                <Link to="/login" style={styles.toggleLink}>
+                <Link to="/login" className="toggle-link">
                   Sign In
                 </Link>
               </p>
@@ -558,7 +513,7 @@ const RegisterPage = () => {
   );
 };
 
-// Input Component
+// Input Component - SINGLE BOX with icon on left inside the input
 const Input = ({
   label,
   name,
@@ -569,12 +524,14 @@ const Input = ({
   icon,
   required,
 }) => (
-  <div style={styles.inputWrapper}>
-    <label style={styles.inputLabel}>
-      {label} {required && <span style={styles.required}>*</span>}
+  <div className="input-wrapper">
+    <label className="input-label">
+      {label} {required && <span className="required">*</span>}
     </label>
-    <div style={styles.inputContainer}>
-      {icon && <span style={styles.inputIcon}>{icon}</span>}
+
+    <div className="input-container">
+      {icon && <span className="input-icon">{icon}</span>}
+
       <input
         name={name}
         type={type}
@@ -582,16 +539,16 @@ const Input = ({
         onChange={onChange}
         required={required}
         placeholder={placeholder}
-        style={styles.input}
+        className="input-field"
+        aria-label={label}
       />
     </div>
   </div>
 );
 
-// Helper component for checkmark
-const FiCheckCircle = ({ style }) => (
+const FiCheckCircle = ({ className }) => (
   <svg
-    style={style}
+    className={className}
     width="20"
     height="20"
     viewBox="0 0 24 24"
@@ -603,340 +560,5 @@ const FiCheckCircle = ({ style }) => (
     <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
-
-const styles = {
-  container: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
-    fontFamily:
-      "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    backgroundColor: "#f9fafb",
-    padding: "40px 20px",
-  },
-  closeButton: {
-    position: "fixed",
-    top: "24px",
-    right: "24px",
-    width: "40px",
-    height: "40px",
-    borderRadius: "50%",
-    backgroundColor: "white",
-    border: "1px solid #e5e7eb",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    zIndex: 100,
-    transition: "all 0.3s ease",
-    color: "#4a5568",
-  },
-  bgDecoration: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: "hidden",
-  },
-  bgCircle1: {
-    position: "absolute",
-    top: "-20%",
-    right: "-10%",
-    width: "500px",
-    height: "500px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #667eea20 0%, #764ba220 100%)",
-    animation: "float 6s ease-in-out infinite",
-  },
-  bgCircle2: {
-    position: "absolute",
-    bottom: "-20%",
-    left: "-10%",
-    width: "400px",
-    height: "400px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #f093fb20 0%, #f5576c20 100%)",
-    animation: "float 8s ease-in-out infinite reverse",
-  },
-  bgCircle3: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    width: "600px",
-    height: "600px",
-    borderRadius: "50%",
-    background: "radial-gradient(circle, #4facfe20 0%, #00f2fe20 100%)",
-    transform: "translate(-50%, -50%)",
-  },
-  wrapper: {
-    maxWidth: "1000px",
-    width: "100%",
-    display: "grid",
-    gridTemplateColumns: "1fr 1.5fr",
-    backgroundColor: "white",
-    borderRadius: "32px",
-    overflow: "hidden",
-    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-    zIndex: 10,
-    position: "relative",
-  },
-  infoPanel: {
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    padding: "40px",
-    color: "white",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-  },
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    marginBottom: "40px",
-  },
-  logoIcon: {
-    width: "40px",
-    height: "40px",
-    background: "rgba(255,255,255,0.2)",
-    borderRadius: "12px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "20px",
-    fontWeight: "bold",
-  },
-  logoText: {
-    fontSize: "18px",
-    fontWeight: "600",
-  },
-  infoTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    marginBottom: "16px",
-  },
-  infoDesc: {
-    fontSize: "14px",
-    opacity: 0.9,
-    lineHeight: "1.6",
-    marginBottom: "32px",
-  },
-  infoFeatures: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    marginBottom: "40px",
-  },
-  infoFeature: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    fontSize: "13px",
-  },
-  infoIcon: {
-    width: "18px",
-    height: "18px",
-  },
-  alreadyAccount: {
-    borderTop: "1px solid rgba(255,255,255,0.2)",
-    paddingTop: "24px",
-  },
-  signInBtn: {
-    marginTop: "12px",
-    padding: "10px 20px",
-    background: "rgba(255,255,255,0.2)",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-  },
-  formPanel: {
-    padding: "40px",
-    backgroundColor: "white",
-    maxHeight: "80vh",
-    overflowY: "auto",
-  },
-  formHeader: {
-    textAlign: "center",
-    marginBottom: "32px",
-  },
-  formTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: "8px",
-  },
-  formSubtitle: {
-    fontSize: "14px",
-    color: "#6b7280",
-  },
-  roleContainer: {
-    display: "flex",
-    gap: "12px",
-    marginBottom: "32px",
-  },
-  roleButton: {
-    flex: 1,
-    padding: "12px",
-    border: "2px solid",
-    borderRadius: "12px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "600",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    transition: "all 0.3s ease",
-  },
-  roleIcon: {
-    display: "flex",
-    alignItems: "center",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-  },
-  row: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "16px",
-  },
-  sectionTitle: {
-    fontSize: "16px",
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: "12px",
-    paddingBottom: "8px",
-    borderBottom: "2px solid #e5e7eb",
-  },
-  inputWrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-    flex: 1,
-  },
-  inputLabel: {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#374151",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-  },
-  required: {
-    color: "#ef4444",
-  },
-  inputContainer: {
-    position: "relative",
-  },
-  inputIcon: {
-    position: "absolute",
-    left: "12px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    color: "#9ca3af",
-    display: "flex",
-    alignItems: "center",
-  },
-  input: {
-    width: "100%",
-    padding: "12px 12px 12px 40px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    fontSize: "14px",
-    transition: "all 0.3s ease",
-    outline: "none",
-    fontFamily: "inherit",
-  },
-  select: {
-    width: "100%",
-    padding: "12px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    fontSize: "14px",
-    transition: "all 0.3s ease",
-    outline: "none",
-    fontFamily: "inherit",
-    backgroundColor: "white",
-  },
-  submitButton: {
-    width: "100%",
-    padding: "14px",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    color: "white",
-    border: "none",
-    borderRadius: "12px",
-    fontSize: "16px",
-    fontWeight: "600",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    transition: "all 0.3s ease",
-    marginTop: "8px",
-  },
-  buttonIcon: {
-    width: "18px",
-    height: "18px",
-  },
-  loadingSpinner: {
-    width: "20px",
-    height: "20px",
-    border: "2px solid rgba(255,255,255,0.3)",
-    borderTopColor: "white",
-    borderRadius: "50%",
-    animation: "spin 0.6s linear infinite",
-    display: "inline-block",
-  },
-  toggleContainer: {
-    textAlign: "center",
-    marginTop: "16px",
-  },
-  toggleText: {
-    fontSize: "14px",
-    color: "#6b7280",
-  },
-  toggleLink: {
-    color: "#4f46e5",
-    fontWeight: "600",
-    textDecoration: "none",
-    marginLeft: "4px",
-  },
-};
-
-// Add animations
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-  }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  input:focus, select:focus {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-  }
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-  }
-  .sign-in-btn:hover {
-    background: rgba(255,255,255,0.3);
-  }
-  .close-button:hover {
-    transform: scale(1.1);
-    background-color: #f3f4f6;
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default RegisterPage;
