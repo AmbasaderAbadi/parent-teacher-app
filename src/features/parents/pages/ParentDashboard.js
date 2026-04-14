@@ -17,8 +17,9 @@ import {
 import { FaChild, FaChartLine } from "react-icons/fa";
 import toast from "react-hot-toast";
 import "../../../assets/styles/dashboard.css";
+import { studentsAPI } from "../../../services/api";
 
-const ParentDashboard = ({ user }) => {
+const ParentDashboard = () => {
   const navigate = useNavigate();
   const [selectedChild, setSelectedChild] = useState(null);
   const [children, setChildren] = useState([]);
@@ -26,6 +27,7 @@ const ParentDashboard = ({ user }) => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [parentUser, setParentUser] = useState(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -35,8 +37,30 @@ const ParentDashboard = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    setTimeout(() => {
-      const demoChildren = [
+    fetchParentData();
+  }, []);
+
+  const fetchParentData = async () => {
+    setLoading(true);
+    try {
+      // Get current user from localStorage
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setParentUser(userData);
+      }
+
+      // Fetch children data from API
+      // Assuming the parent has children IDs in their profile
+      // You may need to adjust this based on your API structure
+      const childrenData = await fetchParentChildren();
+      setChildren(childrenData);
+    } catch (error) {
+      console.error("Error fetching parent data:", error);
+      toast.error("Failed to load data. Using demo data.");
+
+      // Fallback to demo data
+      setChildren([
         {
           id: 1,
           name: "John Doe",
@@ -45,6 +69,7 @@ const ParentDashboard = ({ user }) => {
           teacher: "Mrs. Smith",
           attendance: 92,
           averageGrade: 85,
+          studentId: "student123",
         },
         {
           id: 2,
@@ -54,98 +79,174 @@ const ParentDashboard = ({ user }) => {
           teacher: "Mr. Johnson",
           attendance: 88,
           averageGrade: 78,
+          studentId: "student456",
         },
-      ];
-      setChildren(demoChildren);
+      ]);
+    } finally {
       setLoading(false);
-    }, 500);
-  }, []);
+    }
+  };
 
-  useEffect(() => {
-    if (selectedChild) {
-      const demoGrades = [
+  const fetchParentChildren = async () => {
+    // This function should fetch the parent's children
+    // You may need to create a specific endpoint for this
+    // For now, we'll use a mock implementation
+    try {
+      // If your API has an endpoint to get parent's children
+      // const response = await parentAPI.getChildren();
+      // return response.data;
+
+      // Temporary mock data
+      return [
         {
           id: 1,
-          subject: "Mathematics",
-          score: 85,
-          grade: "A",
-          term: "Term 1",
-          teacher: "Mr. Smith",
-          teacherId: "teacher123",
-          teacherAvatar: "MS",
+          name: "John Doe",
+          grade: "10th Grade",
+          class: "Section A",
+          teacher: "Mrs. Smith",
+          attendance: 92,
+          averageGrade: 85,
+          studentId: "student123",
         },
         {
           id: 2,
-          subject: "Science",
-          score: 78,
-          grade: "B+",
-          term: "Term 1",
-          teacher: "Mrs. Johnson",
-          teacherId: "teacher456",
-          teacherAvatar: "MJ",
-        },
-        {
-          id: 3,
-          subject: "English",
-          score: 92,
-          grade: "A+",
-          term: "Term 1",
-          teacher: "Ms. Davis",
-          teacherId: "teacher789",
-          teacherAvatar: "MD",
-        },
-        {
-          id: 4,
-          subject: "History",
-          score: 88,
-          grade: "A-",
-          term: "Term 1",
-          teacher: "Mr. Brown",
-          teacherId: "teacher101",
-          teacherAvatar: "MB",
-        },
-        {
-          id: 5,
-          subject: "Physics",
-          score: 82,
-          grade: "B+",
-          term: "Term 1",
-          teacher: "Dr. Wilson",
-          teacherId: "teacher102",
-          teacherAvatar: "DW",
+          name: "Emma Doe",
+          grade: "8th Grade",
+          class: "Section B",
+          teacher: "Mr. Johnson",
+          attendance: 88,
+          averageGrade: 78,
+          studentId: "student456",
         },
       ];
-      const demoAttendance = [
-        {
-          date: "2024-01-15",
-          status: "present",
-          checkIn: "8:30 AM",
-          checkOut: "3:30 PM",
-        },
-        {
-          date: "2024-01-14",
-          status: "present",
-          checkIn: "8:25 AM",
-          checkOut: "3:30 PM",
-        },
-        {
-          date: "2024-01-13",
-          status: "late",
-          checkIn: "9:00 AM",
-          checkOut: "3:30 PM",
-        },
-        {
-          date: "2024-01-12",
-          status: "present",
-          checkIn: "8:28 AM",
-          checkOut: "3:30 PM",
-        },
-        { date: "2024-01-11", status: "absent", checkIn: "-", checkOut: "-" },
-      ];
-      setGrades(demoGrades);
-      setAttendance(demoAttendance);
+    } catch (error) {
+      console.error("Error fetching children:", error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    if (selectedChild) {
+      fetchChildData(selectedChild.studentId || selectedChild.id);
     }
   }, [selectedChild]);
+
+  const fetchChildData = async (studentId) => {
+    try {
+      // Fetch grades for the selected student
+      const gradesResponse = await studentsAPI.getStudentProfile(studentId);
+      // You may need to adjust based on your actual API response structure
+      const studentData = gradesResponse.data;
+
+      // Fetch grades - you may need a specific grades endpoint
+      // For now, using the gradesAPI that we'll create
+      let gradesData = [];
+      try {
+        const gradesResponse = await import("../../../services/api").then(
+          (module) => module.gradesAPI,
+        );
+        const result = await gradesResponse.getStudentGrades(studentId);
+        gradesData = result.data;
+      } catch (error) {
+        console.log("Using demo grades data");
+        gradesData = [
+          {
+            id: 1,
+            subject: "Mathematics",
+            score: 85,
+            grade: "A",
+            term: "Term 1",
+            teacher: "Mr. Smith",
+            teacherId: "teacher123",
+            teacherAvatar: "MS",
+          },
+          {
+            id: 2,
+            subject: "Science",
+            score: 78,
+            grade: "B+",
+            term: "Term 1",
+            teacher: "Mrs. Johnson",
+            teacherId: "teacher456",
+            teacherAvatar: "MJ",
+          },
+          {
+            id: 3,
+            subject: "English",
+            score: 92,
+            grade: "A+",
+            term: "Term 1",
+            teacher: "Ms. Davis",
+            teacherId: "teacher789",
+            teacherAvatar: "MD",
+          },
+          {
+            id: 4,
+            subject: "History",
+            score: 88,
+            grade: "A-",
+            term: "Term 1",
+            teacher: "Mr. Brown",
+            teacherId: "teacher101",
+            teacherAvatar: "MB",
+          },
+          {
+            id: 5,
+            subject: "Physics",
+            score: 82,
+            grade: "B+",
+            term: "Term 1",
+            teacher: "Dr. Wilson",
+            teacherId: "teacher102",
+            teacherAvatar: "DW",
+          },
+        ];
+      }
+
+      // Fetch attendance
+      let attendanceData = [];
+      try {
+        const { attendanceAPI } = await import("../../../services/api");
+        const result = await attendanceAPI.getStudentAttendance(studentId);
+        attendanceData = result.data;
+      } catch (error) {
+        console.log("Using demo attendance data");
+        attendanceData = [
+          {
+            date: "2024-01-15",
+            status: "present",
+            checkIn: "8:30 AM",
+            checkOut: "3:30 PM",
+          },
+          {
+            date: "2024-01-14",
+            status: "present",
+            checkIn: "8:25 AM",
+            checkOut: "3:30 PM",
+          },
+          {
+            date: "2024-01-13",
+            status: "late",
+            checkIn: "9:00 AM",
+            checkOut: "3:30 PM",
+          },
+          {
+            date: "2024-01-12",
+            status: "present",
+            checkIn: "8:28 AM",
+            checkOut: "3:30 PM",
+          },
+          { date: "2024-01-11", status: "absent", checkIn: "-", checkOut: "-" },
+        ];
+      }
+
+      setGrades(gradesData);
+      setAttendance(attendanceData);
+    } catch (error) {
+      console.error("Error fetching child data:", error);
+      toast.error("Failed to load child data");
+    }
+  };
 
   const handleChatWithTeacher = (teacherName, teacherId, subject) => {
     const chatData = {
@@ -159,11 +260,52 @@ const ParentDashboard = ({ user }) => {
     toast.success(`Opening chat with ${teacherName} about ${subject}`);
   };
 
+  const handleExportGrades = () => {
+    // Generate CSV export of grades
+    const csvContent = [
+      ["Subject", "Score", "Grade", "Term", "Teacher"],
+      ...grades.map((grade) => [
+        grade.subject,
+        grade.score,
+        grade.grade,
+        grade.term,
+        grade.teacher,
+      ]),
+    ];
+
+    const csvString = csvContent.map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csvString], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedChild?.name}_grades_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.success("Grades exported successfully!");
+  };
+
   const getGradeColor = (score) => {
     if (score >= 90) return "#10b981";
     if (score >= 80) return "#3b82f6";
     if (score >= 70) return "#f59e0b";
     return "#ef4444";
+  };
+
+  const calculateAverageGrade = () => {
+    if (grades.length === 0) return 0;
+    const sum = grades.reduce((total, grade) => total + grade.score, 0);
+    return Math.round(sum / grades.length);
+  };
+
+  const calculateAttendanceRate = () => {
+    if (attendance.length === 0) return 0;
+    const presentCount = attendance.filter(
+      (a) => a.status === "present",
+    ).length;
+    return Math.round((presentCount / attendance.length) * 100);
   };
 
   const stats = [
@@ -176,13 +318,13 @@ const ParentDashboard = ({ user }) => {
     {
       icon: <FiBookOpen size={isMobile ? 20 : 24} />,
       label: "Average Grade",
-      value: selectedChild ? `${selectedChild.averageGrade}%` : "--",
+      value: selectedChild ? `${calculateAverageGrade()}%` : "--",
       color: "#10b981",
     },
     {
       icon: <FiCalendar size={isMobile ? 20 : 24} />,
       label: "Attendance",
-      value: selectedChild ? `${selectedChild.attendance}%` : "--",
+      value: selectedChild ? `${calculateAttendanceRate()}%` : "--",
       color: "#8b5cf6",
     },
     {
@@ -209,7 +351,8 @@ const ParentDashboard = ({ user }) => {
         <div>
           <h1 className="dashboard-title">Parent Dashboard</h1>
           <p className="dashboard-subtitle">
-            Welcome back, {user?.name || "Parent"}! 👋
+            Welcome back,{" "}
+            {parentUser?.firstName || parentUser?.name || "Parent"}! 👋
           </p>
         </div>
       </div>
@@ -280,7 +423,7 @@ const ParentDashboard = ({ user }) => {
               <h2 className="section-title">
                 📚 {selectedChild.name}'s Grades
               </h2>
-              <button className="export-btn">
+              <button onClick={handleExportGrades} className="export-btn">
                 <FiDownload size={16} /> Export
               </button>
             </div>

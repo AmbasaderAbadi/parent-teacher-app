@@ -9,6 +9,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { adminAPI } from "../../../services/api";
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -17,11 +18,44 @@ const AdminUsersPage = () => {
   const [selectedRole, setSelectedRole] = useState("all");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showActivateModal, setShowActivateModal] = useState(false);
 
   useEffect(() => {
-    // Demo data - Replace with API call
-    setTimeout(() => {
-      const demoUsers = [
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      let response;
+      if (selectedRole !== "all") {
+        response = await adminAPI.getUsersByRole(selectedRole);
+      } else {
+        response = await adminAPI.getAllUsers();
+      }
+
+      const usersData = response.data;
+      // Transform API data to match component structure
+      const formattedUsers = usersData.map((user) => ({
+        id: user.id || user._id,
+        name:
+          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+          user.name ||
+          user.email,
+        email: user.email,
+        userId: user.teacherId || user.studentId || user.parentId || user.id,
+        role: user.role,
+        status: user.isActive ? "active" : "inactive",
+        joinedDate: user.createdAt
+          ? new Date(user.createdAt).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+      }));
+      setUsers(formattedUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast.error("Failed to load users. Using demo data.");
+      // Fallback to demo data
+      setUsers([
         {
           id: 1,
           name: "Sarah Johnson",
@@ -67,18 +101,46 @@ const AdminUsersPage = () => {
           status: "active",
           joinedDate: "2024-02-15",
         },
-      ];
-      setUsers(demoUsers);
+      ]);
+    } finally {
       setLoading(false);
-    }, 500);
-  }, []);
+    }
+  };
 
-  const handleDeleteUser = () => {
+  // Refetch when role filter changes
+  useEffect(() => {
+    if (!loading) {
+      fetchUsers();
+    }
+  }, [selectedRole]);
+
+  const handleDeleteUser = async () => {
     if (selectedUser) {
-      setUsers(users.filter((u) => u.id !== selectedUser.id));
-      toast.success(`${selectedUser.name} has been removed from the system`);
-      setShowDeleteModal(false);
-      setSelectedUser(null);
+      try {
+        await adminAPI.deleteUser(selectedUser.id);
+        toast.success(`${selectedUser.name} has been removed from the system`);
+        setShowDeleteModal(false);
+        setSelectedUser(null);
+        fetchUsers(); // Refresh the list
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        toast.error(error.response?.data?.message || "Failed to delete user");
+      }
+    }
+  };
+
+  const handleActivateUser = async () => {
+    if (selectedUser) {
+      try {
+        await adminAPI.activateUser(selectedUser.id);
+        toast.success(`${selectedUser.name} has been activated`);
+        setShowActivateModal(false);
+        setSelectedUser(null);
+        fetchUsers(); // Refresh the list
+      } catch (error) {
+        console.error("Error activating user:", error);
+        toast.error(error.response?.data?.message || "Failed to activate user");
+      }
     }
   };
 
@@ -113,7 +175,10 @@ const AdminUsersPage = () => {
             Manage all users (Parents, Teachers, Students)
           </p>
         </div>
-        <button style={styles.addBtn}>
+        <button
+          style={styles.addBtn}
+          onClick={() => (window.location.href = "/register")}
+        >
           <FiUserPlus size={16} /> Add User
         </button>
       </div>
@@ -202,15 +267,28 @@ const AdminUsersPage = () => {
                             user.status === "active" ? "#d1fae5" : "#fee2e2",
                           color:
                             user.status === "active" ? "#065f46" : "#991b1b",
+                          cursor:
+                            user.status === "inactive" ? "pointer" : "default",
+                        }}
+                        onClick={() => {
+                          if (user.status === "inactive") {
+                            setSelectedUser(user);
+                            setShowActivateModal(true);
+                          }
                         }}
                       >
                         {user.status}
+                        {user.status === "inactive" && " (Click to activate)"}
                       </span>
                     </td>
                     <td style={styles.td}>{user.joinedDate}</td>
                     <td style={styles.td}>
                       <div style={styles.actionButtons}>
-                        <button style={styles.editBtn} title="Edit User">
+                        <button
+                          style={styles.editBtn}
+                          title="Edit User"
+                          onClick={() => toast.info("Edit feature coming soon")}
+                        >
                           <FiEdit2 size={16} />
                         </button>
                         <button
@@ -262,6 +340,41 @@ const AdminUsersPage = () => {
               </button>
               <button onClick={handleDeleteUser} style={styles.confirmBtn}>
                 Remove User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activate Confirmation Modal */}
+      {showActivateModal && selectedUser && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h3>Confirm Activation</h3>
+              <button
+                onClick={() => setShowActivateModal(false)}
+                style={styles.modalClose}
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              <p>
+                Are you sure you want to activate{" "}
+                <strong>{selectedUser.name}</strong>?
+              </p>
+              <p>They will be able to access the system again.</p>
+            </div>
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setShowActivateModal(false)}
+                style={styles.cancelBtn}
+              >
+                Cancel
+              </button>
+              <button onClick={handleActivateUser} style={styles.confirmBtn}>
+                Activate User
               </button>
             </div>
           </div>

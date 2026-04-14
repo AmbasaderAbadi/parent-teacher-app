@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { apiClient } from "../../../services/api/apiClient";
+import { authAPI } from "../../../services/api";
 import "../../../assets/styles/auth-pages.css";
 import {
   FiUser,
@@ -72,70 +72,82 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validation
     if (
       !formData.firstName ||
       !formData.lastName ||
       !formData.email ||
       !formData.password
-    )
-      return toast.error("Please fill in all required fields");
-    if (formData.password !== formData.confirmPassword)
-      return toast.error("Passwords do not match");
-    if (formData.password.length < 6)
-      return toast.error("Password must be at least 6 characters");
-    if (
-      selectedRole === "teacher" &&
-      (!formData.teacherId || !formData.subject)
-    )
-      return toast.error("Please fill in teacher ID and subject");
-    if (
-      selectedRole === "student" &&
-      (!formData.studentId || !formData.grade || !formData.parentEmail)
-    )
-      return toast.error("Please fill in all student details");
-    if (selectedRole === "parent" && !formData.childrenCount)
-      return toast.error("Please enter number of children");
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
 
     setLoading(true);
+
     try {
-      await apiClient.post("/users/register", {
-        role: selectedRole,
-        password: formData.password,
+      let response;
+
+      // Common required fields for ALL users
+      const baseUserData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        educationLevel: formData.qualification || formData.grade || "",
-        userId:
-          selectedRole === "teacher"
-            ? formData.teacherId
-            : selectedRole === "student"
-              ? formData.studentId
-              : formData.parentId,
-        phone: formData.phone,
         email: formData.email,
-        address: formData.address,
-        ...(selectedRole === "teacher" && {
+        phone: formData.phone,
+        address: formData.address || "Not provided", // ✅ ADD THIS - Required by backend
+        password: formData.password,
+      };
+
+      // Role-specific data preparation
+      if (selectedRole === "teacher") {
+        response = await authAPI.registerTeacher({
+          ...baseUserData,
+          userId: formData.teacherId, // ✅ ADD THIS - Required by backend
           subject: formData.subject,
           qualification: formData.qualification,
-          experience: formData.experience,
+          experience: parseInt(formData.experience) || 0,
           department: formData.department,
-        }),
-        ...(selectedRole === "parent" && {
-          childrenCount: formData.childrenCount,
-          relationship: formData.relationship,
-          occupation: formData.occupation,
-        }),
-        ...(selectedRole === "student" && {
+        });
+      } else if (selectedRole === "student") {
+        response = await authAPI.registerStudent({
+          ...baseUserData,
+          userId: formData.studentId, // ✅ ADD THIS - Required by backend
           dateOfBirth: formData.dateOfBirth,
           grade: formData.grade,
           className: formData.className,
           parentEmail: formData.parentEmail,
           parentPhone: formData.parentPhone,
-        }),
-      });
-      toast.success("Account created successfully! Please login.");
+        });
+      } else {
+        // Parent registration
+        response = await authAPI.registerParent({
+          ...baseUserData,
+          userId: `parent_${Date.now()}`, // ✅ ADD THIS - Generate a userId
+          childrenCount: parseInt(formData.childrenCount) || 0,
+          relationship: formData.relationship,
+          occupation: formData.occupation,
+        });
+      }
+
+      toast.success(
+        response.data?.message || "Account created successfully! Please login.",
+      );
       setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Registration failed");
+      console.error("Registration error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        "Registration failed. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

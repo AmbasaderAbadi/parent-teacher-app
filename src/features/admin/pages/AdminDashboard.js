@@ -11,8 +11,9 @@ import {
   FiMessageSquare,
 } from "react-icons/fi";
 import "../../../assets/styles/dashboard.css";
+import { adminAPI } from "../../../services/api";
 
-const AdminDashboard = ({ user }) => {
+const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalParents: 0,
@@ -25,6 +26,7 @@ const AdminDashboard = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [adminUser, setAdminUser] = useState(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -34,7 +36,54 @@ const AdminDashboard = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    setTimeout(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Get current user from localStorage
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        setAdminUser(JSON.parse(storedUser));
+      }
+
+      // Fetch stats from API
+      const statsResponse = await adminAPI.getStats();
+      const statsData = statsResponse.data;
+
+      // Update stats with real data
+      setStats({
+        totalUsers: statsData.totalUsers || 0,
+        totalParents: statsData.totalParents || 0,
+        totalTeachers: statsData.totalTeachers || 0,
+        totalStudents: statsData.totalStudents || 0,
+        totalAnnouncements: statsData.totalAnnouncements || 0,
+        totalEvents: statsData.totalEvents || 0,
+        totalMessages: statsData.totalMessages || 0,
+      });
+
+      // Fetch recent users for activity feed
+      const usersResponse = await adminAPI.getAllUsers();
+      const users = usersResponse.data;
+
+      // Create recent activities from recent users
+      const recentUsers = users.slice(0, 5);
+      const activities = recentUsers.map((user, index) => ({
+        id: index + 1,
+        action: `New ${user.role} registered`,
+        user:
+          `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+        date: new Date(user.createdAt || Date.now())
+          .toISOString()
+          .split("T")[0],
+        type: user.role,
+      }));
+
+      setRecentActivities(activities);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      // Fallback to mock data if API fails
       setStats({
         totalUsers: 125,
         totalParents: 45,
@@ -74,9 +123,10 @@ const AdminDashboard = ({ user }) => {
           type: "student",
         },
       ]);
+    } finally {
       setLoading(false);
-    }, 500);
-  }, []);
+    }
+  };
 
   const statsCards = [
     {
@@ -145,7 +195,8 @@ const AdminDashboard = ({ user }) => {
         <div>
           <h1 className="dashboard-title">Admin Dashboard</h1>
           <p className="dashboard-subtitle">
-            Welcome back, {user?.name || "Admin"}! 👑
+            Welcome back, {adminUser?.firstName || adminUser?.name || "Admin"}!
+            👑
           </p>
         </div>
       </div>

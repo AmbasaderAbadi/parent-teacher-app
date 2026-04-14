@@ -14,13 +14,12 @@ import {
 } from "react-icons/fi";
 import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
-// ✅ Original imports restored with correct relative paths
 import { useAuthStore } from "../../../store/authStore";
 import { useAuth } from "../../../contexts/AuthContext";
+import { messagingAPI } from "../../../services/api";
 
 const MessagesPage = () => {
   const navigate = useNavigate();
-  // ✅ Use original pattern: localStorage for user data
   const { user: storeUser } = useAuthStore();
   const { logout } = useAuth();
 
@@ -34,6 +33,8 @@ const MessagesPage = () => {
   const [isMobileView, setIsMobileView] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [user, setUser] = useState(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [socket, setSocket] = useState(null);
 
   const messagesEndRef = useRef(null);
   const chatAreaRef = useRef(null);
@@ -48,7 +49,7 @@ const MessagesPage = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ✅ Load user from localStorage (original pattern)
+  // Load user from localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -61,178 +62,249 @@ const MessagesPage = () => {
     }
   }, []);
 
-  // Demo conversations data based on user role
+  // Fetch conversations from API
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
-
-    setTimeout(() => {
-      let demoConversations = [];
-
-      if (user.role === "parent") {
-        demoConversations = [
-          {
-            id: 1,
-            name: "Ms. Sarah Johnson",
-            role: "Teacher",
-            avatar: "SJ",
-            lastMessage: "Your child is doing great in mathematics!",
-            lastMessageTime: new Date().toISOString(),
-            unreadCount: 2,
-            online: true,
-            subject: "Mathematics",
-            teacherId: "teacher123",
-          },
-          {
-            id: 2,
-            name: "Mr. Michael Chen",
-            role: "Teacher",
-            avatar: "MC",
-            lastMessage: "When is the parent-teacher meeting?",
-            lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
-            unreadCount: 0,
-            online: false,
-            subject: "Science",
-            teacherId: "teacher456",
-          },
-        ];
-      } else if (user.role === "teacher") {
-        demoConversations = [
-          {
-            id: 1,
-            name: "John Doe (Parent)",
-            role: "Parent",
-            avatar: "JD",
-            lastMessage: "How is my child doing in class?",
-            lastMessageTime: new Date().toISOString(),
-            unreadCount: 1,
-            online: true,
-            subject: "Parent of John Doe",
-            parentId: "parent123",
-          },
-          {
-            id: 2,
-            name: "Emma Smith (Parent)",
-            role: "Parent",
-            avatar: "ES",
-            lastMessage: "Thanks for the update!",
-            lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
-            unreadCount: 0,
-            online: false,
-            subject: "Parent of Emma Smith",
-            parentId: "parent456",
-          },
-        ];
-      }
-
-      setConversations(demoConversations);
-      setLoading(false);
-    }, 500);
+    fetchConversations();
   }, [user]);
 
-  // Load messages when conversation is selected
-  useEffect(() => {
-    if (!selectedConversation) return;
+  const fetchConversations = async () => {
+    setLoading(true);
+    try {
+      // This endpoint needs to be created by your backend teammate
+      // const response = await messagingAPI.getConversations();
+      // const conversationsData = response.data;
 
-    const demoMessages = [
-      {
-        id: 1,
-        senderId: selectedConversation.id,
-        senderName: selectedConversation.name,
-        content: `Hello! I wanted to discuss ${selectedConversation.subject} with you.`,
-        timestamp: new Date(Date.now() - 86400000).toISOString(),
-        read: true,
-      },
-      {
-        id: 2,
-        senderId: user?.id,
-        senderName: user?.name,
-        content: "Thank you for reaching out. How is everything going?",
-        timestamp: new Date(Date.now() - 86400000 + 3600000).toISOString(),
-        read: true,
-      },
-      {
-        id: 3,
-        senderId: selectedConversation.id,
-        senderName: selectedConversation.name,
-        content:
-          "Everything is going well! The student is showing great improvement.",
-        timestamp: new Date(Date.now() - 43200000).toISOString(),
-        read: true,
-      },
-    ];
-    setMessages(demoMessages);
+      // Mock data for demonstration
+      setTimeout(() => {
+        let demoConversations = [];
 
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+        if (user.role === "parent") {
+          demoConversations = [
+            {
+              id: 1,
+              name: "Ms. Sarah Johnson",
+              role: "Teacher",
+              avatar: "SJ",
+              lastMessage: "Your child is doing great in mathematics!",
+              lastMessageTime: new Date().toISOString(),
+              unreadCount: 2,
+              online: true,
+              subject: "Mathematics",
+              teacherId: "teacher123",
+              recipientId: "teacher123",
+            },
+            {
+              id: 2,
+              name: "Mr. Michael Chen",
+              role: "Teacher",
+              avatar: "MC",
+              lastMessage: "When is the parent-teacher meeting?",
+              lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
+              unreadCount: 0,
+              online: false,
+              subject: "Science",
+              teacherId: "teacher456",
+              recipientId: "teacher456",
+            },
+          ];
+        } else if (user.role === "teacher") {
+          demoConversations = [
+            {
+              id: 1,
+              name: "John Doe (Parent)",
+              role: "Parent",
+              avatar: "JD",
+              lastMessage: "How is my child doing in class?",
+              lastMessageTime: new Date().toISOString(),
+              unreadCount: 1,
+              online: true,
+              subject: "Parent of John Doe",
+              parentId: "parent123",
+              recipientId: "parent123",
+            },
+            {
+              id: 2,
+              name: "Emma Smith (Parent)",
+              role: "Parent",
+              avatar: "ES",
+              lastMessage: "Thanks for the update!",
+              lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
+              unreadCount: 0,
+              online: false,
+              subject: "Parent of Emma Smith",
+              parentId: "parent456",
+              recipientId: "parent456",
+            },
+          ];
+        }
 
-    if (selectedConversation.unreadCount > 0) {
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === selectedConversation.id
-            ? { ...conv, unreadCount: 0 }
-            : conv,
-        ),
-      );
+        setConversations(demoConversations);
+        setLoading(false);
+      }, 500);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      toast.error("Failed to load conversations");
+      setLoading(false);
     }
+  };
+
+  // Fetch messages when conversation is selected
+  useEffect(() => {
+    if (!selectedConversation || !user) return;
+    fetchMessages(selectedConversation.id);
   }, [selectedConversation, user]);
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  const fetchMessages = async (conversationId) => {
+    try {
+      // This endpoint needs to be created by your backend teammate
+      // const response = await messagingAPI.getMessages(conversationId);
+      // const messagesData = response.data;
 
+      // Mock messages for demonstration
+      const demoMessages = [
+        {
+          id: 1,
+          senderId: conversationId,
+          senderName: selectedConversation.name,
+          content: `Hello! I wanted to discuss ${selectedConversation.subject} with you.`,
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          read: true,
+        },
+        {
+          id: 2,
+          senderId: user?.id,
+          senderName: user?.name,
+          content: "Thank you for reaching out. How is everything going?",
+          timestamp: new Date(Date.now() - 86400000 + 3600000).toISOString(),
+          read: true,
+        },
+        {
+          id: 3,
+          senderId: conversationId,
+          senderName: selectedConversation.name,
+          content:
+            "Everything is going well! The student is showing great improvement.",
+          timestamp: new Date(Date.now() - 43200000).toISOString(),
+          read: true,
+        },
+      ];
+      setMessages(demoMessages);
+
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+
+      // Mark messages as read
+      if (selectedConversation.unreadCount > 0) {
+        markConversationAsRead(selectedConversation.id);
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      toast.error("Failed to load messages");
+    }
+  };
+
+  const markConversationAsRead = async (conversationId) => {
+    try {
+      // This endpoint needs to be created
+      // await messagingAPI.markAsRead(conversationId);
+
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv,
+        ),
+      );
+    } catch (error) {
+      console.error("Error marking as read:", error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || sendingMessage) return;
+
+    setSendingMessage(true);
+
+    const tempId = Date.now();
     const newMsg = {
-      id: messages.length + 1,
+      id: tempId,
       senderId: user?.id,
       senderName: user?.name,
       content: newMessage,
       timestamp: new Date().toISOString(),
       read: false,
+      temp: true,
     };
 
-    setMessages([...messages, newMsg]);
-    setConversations((prev) =>
-      prev.map((conv) =>
-        conv.id === selectedConversation?.id
-          ? {
-              ...conv,
-              lastMessage: newMessage,
-              lastMessageTime: new Date().toISOString(),
-            }
-          : conv,
-      ),
-    );
+    // Optimistically add message
+    setMessages((prev) => [...prev, newMsg]);
     setNewMessage("");
 
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
 
-    // Simulate reply
-    setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      const replyMsg = {
-        id: messages.length + 2,
-        senderId: selectedConversation?.id,
-        senderName: selectedConversation?.name,
-        content: "Thanks for your message! I appreciate your concern.",
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      setMessages((prev) => [...prev, replyMsg]);
+    try {
+      // Send message to API
+      // This endpoint needs to be created by your backend teammate
+      // const response = await messagingAPI.sendMessage({
+      //   conversationId: selectedConversation.id,
+      //   recipientId: selectedConversation.recipientId,
+      //   content: newMessage,
+      // });
+
+      // Replace temp message with real one
+      // const realMessage = response.data;
+      // setMessages((prev) =>
+      //   prev.map((msg) => (msg.id === tempId ? realMessage : msg))
+      // );
+
+      // Update conversation last message
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === selectedConversation?.id
             ? {
                 ...conv,
-                lastMessage: replyMsg.content,
+                lastMessage: newMessage,
                 lastMessageTime: new Date().toISOString(),
               }
             : conv,
         ),
       );
-    }, 1500);
+
+      // Simulate reply (remove in production)
+      setTyping(true);
+      setTimeout(() => {
+        setTyping(false);
+        const replyMsg = {
+          id: Date.now() + 1,
+          senderId: selectedConversation?.id,
+          senderName: selectedConversation?.name,
+          content: "Thanks for your message! I'll get back to you soon.",
+          timestamp: new Date().toISOString(),
+          read: false,
+        };
+        setMessages((prev) => [...prev, replyMsg]);
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === selectedConversation?.id
+              ? {
+                  ...conv,
+                  lastMessage: replyMsg.content,
+                  lastMessageTime: new Date().toISOString(),
+                }
+              : conv,
+          ),
+        );
+      }, 1500);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+      // Remove failed message
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -250,6 +322,7 @@ const MessagesPage = () => {
   const handleExitChat = () => {
     setSelectedConversation(null);
     setShowChat(false);
+    setMessages([]);
   };
 
   const handleChatAreaClick = (e) => {
@@ -290,7 +363,9 @@ const MessagesPage = () => {
         <p style={styles.pageSubtitle}>
           {user.role === "parent"
             ? "Chat with your child's teachers"
-            : "Chat with parents"}
+            : user.role === "teacher"
+              ? "Chat with parents"
+              : "Your conversations"}
         </p>
       </div>
 
@@ -454,6 +529,7 @@ const MessagesPage = () => {
                             boxShadow: !isOwnMessage
                               ? "0 1px 2px rgba(0,0,0,0.05)"
                               : "none",
+                            opacity: msg.temp ? 0.7 : 1,
                           }}
                         >
                           <p style={styles.messageContent}>{msg.content}</p>
@@ -517,15 +593,25 @@ const MessagesPage = () => {
                   placeholder="Type a message..."
                   style={styles.textarea}
                   rows={1}
+                  disabled={sendingMessage}
                 />
                 <button
                   onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() || sendingMessage}
                   style={{
                     ...styles.sendBtn,
-                    backgroundColor: newMessage.trim() ? "#4f46e5" : "#e5e7eb",
-                    color: newMessage.trim() ? "white" : "#9ca3af",
-                    cursor: newMessage.trim() ? "pointer" : "not-allowed",
+                    backgroundColor:
+                      newMessage.trim() && !sendingMessage
+                        ? "#4f46e5"
+                        : "#e5e7eb",
+                    color:
+                      newMessage.trim() && !sendingMessage
+                        ? "white"
+                        : "#9ca3af",
+                    cursor:
+                      newMessage.trim() && !sendingMessage
+                        ? "pointer"
+                        : "not-allowed",
                   }}
                 >
                   <FiSend size={20} />

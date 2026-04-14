@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "../../../shared/components/UI/Card";
 import { Table } from "../../../shared/components/UI/Table";
+import { gradesAPI } from "../../../services/api";
+import toast from "react-hot-toast";
 
 const MyGrades = () => {
+  const [grades, setGrades] = useState([]);
+  const [summary, setSummary] = useState({
+    average: "0%",
+    highest: "0%",
+    lowest: "0%",
+    totalSubjects: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [studentUser, setStudentUser] = useState(null);
+
   const columns = [
     { header: "Subject", accessor: "subject" },
     { header: "Score", accessor: "score" },
@@ -11,56 +23,195 @@ const MyGrades = () => {
     { header: "Teacher", accessor: "teacher" },
   ];
 
-  const grades = [
-    {
-      subject: "Mathematics",
-      score: "85%",
-      grade: "A",
-      term: "Term 1",
-      teacher: "Mr. Smith",
-    },
-    {
-      subject: "Science",
-      score: "78%",
-      grade: "B+",
-      term: "Term 1",
-      teacher: "Mrs. Johnson",
-    },
-    {
-      subject: "English",
-      score: "92%",
-      grade: "A+",
-      term: "Term 1",
-      teacher: "Ms. Davis",
-    },
-    {
-      subject: "History",
-      score: "88%",
-      grade: "A-",
-      term: "Term 1",
-      teacher: "Mr. Brown",
-    },
-    {
-      subject: "Physics",
-      score: "82%",
-      grade: "B+",
-      term: "Term 1",
-      teacher: "Dr. Wilson",
-    },
-  ];
+  useEffect(() => {
+    fetchGradesData();
+  }, []);
 
-  const summary = {
-    average: "85%",
-    highest: "92%",
-    lowest: "78%",
-    totalSubjects: 5,
+  const fetchGradesData = async () => {
+    setLoading(true);
+    try {
+      // Get current user from localStorage
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setStudentUser(userData);
+      }
+
+      // Fetch grades from API
+      const response = await gradesAPI.getMyGrades();
+      const gradesData = response.data;
+
+      // Transform API data to match component structure
+      const formattedGrades = gradesData.map((grade) => ({
+        id: grade.id || grade._id,
+        subject: grade.subject,
+        score: `${grade.score}%`,
+        grade: grade.grade || calculateGradeLetter(grade.score),
+        term: grade.term || "Term 1",
+        teacher: grade.teacherName || grade.teacher || "Staff",
+        rawScore: grade.score, // Keep raw score for calculations
+      }));
+
+      setGrades(formattedGrades);
+
+      // Calculate summary statistics
+      calculateSummary(formattedGrades);
+    } catch (error) {
+      console.error("Error fetching grades:", error);
+      toast.error("Failed to load grades data. Using demo data.");
+
+      // Fallback to demo data
+      const demoGrades = [
+        {
+          subject: "Mathematics",
+          score: "85%",
+          grade: "A",
+          term: "Term 1",
+          teacher: "Mr. Smith",
+          rawScore: 85,
+        },
+        {
+          subject: "Science",
+          score: "78%",
+          grade: "B+",
+          term: "Term 1",
+          teacher: "Mrs. Johnson",
+          rawScore: 78,
+        },
+        {
+          subject: "English",
+          score: "92%",
+          grade: "A+",
+          term: "Term 1",
+          teacher: "Ms. Davis",
+          rawScore: 92,
+        },
+        {
+          subject: "History",
+          score: "88%",
+          grade: "A-",
+          term: "Term 1",
+          teacher: "Mr. Brown",
+          rawScore: 88,
+        },
+        {
+          subject: "Physics",
+          score: "82%",
+          grade: "B+",
+          term: "Term 1",
+          teacher: "Dr. Wilson",
+          rawScore: 82,
+        },
+      ];
+
+      setGrades(demoGrades);
+      calculateSummary(demoGrades);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const calculateGradeLetter = (score) => {
+    if (score >= 90) return "A+";
+    if (score >= 85) return "A";
+    if (score >= 80) return "A-";
+    if (score >= 75) return "B+";
+    if (score >= 70) return "B";
+    if (score >= 65) return "B-";
+    if (score >= 60) return "C+";
+    if (score >= 55) return "C";
+    if (score >= 50) return "C-";
+    return "F";
+  };
+
+  const calculateSummary = (gradesData) => {
+    if (gradesData.length === 0) {
+      setSummary({
+        average: "0%",
+        highest: "0%",
+        lowest: "0%",
+        totalSubjects: 0,
+      });
+      return;
+    }
+
+    const scores = gradesData.map((g) => g.rawScore || parseInt(g.score));
+    const average = Math.round(
+      scores.reduce((a, b) => a + b, 0) / scores.length,
+    );
+    const highest = Math.max(...scores);
+    const lowest = Math.min(...scores);
+
+    setSummary({
+      average: `${average}%`,
+      highest: `${highest}%`,
+      lowest: `${lowest}%`,
+      totalSubjects: gradesData.length,
+    });
+  };
+
+  // Optional: Add function to export grades
+  const handleExportGrades = () => {
+    const csvContent = [
+      ["Subject", "Score", "Grade", "Term", "Teacher"],
+      ...grades.map((grade) => [
+        grade.subject,
+        grade.score,
+        grade.grade,
+        grade.term,
+        grade.teacher,
+      ]),
+      [],
+      ["SUMMARY"],
+      ["Average Grade", summary.average],
+      ["Highest Score", summary.highest],
+      ["Lowest Score", summary.lowest],
+      ["Total Subjects", summary.totalSubjects],
+    ];
+
+    const csvString = csvContent.map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csvString], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `grades_report_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.success("Grades exported successfully!");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="loading-spinner mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading grades data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">My Grades</h1>
-        <p className="text-gray-600">View your academic performance</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">My Grades</h1>
+          <p className="text-gray-600">
+            View your academic performance for{" "}
+            {studentUser?.firstName || "Student"}
+          </p>
+        </div>
+        {grades.length > 0 && (
+          <button
+            onClick={handleExportGrades}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Export Grades
+          </button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -101,7 +252,16 @@ const MyGrades = () => {
 
       {/* Grades Table */}
       <Card>
-        <Table columns={columns} data={grades} />
+        {grades.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>No grades available yet.</p>
+            <p className="text-sm mt-2">
+              Grades will appear here once teachers add them.
+            </p>
+          </div>
+        ) : (
+          <Table columns={columns} data={grades} />
+        )}
       </Card>
     </div>
   );

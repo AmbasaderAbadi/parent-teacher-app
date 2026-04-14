@@ -9,7 +9,7 @@ import {
 import { AuthProvider } from "./contexts/AuthContext";
 import { SocketProvider } from "./contexts/SocketContext";
 import { MainLayout } from "./layouts/MainLayout";
-import { SimpleLayout } from "./layouts/SimpleLayout";
+import { authAPI } from "./services/api";
 
 // Public Pages
 import HomePage from "./features/home/pages/HomePage";
@@ -51,90 +51,148 @@ import AdminUsersPage from "./features/admin/pages/AdminUsersPage";
 import AdminStatsPage from "./features/admin/pages/AdminStatsPage";
 
 function App() {
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
+    const validateSession = async () => {
+      const token = localStorage.getItem("accessToken");
+      const storedUser = localStorage.getItem("user");
 
-    if (storedUser && token) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      } catch (e) {
-        console.error("Error parsing user:", e);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+      if (!token || !storedUser) {
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+
+      try {
+        const response = await authAPI.getProfile();
+        const userData = response.data;
+
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("userRole", userData.role);
+      } catch (error) {
+        console.warn("⚠️ Profile fetch failed, keeping existing session");
+
+        // ❌ DO NOT CLEAR STORAGE
+        // Instead just keep existing user
+      }
+
+      setLoading(false);
+    };
+
+    validateSession();
   }, []);
 
+  // ✅ Protected Route
   const ProtectedRoute = ({ children, allowedRoles }) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("accessToken");
     const storedUser = localStorage.getItem("user");
 
-    if (!token || !storedUser) {
+    if (!token) {
       return <Navigate to="/login" replace />;
     }
 
+    let userData = null;
+
     try {
-      const userData = JSON.parse(storedUser);
-      if (allowedRoles && !allowedRoles.includes(userData.role)) {
-        return <Navigate to="/" replace />;
-      }
-    } catch (e) {
-      return <Navigate to="/login" replace />;
+      userData = storedUser ? JSON.parse(storedUser) : null;
+    } catch {
+      console.error("Invalid user JSON");
+    }
+
+    // Allow access if token exists (even if profile failed)
+    if (!userData) {
+      return children ? children : <Outlet />;
+    }
+
+    if (allowedRoles && !allowedRoles.includes(userData.role)) {
+      const roleDashboard = {
+        parent: "/parent-dashboard",
+        teacher: "/teacher-dashboard",
+        student: "/student-dashboard",
+        admin: "/admin-dashboard",
+      };
+      return <Navigate to={roleDashboard[userData.role]} replace />;
     }
 
     return children ? children : <Outlet />;
   };
 
-  // Helper to get role-specific component
-  const getRoleComponent = (componentMap) => {
-    const role = user?.role;
-    return componentMap[role] || componentMap.default;
+  // ✅ Role Routers (FIXED)
+  const DashboardRouter = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+    switch (user.role) {
+      case "parent":
+        return <ParentDashboard />;
+      case "teacher":
+        return <TeacherDashboard />;
+      case "admin":
+        return <AdminDashboard />;
+      default:
+        return <StudentDashboard />;
+    }
   };
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            border: "4px solid #e5e7eb",
-            borderTopColor: "#4f46e5",
-            borderRadius: "50%",
-            animation: "spin 0.8s linear infinite",
-          }}
-        ></div>
-      </div>
+  const MaterialsRouter = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+    switch (user.role) {
+      case "teacher":
+        return <TeacherMaterialsPage />;
+      case "student":
+        return <StudentMaterialsPage />;
+      case "parent":
+        return <ParentMaterialsPage />;
+      default:
+        return <Navigate to="/dashboard" replace />;
+    }
+  };
+
+  const HomeworkRouter = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+    switch (user.role) {
+      case "teacher":
+        return <TeacherHomeworkPage />;
+      case "student":
+        return <StudentHomeworkPage />;
+      case "parent":
+        return <ParentHomeworkPage />;
+      default:
+        return <Navigate to="/dashboard" replace />;
+    }
+  };
+
+  const AnnouncementsRouter = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user.role === "admin" ? (
+      <AdminAnnouncementsPage />
+    ) : (
+      <UserAnnouncementsPage />
     );
-  }
+  };
+
+  const CalendarRouter = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user.role === "admin" ? <AdminCalendarPage /> : <UserCalendarPage />;
+  };
+
+  if (loading) return <div className="loading-screen">Loading...</div>;
 
   return (
     <BrowserRouter>
       <AuthProvider>
         <SocketProvider>
           <Routes>
-            {/* Public Routes */}
+            {/* Public */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage setUser={setUser} />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<ContactUs />} />
 
-            {/* Protected Routes with MainLayout */}
+            {/* Protected */}
             <Route
               element={
                 <ProtectedRoute
@@ -143,50 +201,26 @@ function App() {
               }
             >
               <Route element={<MainLayout />}>
-                {/* Dashboard Routes */}
-                <Route
-                  path="/parent-dashboard"
-                  element={<ParentDashboard user={user} />}
-                />
+                {/* Dashboards */}
+                <Route path="/parent-dashboard" element={<ParentDashboard />} />
                 <Route
                   path="/teacher-dashboard"
-                  element={<TeacherDashboard user={user} />}
+                  element={<TeacherDashboard />}
                 />
                 <Route
                   path="/student-dashboard"
-                  element={<StudentDashboard user={user} />}
+                  element={<StudentDashboard />}
                 />
-                <Route
-                  path="/admin-dashboard"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminDashboard user={user} />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
-                {/* /dashboard renders role-specific dashboard */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    user?.role === "parent" ? (
-                      <ParentDashboard user={user} />
-                    ) : user?.role === "teacher" ? (
-                      <TeacherDashboard user={user} />
-                    ) : user?.role === "admin" ? (
-                      <AdminDashboard user={user} />
-                    ) : (
-                      <StudentDashboard user={user} />
-                    )
-                  }
-                />
+                <Route path="/dashboard" element={<DashboardRouter />} />
 
-                {/* Admin Routes */}
+                {/* Admin */}
                 <Route
                   path="/admin/users"
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminUsersPage user={user} />
+                      <AdminUsersPage />
                     </ProtectedRoute>
                   }
                 />
@@ -194,25 +228,14 @@ function App() {
                   path="/admin/stats"
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminStatsPage user={user} />
+                      <AdminStatsPage />
                     </ProtectedRoute>
                   }
                 />
 
-                {/* Messages - Only for parents and teachers */}
-                <Route
-                  path="/messages"
-                  element={
-                    <ProtectedRoute allowedRoles={["parent", "teacher"]}>
-                      <MessagesPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Profile - All roles */}
-                <Route path="/profile" element={<ProfilePage user={user} />} />
-
-                {/* Children Management - Only parents */}
+                {/* Features */}
+                <Route path="/messages" element={<MessagesPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route
                   path="/parent/children"
                   element={
@@ -221,8 +244,6 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-
-                {/* Class Management - Only teachers */}
                 <Route
                   path="/teacher/class"
                   element={
@@ -231,114 +252,28 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-
-                {/* Student Profile - Parents and Teachers */}
                 <Route
-                  path="/student-profile"
+                  path="/student-profile/:studentId?"
                   element={
                     <ProtectedRoute allowedRoles={["parent", "teacher"]}>
-                      <StudentProfilePage user={user} />
+                      <StudentProfilePage />
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/student/grades" element={<MyGrades />} />
+                <Route path="/student/attendance" element={<MyAttendance />} />
 
-                {/* My Grades & Attendance - Only students */}
-                <Route
-                  path="/student/grades"
-                  element={
-                    <ProtectedRoute allowedRoles={["student"]}>
-                      <MyGrades />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/student/attendance"
-                  element={
-                    <ProtectedRoute allowedRoles={["student"]}>
-                      <MyAttendance />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Materials - Role-specific */}
-                <Route
-                  path="/materials"
-                  element={
-                    user?.role === "teacher" ? (
-                      <ProtectedRoute allowedRoles={["teacher"]}>
-                        <TeacherMaterialsPage user={user} />
-                      </ProtectedRoute>
-                    ) : user?.role === "student" ? (
-                      <ProtectedRoute allowedRoles={["student"]}>
-                        <StudentMaterialsPage user={user} />
-                      </ProtectedRoute>
-                    ) : user?.role === "parent" ? (
-                      <ProtectedRoute allowedRoles={["parent"]}>
-                        <ParentMaterialsPage user={user} />
-                      </ProtectedRoute>
-                    ) : null
-                  }
-                />
-
-                {/* Homework - Role-specific */}
-                <Route
-                  path="/homework"
-                  element={
-                    user?.role === "teacher" ? (
-                      <ProtectedRoute allowedRoles={["teacher"]}>
-                        <TeacherHomeworkPage user={user} />
-                      </ProtectedRoute>
-                    ) : user?.role === "student" ? (
-                      <ProtectedRoute allowedRoles={["student"]}>
-                        <StudentHomeworkPage user={user} />
-                      </ProtectedRoute>
-                    ) : user?.role === "parent" ? (
-                      <ProtectedRoute allowedRoles={["parent"]}>
-                        <ParentHomeworkPage user={user} />
-                      </ProtectedRoute>
-                    ) : null
-                  }
-                />
-
-                {/* Announcements - Role-specific */}
+                {/* Role Based */}
+                <Route path="/materials" element={<MaterialsRouter />} />
+                <Route path="/homework" element={<HomeworkRouter />} />
                 <Route
                   path="/announcements"
-                  element={
-                    user?.role === "admin" ? (
-                      <ProtectedRoute allowedRoles={["admin"]}>
-                        <AdminAnnouncementsPage user={user} />
-                      </ProtectedRoute>
-                    ) : (
-                      <ProtectedRoute
-                        allowedRoles={["parent", "teacher", "student"]}
-                      >
-                        <UserAnnouncementsPage user={user} />
-                      </ProtectedRoute>
-                    )
-                  }
+                  element={<AnnouncementsRouter />}
                 />
-
-                {/* Calendar - Role-specific */}
-                <Route
-                  path="/calendar"
-                  element={
-                    user?.role === "admin" ? (
-                      <ProtectedRoute allowedRoles={["admin"]}>
-                        <AdminCalendarPage user={user} />
-                      </ProtectedRoute>
-                    ) : (
-                      <ProtectedRoute
-                        allowedRoles={["parent", "teacher", "student"]}
-                      >
-                        <UserCalendarPage user={user} />
-                      </ProtectedRoute>
-                    )
-                  }
-                />
+                <Route path="/calendar" element={<CalendarRouter />} />
               </Route>
             </Route>
 
-            {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </SocketProvider>

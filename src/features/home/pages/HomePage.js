@@ -13,6 +13,7 @@ import {
   FiAward,
   FiShield,
 } from "react-icons/fi";
+import { adminAPI } from "../../../services/api";
 
 const HomePage = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -30,37 +31,56 @@ const HomePage = () => {
     };
     window.addEventListener("scroll", handleScroll);
 
-    // TODO: Replace with actual API call when backend is ready
-    // For now, using mock data that will be replaced later
-    const fetchStats = async () => {
-      try {
-        // Replace this with actual API call
-        // const response = await apiService.getStats();
-        // setStats(response.data);
-
-        // Mock data - will be replaced when backend is ready
-        setTimeout(() => {
-          setStats({
-            activeUsers: 10234,
-            partnerSchools: 523,
-            messagesSent: 52341,
-            satisfactionRate: 98,
-          });
-          setLoading(false);
-        }, 500);
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-        setLoading(false);
-      }
-    };
-
     fetchStats();
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const fetchStats = async () => {
+    try {
+      // Fetch statistics from admin API
+      const response = await adminAPI.getStats();
+      const statsData = response.data;
+
+      setStats({
+        activeUsers: statsData.totalUsers || 10234,
+        partnerSchools: statsData.totalSchools || 523,
+        messagesSent: statsData.totalMessages || 52341,
+        satisfactionRate: statsData.satisfactionRate || 98,
+      });
+    } catch (error) {
+      console.error("Error fetching stats from API:", error);
+
+      // Fallback to localStorage or demo data
+      const storedStats = localStorage.getItem("homepageStats");
+      if (storedStats) {
+        try {
+          const parsedStats = JSON.parse(storedStats);
+          setStats(parsedStats);
+        } catch (e) {
+          console.error("Error parsing stored stats:", e);
+          setDemoStats();
+        }
+      } else {
+        setDemoStats();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setDemoStats = () => {
+    setStats({
+      activeUsers: 10234,
+      partnerSchools: 523,
+      messagesSent: 52341,
+      satisfactionRate: 98,
+    });
+  };
+
   // Format numbers with commas
   const formatNumber = (num) => {
+    if (!num && num !== 0) return "0";
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
@@ -423,6 +443,51 @@ const HomePage = () => {
           </p>
         </div>
       </footer>
+
+      <style>{`
+        button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .feature-card:hover, .testimonial-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        a:hover {
+          color: #667eea !important;
+        }
+        @media (max-width: 768px) {
+          .nav-links {
+            display: none;
+          }
+          .hero-title {
+            font-size: 32px !important;
+          }
+          .section-title {
+            font-size: 28px !important;
+          }
+          .features-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .testimonials-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .call-to-action {
+            padding: 40px 20px !important;
+            margin: 40px 16px !important;
+          }
+          .cta-title {
+            font-size: 24px !important;
+          }
+          .footer-content {
+            grid-template-columns: 1fr !important;
+            text-align: center;
+          }
+        }
+      `}</style>
     </div>
   );
 };
@@ -791,21 +856,5 @@ const styles = {
     color: "#a0aec0",
   },
 };
-
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
-  .feature-card:hover, .testimonial-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-  }
-  a:hover {
-    color: #667eea !important;
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default HomePage;

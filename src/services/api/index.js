@@ -1,0 +1,10 @@
+export { default as apiClient } from "./client";
+export { authAPI } from "./auth";
+export { adminAPI } from "./admin";
+export { gradesAPI } from "./grades";
+export { attendanceAPI } from "./attendance";
+export { homeworkAPI } from "./homework";
+export { materialsAPI } from "./materials";
+export { calendarAPI } from "./calendar";
+export { announcementsAPI } from "./announcements";
+export { studentsAPI } from "./students";

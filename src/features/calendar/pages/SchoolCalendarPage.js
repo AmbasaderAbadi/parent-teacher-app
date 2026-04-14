@@ -10,6 +10,7 @@ import {
   FiChevronRight,
   FiPlus,
   FiTrash2,
+  FiEdit2,
 } from "react-icons/fi";
 import {
   format,
@@ -22,12 +23,16 @@ import {
   isToday,
 } from "date-fns";
 import toast from "react-hot-toast";
+import { calendarAPI } from "../../../services/api";
 
-const SchoolCalendarPage = ({ user }) => {
+const SchoolCalendarPage = ({ user: propUser }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventForm, setShowEventForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [user, setUser] = useState(null);
   const [newEvent, setNewEvent] = useState({
     title: "",
     date: format(new Date(), "yyyy-MM-dd"),
@@ -38,62 +43,95 @@ const SchoolCalendarPage = ({ user }) => {
   });
 
   useEffect(() => {
-    // Demo events
-    const demoEvents = [
-      {
-        id: 1,
-        title: "Parent-Teacher Meeting",
-        date: "2024-04-15",
-        time: "2:00 PM - 5:00 PM",
-        location: "School Auditorium",
-        description:
-          "Annual parent-teacher meeting to discuss student progress",
-        type: "meeting",
-        attendees: "All parents and teachers",
-      },
-      {
-        id: 2,
-        title: "Spring Holiday",
-        date: "2024-04-10",
-        time: "All Day",
-        location: "",
-        description: "School closed for spring break",
-        type: "holiday",
-        attendees: "All students",
-      },
-      {
-        id: 3,
-        title: "Science Exhibition",
-        date: "2024-04-20",
-        time: "9:00 AM - 3:00 PM",
-        location: "Science Lab",
-        description: "Annual science exhibition showcasing student projects",
-        type: "event",
-        attendees: "All students and parents",
-      },
-      {
-        id: 4,
-        title: "Term 2 Exams",
-        date: "2024-04-25",
-        time: "8:00 AM - 12:00 PM",
-        location: "Various Classrooms",
-        description: "Term 2 final examinations",
-        type: "exam",
-        attendees: "All students",
-      },
-      {
-        id: 5,
-        title: "Sports Day",
-        date: "2024-05-05",
-        time: "8:00 AM - 4:00 PM",
-        location: "School Ground",
-        description: "Annual sports day celebration",
-        type: "event",
-        attendees: "All students",
-      },
-    ];
-    setEvents(demoEvents);
+    // Get user from localStorage
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (e) {
+        console.error("Error parsing user:", e);
+      }
+    } else if (propUser) {
+      setUser(propUser);
+    }
+  }, [propUser]);
+
+  useEffect(() => {
+    fetchEvents();
   }, []);
+
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+      let response;
+
+      // Different endpoints based on user role
+      if (user?.role === "admin") {
+        response = await calendarAPI.getAllEvents();
+      } else {
+        response = await calendarAPI.getAllEvents(); // Get all events for regular users
+      }
+
+      const eventsData = response.data;
+
+      // Transform API data to match component structure
+      const formattedEvents = eventsData.map((event) => ({
+        id: event.id || event._id,
+        title: event.title,
+        description: event.description,
+        date: event.date?.split("T")[0] || event.date,
+        time: event.time || "All Day",
+        location: event.location || "",
+        type: event.type || "academic",
+        attendees: event.attendees || "All students and parents",
+        createdAt: event.createdAt,
+      }));
+
+      setEvents(formattedEvents);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      toast.error("Failed to load calendar events. Using demo data.");
+
+      // Fallback to demo data
+      const demoEvents = [
+        {
+          id: 1,
+          title: "Parent-Teacher Meeting",
+          date: format(new Date(), "yyyy-MM-dd"),
+          time: "2:00 PM - 5:00 PM",
+          location: "School Auditorium",
+          description:
+            "Annual parent-teacher meeting to discuss student progress",
+          type: "meeting",
+          attendees: "All parents and teachers",
+        },
+        {
+          id: 2,
+          title: "Spring Holiday",
+          date: format(addMonths(new Date(), 1), "yyyy-MM-dd"),
+          time: "All Day",
+          location: "",
+          description: "School closed for spring break",
+          type: "holiday",
+          attendees: "All students",
+        },
+        {
+          id: 3,
+          title: "Science Exhibition",
+          date: format(addMonths(new Date(), 2), "yyyy-MM-dd"),
+          time: "9:00 AM - 3:00 PM",
+          location: "Science Lab",
+          description: "Annual science exhibition showcasing student projects",
+          type: "event",
+          attendees: "All students and parents",
+        },
+      ];
+      setEvents(demoEvents);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDaysInMonth = () => {
     const start = startOfMonth(currentDate);
@@ -139,20 +177,103 @@ const SchoolCalendarPage = ({ user }) => {
     }
   };
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.title) {
       toast.error("Please enter event title");
       return;
     }
 
-    const event = {
-      id: Date.now(),
-      ...newEvent,
-      attendees: "All students and parents",
-    };
+    try {
+      const eventData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        date: newEvent.date,
+        time: newEvent.time,
+        location: newEvent.location,
+        type: newEvent.type,
+        attendees: "All students and parents",
+      };
 
-    setEvents([...events, event]);
-    setShowEventForm(false);
+      const response = await calendarAPI.createEvent(eventData);
+      const newEventItem = response.data;
+
+      const event = {
+        id: newEventItem.id || newEventItem._id,
+        ...newEvent,
+        attendees: "All students and parents",
+      };
+
+      setEvents([...events, event]);
+      setShowEventForm(false);
+      resetForm();
+      toast.success("Event added to calendar!");
+    } catch (error) {
+      console.error("Error adding event:", error);
+      toast.error(error.response?.data?.message || "Failed to add event");
+    }
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent || !newEvent.title) {
+      toast.error("Please enter event title");
+      return;
+    }
+
+    try {
+      const eventData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        date: newEvent.date,
+        time: newEvent.time,
+        location: newEvent.location,
+        type: newEvent.type,
+      };
+
+      await calendarAPI.updateEvent(editingEvent.id, eventData);
+
+      const updatedEvents = events.map((event) =>
+        event.id === editingEvent.id ? { ...event, ...eventData } : event,
+      );
+
+      setEvents(updatedEvents);
+      setShowEventForm(false);
+      setEditingEvent(null);
+      resetForm();
+      toast.success("Event updated successfully!");
+    } catch (error) {
+      console.error("Error updating event:", error);
+      toast.error(error.response?.data?.message || "Failed to update event");
+    }
+  };
+
+  const handleDeleteEvent = async (id) => {
+    if (window.confirm("Are you sure you want to delete this event?")) {
+      try {
+        await calendarAPI.deleteEvent(id);
+        setEvents(events.filter((e) => e.id !== id));
+        setSelectedEvent(null);
+        toast.success("Event deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting event:", error);
+        toast.error(error.response?.data?.message || "Failed to delete event");
+      }
+    }
+  };
+
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setNewEvent({
+      title: event.title,
+      date: event.date,
+      time: event.time || "10:00 AM",
+      location: event.location || "",
+      description: event.description || "",
+      type: event.type || "academic",
+    });
+    setShowEventForm(true);
+  };
+
+  const resetForm = () => {
     setNewEvent({
       title: "",
       date: format(new Date(), "yyyy-MM-dd"),
@@ -161,20 +282,36 @@ const SchoolCalendarPage = ({ user }) => {
       description: "",
       type: "academic",
     });
-    toast.success("Event added to calendar!");
-  };
-
-  const handleDeleteEvent = (id) => {
-    setEvents(events.filter((e) => e.id !== id));
-    setSelectedEvent(null);
-    toast.success("Event deleted");
   };
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
 
   const days = getDaysInMonth();
-  const isTeacher = user?.role === "teacher";
+  const isTeacher = user?.role === "teacher" || user?.role === "admin";
+
+  if (loading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div className="loading-spinner"></div>
+        <p>Loading calendar events...</p>
+        <style>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -187,7 +324,11 @@ const SchoolCalendarPage = ({ user }) => {
         </div>
         {isTeacher && (
           <button
-            onClick={() => setShowEventForm(!showEventForm)}
+            onClick={() => {
+              setEditingEvent(null);
+              resetForm();
+              setShowEventForm(!showEventForm);
+            }}
             style={styles.addBtn}
           >
             <FiPlus size={18} /> Add Event
@@ -202,7 +343,9 @@ const SchoolCalendarPage = ({ user }) => {
           animate={{ opacity: 1, y: 0 }}
           style={styles.formCard}
         >
-          <h3 style={styles.formTitle}>Add New Event</h3>
+          <h3 style={styles.formTitle}>
+            {editingEvent ? "Edit Event" : "Add New Event"}
+          </h3>
           <input
             type="text"
             placeholder="Event Title *"
@@ -261,13 +404,20 @@ const SchoolCalendarPage = ({ user }) => {
           />
           <div style={styles.formActions}>
             <button
-              onClick={() => setShowEventForm(false)}
+              onClick={() => {
+                setShowEventForm(false);
+                setEditingEvent(null);
+                resetForm();
+              }}
               style={styles.cancelBtn}
             >
               Cancel
             </button>
-            <button onClick={handleAddEvent} style={styles.submitBtn}>
-              Add Event
+            <button
+              onClick={editingEvent ? handleUpdateEvent : handleAddEvent}
+              style={styles.submitBtn}
+            >
+              {editingEvent ? "Update Event" : "Add Event"}
             </button>
           </div>
         </motion.div>
@@ -348,14 +498,29 @@ const SchoolCalendarPage = ({ user }) => {
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h3>{selectedEvent.title}</h3>
-              {isTeacher && (
-                <button
-                  onClick={() => handleDeleteEvent(selectedEvent.id)}
-                  style={styles.deleteEventBtn}
-                >
-                  <FiTrash2 size={16} />
-                </button>
-              )}
+              <div style={styles.modalActions}>
+                {isTeacher && (
+                  <button
+                    onClick={() => {
+                      handleEditEvent(selectedEvent);
+                      setSelectedEvent(null);
+                    }}
+                    style={styles.editEventBtn}
+                    title="Edit Event"
+                  >
+                    <FiEdit2 size={16} />
+                  </button>
+                )}
+                {isTeacher && (
+                  <button
+                    onClick={() => handleDeleteEvent(selectedEvent.id)}
+                    style={styles.deleteEventBtn}
+                    title="Delete Event"
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
+                )}
+              </div>
             </div>
             <div style={styles.modalBody}>
               <p>
@@ -389,6 +554,21 @@ const SchoolCalendarPage = ({ user }) => {
           </div>
         </motion.div>
       )}
+
+      <style>{`
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #e5e7eb;
+          border-top-color: #4f46e5;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin-bottom: 12px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -428,6 +608,14 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
+  loadingContainer: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "400px",
   },
   formCard: {
     backgroundColor: "white",
@@ -447,6 +635,7 @@ const styles = {
     border: "1px solid #e5e7eb",
     borderRadius: "8px",
     marginBottom: "12px",
+    fontSize: "14px",
   },
   textarea: {
     width: "100%",
@@ -456,6 +645,7 @@ const styles = {
     marginBottom: "12px",
     fontFamily: "inherit",
     resize: "vertical",
+    fontSize: "14px",
   },
   formRow: {
     display: "grid",
@@ -470,6 +660,7 @@ const styles = {
     borderRadius: "8px",
     marginBottom: "12px",
     backgroundColor: "white",
+    fontSize: "14px",
   },
   formActions: {
     display: "flex",
@@ -483,6 +674,7 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
+    transition: "all 0.2s ease",
   },
   submitBtn: {
     padding: "10px 20px",
@@ -491,6 +683,7 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
+    transition: "all 0.2s ease",
   },
   calendarNav: {
     display: "flex",
@@ -504,6 +697,7 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
+    transition: "all 0.2s ease",
   },
   monthTitle: {
     fontSize: "20px",
@@ -532,6 +726,7 @@ const styles = {
     border: "1px solid #e5e7eb",
     borderRadius: "8px",
     backgroundColor: "white",
+    transition: "box-shadow 0.2s ease",
   },
   otherMonthDay: {
     backgroundColor: "#f9fafb",
@@ -560,6 +755,7 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     borderLeft: "3px solid",
+    transition: "transform 0.2s ease",
   },
   moreEvents: {
     fontSize: "10px",
@@ -591,6 +787,19 @@ const styles = {
     alignItems: "center",
     marginBottom: "16px",
   },
+  modalActions: {
+    display: "flex",
+    gap: "8px",
+  },
+  editEventBtn: {
+    padding: "6px",
+    backgroundColor: "#eef2ff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    color: "#4f46e5",
+    transition: "all 0.2s ease",
+  },
   deleteEventBtn: {
     padding: "6px",
     backgroundColor: "#fee2e2",
@@ -598,6 +807,7 @@ const styles = {
     borderRadius: "6px",
     cursor: "pointer",
     color: "#ef4444",
+    transition: "all 0.2s ease",
   },
   modalBody: {
     display: "flex",
@@ -618,6 +828,7 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
+    transition: "all 0.2s ease",
   },
 };
 
