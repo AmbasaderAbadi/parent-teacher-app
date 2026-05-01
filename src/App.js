@@ -7,6 +7,7 @@ import {
   Outlet,
 } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { SocketProvider } from "./contexts/SocketContext";
 import { MainLayout } from "./layouts/MainLayout";
 import { authAPI } from "./services/api";
@@ -16,6 +17,7 @@ import HomePage from "./features/home/pages/HomePage";
 import LoginPage from "./features/auth/pages/LoginPage";
 import RegisterPage from "./features/auth/pages/RegisterPage";
 import { ForgotPasswordPage } from "./features/auth/pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./features/auth/pages/ResetPasswordPage";
 import AboutUs from "./features/home/pages/AboutUs";
 import ContactUs from "./features/home/pages/ContactUs";
 
@@ -28,6 +30,8 @@ import AdminDashboard from "./features/admin/pages/AdminDashboard";
 // Feature Pages
 import MessagesPage from "./features/messaging/pages/MessagesPage";
 import { ProfilePage } from "./features/profile/pages/ProfilePage";
+import { PreferencesPage } from "./features/profile/pages/PreferencesPage";
+import { ChangePasswordPage } from "./features/auth/pages/ChangePasswordPage";
 import ChildrenManagement from "./features/parents/pages/ChildrenManagement";
 import ClassManagement from "./features/teachers/pages/ClassManagement";
 import MyGrades from "./features/students/pages/MyGrades";
@@ -42,9 +46,12 @@ import TeacherHomeworkPage from "./features/homework/pages/TeacherHomeworkPage";
 import StudentHomeworkPage from "./features/homework/pages/StudentHomeworkPage";
 import ParentHomeworkPage from "./features/homework/pages/ParentHomeworkPage";
 import AdminAnnouncementsPage from "./features/announcements/pages/AdminAnnouncementsPage";
+import TeacherAnnouncementsPage from "./features/announcements/pages/TeacherAnnouncementsPage";
 import UserAnnouncementsPage from "./features/announcements/pages/UserAnnouncementsPage";
 import AdminCalendarPage from "./features/calendar/pages/AdminCalendarPage";
 import UserCalendarPage from "./features/calendar/pages/UserCalendarPage";
+import TeacherProfilePage from "./features/teachers/pages/TeacherProfilePage";
+import NotificationsPage from "./features/notifications/pages/NotificationsPage";
 
 // Admin Pages
 import AdminUsersPage from "./features/admin/pages/AdminUsersPage";
@@ -71,9 +78,6 @@ function App() {
         localStorage.setItem("userRole", userData.role);
       } catch (error) {
         console.warn("⚠️ Profile fetch failed, keeping existing session");
-
-        // ❌ DO NOT CLEAR STORAGE
-        // Instead just keep existing user
       }
 
       setLoading(false);
@@ -82,7 +86,6 @@ function App() {
     validateSession();
   }, []);
 
-  // ✅ Protected Route
   const ProtectedRoute = ({ children, allowedRoles }) => {
     const token = localStorage.getItem("accessToken");
     const storedUser = localStorage.getItem("user");
@@ -99,7 +102,6 @@ function App() {
       console.error("Invalid user JSON");
     }
 
-    // Allow access if token exists (even if profile failed)
     if (!userData) {
       return children ? children : <Outlet />;
     }
@@ -117,7 +119,6 @@ function App() {
     return children ? children : <Outlet />;
   };
 
-  // ✅ Role Routers (FIXED)
   const DashboardRouter = () => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -165,13 +166,15 @@ function App() {
 
   const AnnouncementsRouter = () => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    return user.role === "admin" ? (
-      <AdminAnnouncementsPage />
-    ) : (
-      <UserAnnouncementsPage />
-    );
-  };
 
+    if (user.role === "admin") {
+      return <AdminAnnouncementsPage />;
+    }
+    if (user.role === "teacher") {
+      return <TeacherAnnouncementsPage />;
+    }
+    return <UserAnnouncementsPage />;
+  };
   const CalendarRouter = () => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     return user.role === "admin" ? <AdminCalendarPage /> : <UserCalendarPage />;
@@ -182,101 +185,131 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <SocketProvider>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="/contact" element={<ContactUs />} />
+        <NotificationProvider>
+          <SocketProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="/contact" element={<ContactUs />} />
 
-            {/* Protected */}
-            <Route
-              element={
-                <ProtectedRoute
-                  allowedRoles={["parent", "teacher", "student", "admin"]}
-                />
-              }
-            >
-              <Route element={<MainLayout />}>
-                {/* Dashboards */}
-                <Route path="/parent-dashboard" element={<ParentDashboard />} />
+              {/* Protected Routes */}
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["parent", "teacher", "student", "admin"]}
+                  />
+                }
+              >
                 <Route
-                  path="/teacher-dashboard"
-                  element={<TeacherDashboard />}
+                  path="/teacher/profile"
+                  element={<TeacherProfilePage />}
                 />
-                <Route
-                  path="/student-dashboard"
-                  element={<StudentDashboard />}
-                />
-                <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
 
-                <Route path="/dashboard" element={<DashboardRouter />} />
+                <Route element={<MainLayout />}>
+                  {/* Dashboards */}
+                  <Route
+                    path="/parent-dashboard"
+                    element={<ParentDashboard />}
+                  />
+                  <Route
+                    path="/teacher-dashboard"
+                    element={<TeacherDashboard />}
+                  />
+                  <Route
+                    path="/student-dashboard"
+                    element={<StudentDashboard />}
+                  />
+                  <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                  <Route path="/dashboard" element={<DashboardRouter />} />
 
-                {/* Admin */}
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminUsersPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/stats"
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminStatsPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Admin Routes */}
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <AdminUsersPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/stats"
+                    element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <AdminStatsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Features */}
-                <Route path="/messages" element={<MessagesPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route
-                  path="/parent/children"
-                  element={
-                    <ProtectedRoute allowedRoles={["parent"]}>
-                      <ChildrenManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/teacher/class"
-                  element={
-                    <ProtectedRoute allowedRoles={["teacher"]}>
-                      <ClassManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/student-profile/:studentId?"
-                  element={
-                    <ProtectedRoute allowedRoles={["parent", "teacher"]}>
-                      <StudentProfilePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/student/grades" element={<MyGrades />} />
-                <Route path="/student/attendance" element={<MyAttendance />} />
+                  {/* Feature Routes - Settings */}
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route
+                    path="/settings/preferences"
+                    element={<PreferencesPage />}
+                  />
+                  <Route
+                    path="/settings/password"
+                    element={<ChangePasswordPage />}
+                  />
 
-                {/* Role Based */}
-                <Route path="/materials" element={<MaterialsRouter />} />
-                <Route path="/homework" element={<HomeworkRouter />} />
-                <Route
-                  path="/announcements"
-                  element={<AnnouncementsRouter />}
-                />
-                <Route path="/calendar" element={<CalendarRouter />} />
+                  {/* Feature Routes - Other */}
+                  <Route path="/messages" element={<MessagesPage />} />
+
+                  <Route
+                    path="/parent/children"
+                    element={
+                      <ProtectedRoute allowedRoles={["parent"]}>
+                        <ChildrenManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/teacher/class"
+                    element={
+                      <ProtectedRoute allowedRoles={["teacher"]}>
+                        <ClassManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/student-profile/:studentId?"
+                    element={
+                      <ProtectedRoute allowedRoles={["parent", "teacher"]}>
+                        <StudentProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route path="/student/grades" element={<MyGrades />} />
+                  <Route
+                    path="/student/attendance"
+                    element={<MyAttendance />}
+                  />
+
+                  {/* Role-Based Routes */}
+                  <Route path="/materials" element={<MaterialsRouter />} />
+                  <Route path="/homework" element={<HomeworkRouter />} />
+                  <Route path="/my-students" element={<TeacherDashboard />} />
+                  <Route
+                    path="/announcements"
+                    element={<AnnouncementsRouter />}
+                  />
+                  <Route path="/calendar" element={<CalendarRouter />} />
+                </Route>
               </Route>
-            </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </SocketProvider>
+              {/* Catch All - Redirect to home */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </SocketProvider>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

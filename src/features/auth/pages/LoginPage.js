@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiUser, FiLock, FiArrowRight, FiX, FiBarChart2 } from "react-icons/fi";
+import {
+  FiUser,
+  FiLock,
+  FiArrowRight,
+  FiX,
+  FiBarChart2,
+  FiPhone,
+} from "react-icons/fi";
 import { FaChalkboardTeacher, FaUserGraduate, FaUsers } from "react-icons/fa";
 import "../../../assets/styles/auth-pages.css";
 import toast from "react-hot-toast";
@@ -12,40 +19,11 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({
     role: "",
     password: "",
-    userId: "",
+    phoneNumber: "",
   });
   const [isMobile, setIsMobile] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
   const navigate = useNavigate();
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    const user = localStorage.getItem("user");
-
-    if (token && user) {
-      try {
-        const userData = JSON.parse(user);
-
-        const roleDashboards = {
-          teacher: "/teacher-dashboard",
-          student: "/student-dashboard",
-          parent: "/parent-dashboard",
-          admin: "/admin-dashboard",
-        };
-
-        // 🔥 Delay prevents redirect race condition
-        setTimeout(() => {
-          navigate(roleDashboards[userData.role] || "/dashboard", {
-            replace: true,
-          });
-        }, 100);
-      } catch (e) {
-        console.error("Error parsing user:", e);
-      }
-    }
-  }, [navigate]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -66,99 +44,50 @@ const LoginPage = () => {
 
   const handleClose = () => navigate("/");
 
-  const handleDemoLogin = async (role) => {
-    const demoCredentials = {
-      parent: { userId: "parent123", password: "parent123", role: "parent" },
-      teacher: {
-        userId: "teacher123",
-        password: "teacher123",
-        role: "teacher",
-      },
-      student: {
-        userId: "student123",
-        password: "student123",
-        role: "student",
-      },
-      admin: { userId: "admin123", password: "admin123", role: "admin" },
-    };
-
-    const credentials = demoCredentials[role];
-    if (credentials) {
-      setFormData({
-        role: credentials.role,
-        userId: credentials.userId,
-        password: credentials.password,
-      });
-      await performLogin(
-        credentials.userId,
-        credentials.password,
-        credentials.role,
-      );
-    }
-  };
-
-  const performLogin = async (userId, password, role) => {
+  const performLogin = async (phoneNumber, password, role) => {
     setLoading(true);
     setErrorMessage("");
 
     try {
       const response = await authAPI.login({
-        userId: userId.trim(),
+        phoneNumber: phoneNumber.trim(),
         password: password.trim(),
         role,
       });
 
-      console.log("✅ FULL RESPONSE:", response.data);
+      const { access_token, refresh_token, user } = response.data;
 
-      const { access_token, user } = response.data;
-
-      if (!access_token || !user) {
-        throw new Error("Invalid response from server");
-      }
-
-      // ✅ SAVE CORRECT TOKEN KEY
       localStorage.setItem("accessToken", access_token);
+      localStorage.setItem("refreshToken", refresh_token);
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem("userRole", user.role);
 
-      console.log("✅ SAVED USER:", user);
+      navigate(`/${user.role}-dashboard`, { replace: true });
 
-      const roleDashboards = {
-        teacher: "/teacher-dashboard",
-        student: "/student-dashboard",
-        parent: "/parent-dashboard",
-        admin: "/admin-dashboard",
-      };
-
-      const redirectPath = roleDashboards[user.role] || "/dashboard";
-
-      console.log("🚀 NAVIGATING TO:", redirectPath);
-
-      navigate(redirectPath, { replace: true });
+      toast.success(`Welcome back, ${user.firstName || user.phoneNumber}!`);
     } catch (error) {
-      console.error("❌ LOGIN ERROR:", error);
-
       const message =
-        error.response?.data?.message || error.message || "Login failed";
-
+        error.response?.data?.message ||
+        "Login failed. Please check your credentials.";
       setErrorMessage(message);
+      toast.error(message);
+    } finally {
       setLoading(false);
     }
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    setErrorMessage("");
-
-    if (!formData.password || !formData.role || !formData.userId) {
+    if (!formData.password || !formData.role || !formData.phoneNumber) {
       const msg = "Please fill in all login fields";
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
-    await performLogin(formData.userId, formData.password, formData.role);
+    await performLogin(formData.phoneNumber, formData.password, formData.role);
   };
 
   const { role } = formData;
@@ -244,12 +173,12 @@ const LoginPage = () => {
 
           <form onSubmit={handleSubmit} className="form">
             <Input
-              label={`${role ? role.charAt(0).toUpperCase() + role.slice(1) : "User"} ID`}
-              name="userId"
-              value={formData.userId}
+              label={`${role ? role.charAt(0).toUpperCase() + role.slice(1) : "User"} Phone Number`}
+              name="phoneNumber"
+              value={formData.phoneNumber}
               onChange={handleChange}
-              placeholder={`Enter your ${role || "user"} ID`}
-              icon={<FiUser />}
+              placeholder={`Enter your ${role || "user"} phone number`}
+              icon={<FiPhone />}
             />
             <Input
               label="Password"
@@ -260,6 +189,16 @@ const LoginPage = () => {
               placeholder="Enter your password"
               icon={<FiLock />}
             />
+
+            {/* Forgot Password Link */}
+            <div className="text-right mb-4">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                Forgot Password?
+              </Link>
+            </div>
 
             {errorMessage && (
               <div
@@ -294,60 +233,6 @@ const LoginPage = () => {
             </motion.button>
           </form>
 
-          <div className="demo-box">
-            <p className="demo-title">
-              🎭 Demo Accounts (Click to login instantly)
-            </p>
-            <div className="demo-grid">
-              {[
-                {
-                  role: "parent",
-                  icon: FaUsers,
-                  label: "Parent Demo",
-                  creds: "ID: parent123 / Password: parent123",
-                  color: "#4f46e5",
-                },
-                {
-                  role: "teacher",
-                  icon: FaChalkboardTeacher,
-                  label: "Teacher Demo",
-                  creds: "ID: teacher123 / Password: teacher123",
-                  color: "#4f46e5",
-                },
-                {
-                  role: "student",
-                  icon: FaUserGraduate,
-                  label: "Student Demo",
-                  creds: "ID: student123 / Password: student123",
-                  color: "#4f46e5",
-                },
-                {
-                  role: "admin",
-                  icon: FiBarChart2,
-                  label: "Admin Demo",
-                  creds: "ID: admin123 / Password: admin123",
-                  color: "#ef4444",
-                },
-              ].map((demo) => (
-                <button
-                  key={demo.role}
-                  onClick={() => handleDemoLogin(demo.role)}
-                  className="demo-card"
-                  type="button"
-                >
-                  <demo.icon
-                    size={20}
-                    style={{ color: demo.color, flexShrink: 0 }}
-                  />
-                  <div className="demo-card-content">
-                    <strong>{demo.label}</strong>
-                    <p className="demo-text">{demo.creds}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="toggle-container">
             <p className="toggle-text">
               Don't have an account?{" "}
@@ -366,7 +251,6 @@ const LoginPage = () => {
   );
 };
 
-// Input Component
 const Input = ({
   label,
   name,
@@ -381,10 +265,8 @@ const Input = ({
     <label className="input-label">
       {label} {required && <span className="required">*</span>}
     </label>
-
     <div className="input-container">
       {icon && <span className="input-icon">{icon}</span>}
-
       <input
         name={name}
         type={type}

@@ -5,13 +5,13 @@ import { calendarAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const UserCalendarPage = () => {
-  const { user } = useAuthStore();
+  const { user: storeUser } = useAuthStore();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Get user from localStorage if store is empty
   useEffect(() => {
-    // Get user from localStorage
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -20,8 +20,10 @@ const UserCalendarPage = () => {
       } catch (e) {
         console.error("Error parsing user:", e);
       }
+    } else if (storeUser) {
+      setCurrentUser(storeUser);
     }
-  }, []);
+  }, [storeUser]);
 
   useEffect(() => {
     if (currentUser) {
@@ -33,19 +35,26 @@ const UserCalendarPage = () => {
     setLoading(true);
     try {
       const response = await calendarAPI.getAllEvents();
-      const allEvents = response.data;
+      let allEvents = response.data;
 
-      // Filter events based on user's role, grade, and section
+      // Robust extraction
+      if (allEvents?.data && Array.isArray(allEvents.data)) {
+        allEvents = allEvents.data;
+      } else if (allEvents?.events && Array.isArray(allEvents.events)) {
+        allEvents = allEvents.events;
+      } else if (!Array.isArray(allEvents)) {
+        allEvents = [];
+      }
+
       const filteredEvents = filterEventsByUser(allEvents, currentUser);
 
-      // Transform API data to match component structure
       const formattedEvents = filteredEvents.map((event) => ({
         id: event.id || event._id,
         title: event.title,
         description: event.description,
         date: event.date?.split("T")[0] || event.date,
         type: event.type || "event",
-        targetType: event.targetType || "all",
+        targetType: event.targetType || event.targetAudience || "all",
         targetRole: event.targetRole,
         targetGrade: event.targetGrade,
         targetSection: event.targetSection,
@@ -56,98 +65,54 @@ const UserCalendarPage = () => {
       setEvents(formattedEvents);
     } catch (error) {
       console.error("Error fetching events:", error);
-      toast.error("Failed to load calendar events. Using demo data.");
-
-      // Fallback to demo data with filtering
-      const demoEvents = [
-        {
-          id: 1,
-          title: "School Holiday",
-          date: new Date().toISOString().split("T")[0],
-          type: "holiday",
-          targetType: "all",
-        },
-        {
-          id: 2,
-          title: "Teacher Training",
-          date: new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0],
-          type: "event",
-          targetType: "role",
-          targetRole: "teacher",
-        },
-        {
-          id: 3,
-          title: "Parent-Teacher Meeting",
-          date: new Date(Date.now() + 5 * 86400000).toISOString().split("T")[0],
-          type: "meeting",
-          targetType: "role",
-          targetRole: "parent",
-        },
-        {
-          id: 4,
-          title: "Grade 10 Science Exam",
-          date: new Date(Date.now() + 8 * 86400000).toISOString().split("T")[0],
-          type: "exam",
-          targetType: "grade",
-          targetGrade: "Grade 10",
-        },
-        {
-          id: 5,
-          title: "Section A Field Trip",
-          date: new Date(Date.now() + 10 * 86400000)
-            .toISOString()
-            .split("T")[0],
-          type: "event",
-          targetType: "section",
-          targetGrade: "Grade 10",
-          targetSection: "A",
-        },
-        {
-          id: 6,
-          title: "Grade 11 Physics Exam",
-          date: new Date(Date.now() + 12 * 86400000)
-            .toISOString()
-            .split("T")[0],
-          type: "exam",
-          targetType: "grade",
-          targetGrade: "Grade 11",
-        },
-      ];
-
-      const filtered = filterEventsByUser(demoEvents, currentUser);
-      setEvents(filtered);
+      toast.error("Failed to load calendar events");
+      setEvents([]);
     } finally {
       setLoading(false);
     }
   };
 
   const filterEventsByUser = (allEvents, userData) => {
-    if (!userData) return [];
+    if (!userData || !Array.isArray(allEvents)) return [];
 
     return allEvents.filter((event) => {
-      // If event is for everyone
-      if (event.targetType === "all") return true;
+      const target = event.targetType || event.targetAudience || "all";
 
-      // Filter by role
-      if (event.targetType === "role" && event.targetRole === userData.role) {
-        return true;
+      // Global events
+      if (target === "all") return true;
+
+      // Role‑specific
+      if (target === "teachers" && userData.role === "teacher") return true;
+      if (target === "parents" && userData.role === "parent") return true;
+      if (target === "students" && userData.role === "student") return true;
+
+      // Grade‑specific for students
+      if (userData.role === "student" && event.targetGrade) {
+        if (event.targetGrade === userData.grade) {
+          if (event.targetSection) {
+            return (
+              event.targetSection === (userData.className || userData.section)
+            );
+          }
+          return true;
+        }
       }
 
-      // Filter by grade
+      // Parents – match any child's grade/section
       if (
-        event.targetType === "grade" &&
-        event.targetGrade === userData.grade
+        userData.role === "parent" &&
+        userData.children &&
+        Array.isArray(userData.children)
       ) {
-        return true;
-      }
-
-      // Filter by section
-      if (
-        event.targetType === "section" &&
-        event.targetGrade === userData.grade &&
-        event.targetSection === (userData.className || userData.section)
-      ) {
-        return true;
+        return userData.children.some((child) => {
+          if (event.targetGrade && event.targetGrade === child.grade) {
+            if (event.targetSection) {
+              return event.targetSection === child.section;
+            }
+            return true;
+          }
+          return false;
+        });
       }
 
       return false;
@@ -222,7 +187,6 @@ const UserCalendarPage = () => {
         <p style={styles.subtitle}>Upcoming events and important dates</p>
       </div>
 
-      {/* User Info Banner */}
       {currentUser && (
         <div style={styles.userInfo}>
           <p>
@@ -231,6 +195,9 @@ const UserCalendarPage = () => {
             {currentUser.grade && ` • ${currentUser.grade}`}
             {(currentUser.className || currentUser.section) &&
               ` • Section ${currentUser.className || currentUser.section}`}
+            {currentUser.role === "parent" &&
+              currentUser.children &&
+              ` • Children: ${currentUser.children.map((c) => c.name).join(", ")}`}
           </p>
         </div>
       )}
@@ -342,15 +309,8 @@ const styles = {
     border: "1px solid #e5e7eb",
     color: "#9ca3af",
   },
-  emptyIcon: {
-    marginBottom: "16px",
-    opacity: 0.5,
-  },
-  emptySubtext: {
-    fontSize: "12px",
-    marginTop: "8px",
-    color: "#d1d5db",
-  },
+  emptyIcon: { marginBottom: "16px", opacity: 0.5 },
+  emptySubtext: { fontSize: "12px", marginTop: "8px", color: "#d1d5db" },
   eventsList: { display: "flex", flexDirection: "column", gap: "16px" },
   eventCard: {
     display: "flex",
@@ -392,16 +352,8 @@ const styles = {
     marginBottom: "4px",
   },
   eventDate: { fontSize: "12px", color: "#6b7280", margin: "4px 0" },
-  eventDescription: {
-    fontSize: "13px",
-    color: "#6b7280",
-    marginTop: "4px",
-  },
-  eventLocation: {
-    fontSize: "12px",
-    color: "#9ca3af",
-    marginTop: "2px",
-  },
+  eventDescription: { fontSize: "13px", color: "#6b7280", marginTop: "4px" },
+  eventLocation: { fontSize: "12px", color: "#9ca3af", marginTop: "2px" },
   typeBadge: {
     padding: "4px 12px",
     borderRadius: "20px",

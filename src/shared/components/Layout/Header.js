@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
 import { useAuth } from "../../../contexts/AuthContext";
+import NotificationsDropdown from "../../../components/NotificationsDropdown";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -41,13 +42,80 @@ export const Header = ({ onToggleSidebar }) => {
   const handleLogout = () => {
     setShowDropdown(false);
     logout();
-    localStorage.removeItem("token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("userRole");
     toast.success("Logged out successfully");
     navigate("/login");
   };
 
-  const gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+  // Get user's full name or first name from localStorage
+  const getUserData = () => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser);
+      } catch (e) {
+        console.error("Error parsing user:", e);
+      }
+    }
+    return user || {};
+  };
+
+  const userData = getUserData();
+
+  const getFullName = () => {
+    if (userData.firstName && userData.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
+    }
+    if (userData.firstName) {
+      return userData.firstName;
+    }
+    if (userData.name) {
+      return userData.name;
+    }
+    return "User";
+  };
+
+  const getFirstName = () => {
+    if (userData.firstName) {
+      return userData.firstName;
+    }
+    if (userData.name) {
+      return userData.name.split(" ")[0];
+    }
+    return "User";
+  };
+
+  const getUserInitial = () => {
+    if (userData.firstName) {
+      return userData.firstName.charAt(0).toUpperCase();
+    }
+    if (userData.name) {
+      return userData.name.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  const getUserRole = () => {
+    if (userData.role) {
+      return userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
+    }
+    return "User";
+  };
+
+  const getUserEmail = () => {
+    return userData.email || "";
+  };
+
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
   const dropdownItems = [
     {
       icon: FiUser,
@@ -62,7 +130,7 @@ export const Header = ({ onToggleSidebar }) => {
     {
       icon: FiSettings,
       label: "Preferences",
-      action: () => navigate("/settings"),
+      action: () => navigate("/settings/preferences"),
     },
   ];
 
@@ -99,37 +167,21 @@ export const Header = ({ onToggleSidebar }) => {
             </svg>
           </motion.button>
 
-          <motion.h1
+          <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            style={styles.welcomeText}
+            style={styles.welcomeContainer}
           >
-            Welcome back,{" "}
-            <span style={{ ...styles.gradientText, background: gradient }}>
-              {user?.name?.split(" ")[0] || "User"}
-            </span>
-            <span style={{ marginLeft: "4px" }}>👋</span>
-          </motion.h1>
+            <span style={styles.greeting}>{getTimeBasedGreeting()},</span>
+            <span style={styles.userNameText}>{getFirstName()}</span>
+            <span style={styles.emoji}>👋</span>
+          </motion.div>
         </div>
 
         {/* Right: Actions */}
         <div style={styles.rightSection}>
-          {/* Notifications */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            style={styles.iconBtn}
-            aria-label="Notifications"
-          >
-            <FiBell size={20} style={styles.icon} />
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              style={styles.badge}
-            >
-              3
-            </motion.span>
-          </motion.button>
+          {/* Notifications Dropdown */}
+          <NotificationsDropdown />
 
           {/* User Dropdown */}
           <div style={styles.dropdownContainer} ref={dropdownRef}>
@@ -145,12 +197,12 @@ export const Header = ({ onToggleSidebar }) => {
               aria-haspopup="true"
             >
               <div style={styles.avatar}>
-                {user?.name?.charAt(0).toUpperCase()}
+                {getUserInitial()}
                 <span style={styles.onlineDot} />
               </div>
               <div style={styles.userInfo}>
-                <p style={styles.userName}>{user?.name}</p>
-                <p style={styles.userRole}>{user?.role}</p>
+                <p style={styles.userName}>{getFullName()}</p>
+                <p style={styles.userRole}>{getUserRole()}</p>
               </div>
               <FiChevronDown
                 size={14}
@@ -172,8 +224,8 @@ export const Header = ({ onToggleSidebar }) => {
                 >
                   {/* User Header */}
                   <div style={styles.dropdownHeader}>
-                    <p style={styles.dropdownName}>{user?.name}</p>
-                    <p style={styles.dropdownEmail}>{user?.email}</p>
+                    <p style={styles.dropdownName}>{getFullName()}</p>
+                    <p style={styles.dropdownEmail}>{getUserEmail()}</p>
                   </div>
 
                   {/* Menu Items */}
@@ -256,53 +308,29 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  welcomeText: {
-    fontSize: "16px",
-    fontWeight: "600",
-    color: "#1a1a2e",
-    margin: 0,
+  welcomeContainer: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "6px",
+    flexWrap: "wrap",
   },
-  gradientText: {
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    backgroundClip: "text",
+  greeting: {
+    fontSize: "15px",
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  userNameText: {
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  emoji: {
+    fontSize: "16px",
   },
   rightSection: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-  },
-  iconBtn: {
-    position: "relative",
-    padding: "10px",
-    borderRadius: "12px",
-    border: "none",
-    background: "transparent",
-    color: "#6b7280",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s ease",
-  },
-  icon: {
-    transition: "color 0.2s ease",
-  },
-  badge: {
-    position: "absolute",
-    top: "4px",
-    right: "4px",
-    minWidth: "18px",
-    height: "18px",
-    borderRadius: "9px",
-    backgroundColor: "#ef4444",
-    color: "white",
-    fontSize: "10px",
-    fontWeight: "700",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0 4px",
   },
   dropdownContainer: {
     position: "relative",

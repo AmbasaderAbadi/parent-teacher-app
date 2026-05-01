@@ -1,48 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import {
-  FiBell,
-  FiPlus,
-  FiTrash2,
-  FiUsers,
-  FiUserCheck,
-  FiBookOpen,
-} from "react-icons/fi";
+import { FiPlus, FiTrash2, FiUsers } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
 import { announcementsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
-const AdminAnnouncementsPage = () => {
+const TeacherAnnouncementsPage = () => {
   const { user } = useAuthStore();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: "",
     content: "",
-    targetAudience: "all", // all, teachers, parents, students, specific
+    targetGrade: "",
+    targetSection: "",
+    targetAllStudents: false,
   });
-
-  // For UI we keep the old role/grade/section but map them to targetAudience string
-  const [targetRole, setTargetRole] = useState("");
-  const [targetGrade, setTargetGrade] = useState("");
-  const [targetSection, setTargetSection] = useState("");
 
   const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
   const sections = ["A", "B", "C", "D"];
-  const roles = ["parent", "teacher", "student"];
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setCurrentUser(parsedUser);
-      } catch (e) {
-        console.error("Error parsing user:", e);
-      }
-    }
     fetchAnnouncements();
   }, []);
 
@@ -50,33 +29,34 @@ const AdminAnnouncementsPage = () => {
     setLoading(true);
     try {
       const response = await announcementsAPI.getAllAnnouncements();
-      // ✅ Extract nested data array
-      const announcementsData = response.data?.data || response.data || [];
-      const announcementsList = Array.isArray(announcementsData)
-        ? announcementsData
-        : [];
+      const allData = response.data?.data || response.data || [];
+      const announcementsList = Array.isArray(allData) ? allData : [];
 
-      // For teachers, only show announcements they created
-      let filteredData = announcementsList;
-      if (currentUser?.role === "teacher") {
-        filteredData = announcementsList.filter(
-          (ann) => ann.postedById === currentUser.id,
-        );
-      }
+      // Show: admin global announcements + teacher's own announcements
+      const filtered = announcementsList.filter((ann) => {
+        // Admin global announcements (targetAudience = "all")
+        if (ann.targetAudience === "all") return true;
+        // Teacher's own announcements
+        if (ann.postedById === user?.id) return true;
+        return false;
+      });
 
-      const formattedAnnouncements = filteredData.map((ann) => ({
+      const formatted = filtered.map((ann) => ({
         id: ann.id || ann._id,
         title: ann.title,
         content: ann.content,
-        targetAudience: ann.targetAudience || "all",
+        targetType: ann.targetType,
+        targetGrade: ann.targetGrade,
+        targetSection: ann.targetSection,
+        targetAudience: ann.targetAudience,
         date: ann.createdAt
           ? new Date(ann.createdAt).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
-        postedBy: ann.postedBy || currentUser?.name || "Admin",
-        postedById: ann.postedById || currentUser?.id,
+        postedBy: ann.postedBy || "Admin",
+        postedById: ann.postedById,
       }));
 
-      setAnnouncements(formattedAnnouncements);
+      setAnnouncements(formatted);
     } catch (error) {
       console.error("Error fetching announcements:", error);
       toast.error("Failed to load announcements");
@@ -92,28 +72,50 @@ const AdminAnnouncementsPage = () => {
       return;
     }
 
-    // ✅ Only send these fields – no postedById or postedBy
-    const payload = {
+    let payload = {
       title: newAnnouncement.title,
       content: newAnnouncement.content,
-      targetAudience: newAnnouncement.targetAudience,
+      postedById: user?.id,
+      postedBy: user?.name,
     };
+
+    if (newAnnouncement.targetAllStudents) {
+      // Send to all students (global announcement)
+      payload.targetAudience = "students";
+    } else if (newAnnouncement.targetGrade && newAnnouncement.targetSection) {
+      // Send to a specific section
+      payload.targetType = "section";
+      payload.targetGrade = newAnnouncement.targetGrade;
+      payload.targetSection = newAnnouncement.targetSection;
+    } else if (newAnnouncement.targetGrade) {
+      // Send to a whole grade
+      payload.targetType = "grade";
+      payload.targetGrade = newAnnouncement.targetGrade;
+    } else {
+      toast.error(
+        "Please select a target (All Students, Grade, or Grade+Section)",
+      );
+      return;
+    }
 
     try {
       const response = await announcementsAPI.createAnnouncement(payload);
       const newAnn = response.data?.data || response.data;
 
-      const formattedAnnouncement = {
+      const formattedAnn = {
         id: newAnn.id || newAnn._id,
         title: newAnnouncement.title,
         content: newAnnouncement.content,
-        targetAudience: newAnnouncement.targetAudience,
+        targetType: payload.targetType,
+        targetGrade: payload.targetGrade,
+        targetSection: payload.targetSection,
+        targetAudience: payload.targetAudience,
         date: new Date().toISOString().split("T")[0],
-        postedBy: currentUser?.name || "Admin", // for display only
-        postedById: currentUser?.id, // for display only
+        postedBy: user?.name,
+        postedById: user?.id,
       };
 
-      setAnnouncements([formattedAnnouncement, ...announcements]);
+      setAnnouncements([formattedAnn, ...announcements]);
       setShowForm(false);
       resetForm();
       toast.success("Announcement posted!");
@@ -126,16 +128,20 @@ const AdminAnnouncementsPage = () => {
   };
 
   const handleDelete = async (id) => {
+    // Only allow deletion of own announcements
+    const ann = announcements.find((a) => a.id === id);
+    if (ann?.postedById !== user?.id) {
+      toast.error("You can only delete your own announcements");
+      return;
+    }
     if (window.confirm("Are you sure you want to delete this announcement?")) {
       try {
         await announcementsAPI.deleteAnnouncement(id);
-        setAnnouncements(announcements.filter((ann) => ann.id !== id));
-        toast.success("Announcement deleted successfully!");
+        setAnnouncements(announcements.filter((a) => a.id !== id));
+        toast.success("Announcement deleted!");
       } catch (error) {
         console.error("Error deleting announcement:", error);
-        toast.error(
-          error.response?.data?.message || "Failed to delete announcement",
-        );
+        toast.error(error.response?.data?.message || "Failed to delete");
       }
     }
   };
@@ -144,34 +150,25 @@ const AdminAnnouncementsPage = () => {
     setNewAnnouncement({
       title: "",
       content: "",
-      targetAudience: "all",
+      targetGrade: "",
+      targetSection: "",
+      targetAllStudents: false,
     });
-    setTargetRole("");
-    setTargetGrade("");
-    setTargetSection("");
   };
 
-  const getTargetText = (announcement) => {
-    switch (announcement.targetAudience) {
-      case "all":
-        return "📢 Everyone";
-      case "teachers":
-        return "👥 Teachers only";
-      case "parents":
-        return "👥 Parents only";
-      case "students":
-        return "👥 Students only";
-      case "specific":
-        return "🎯 Specific audience";
-      default:
-        return "📢 Everyone";
-    }
+  const getTargetText = (ann) => {
+    if (ann.targetAudience === "all") return "📢 Global (Admin)";
+    if (ann.targetAudience === "students") return "📢 All Students";
+    if (ann.targetType === "grade") return `📚 Grade: ${ann.targetGrade}`;
+    if (ann.targetType === "section")
+      return `🏫 ${ann.targetGrade} - Section ${ann.targetSection}`;
+    return "🎯 Specific students";
   };
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
-        <div className="loading-spinner"></div>
+        <div className="loading-spinner" />
         <p>Loading announcements...</p>
         <style>{`
           .loading-spinner {
@@ -191,21 +188,12 @@ const AdminAnnouncementsPage = () => {
     );
   }
 
-  const isAdmin = currentUser?.role === "admin";
-  const isTeacher = currentUser?.role === "teacher";
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📢 Announcements</h1>
-          <p style={styles.subtitle}>
-            {isAdmin
-              ? "Create announcements for specific audiences"
-              : isTeacher
-                ? "Send announcements to your students"
-                : "Manage announcements"}
-          </p>
+          <h1 style={styles.title}>📢 Teacher Announcements</h1>
+          <p style={styles.subtitle}>Post updates for your classes</p>
         </div>
         <button onClick={() => setShowForm(true)} style={styles.addBtn}>
           <FiPlus size={16} /> New Announcement
@@ -247,74 +235,73 @@ const AdminAnnouncementsPage = () => {
               onClick={() =>
                 setNewAnnouncement({
                   ...newAnnouncement,
-                  targetAudience: "all",
+                  targetAllStudents: true,
+                  targetGrade: "",
+                  targetSection: "",
                 })
               }
               style={{
                 ...styles.audienceBtn,
-                ...(newAnnouncement.targetAudience === "all"
+                ...(newAnnouncement.targetAllStudents
                   ? styles.audienceBtnActive
                   : {}),
               }}
             >
-              <FiUsers size={16} /> All Users
+              <FiUsers size={16} /> All Students
             </button>
-            {isAdmin && (
-              <button
-                onClick={() =>
-                  setNewAnnouncement({
-                    ...newAnnouncement,
-                    targetAudience: "teachers",
-                  })
-                }
-                style={{
-                  ...styles.audienceBtn,
-                  ...(newAnnouncement.targetAudience === "teachers"
-                    ? styles.audienceBtnActive
-                    : {}),
-                }}
-              >
-                <FiUserCheck size={16} /> Teachers
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                onClick={() =>
-                  setNewAnnouncement({
-                    ...newAnnouncement,
-                    targetAudience: "parents",
-                  })
-                }
-                style={{
-                  ...styles.audienceBtn,
-                  ...(newAnnouncement.targetAudience === "parents"
-                    ? styles.audienceBtnActive
-                    : {}),
-                }}
-              >
-                <FiUserCheck size={16} /> Parents
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                onClick={() =>
-                  setNewAnnouncement({
-                    ...newAnnouncement,
-                    targetAudience: "students",
-                  })
-                }
-                style={{
-                  ...styles.audienceBtn,
-                  ...(newAnnouncement.targetAudience === "students"
-                    ? styles.audienceBtnActive
-                    : {}),
-                }}
-              >
-                <FiUserCheck size={16} /> Students
-              </button>
-            )}
-            {/* Only show "specific" if backend supports more detailed targeting later */}
+            <button
+              onClick={() =>
+                setNewAnnouncement({
+                  ...newAnnouncement,
+                  targetAllStudents: false,
+                })
+              }
+              style={{
+                ...styles.audienceBtn,
+                ...(!newAnnouncement.targetAllStudents &&
+                (newAnnouncement.targetGrade || newAnnouncement.targetSection)
+                  ? styles.audienceBtnActive
+                  : {}),
+              }}
+            >
+              Specific Grade / Section
+            </button>
           </div>
+
+          {!newAnnouncement.targetAllStudents && (
+            <div style={styles.row}>
+              <select
+                value={newAnnouncement.targetGrade}
+                onChange={(e) =>
+                  setNewAnnouncement({
+                    ...newAnnouncement,
+                    targetGrade: e.target.value,
+                  })
+                }
+                style={styles.select}
+              >
+                <option value="">Select Grade (optional)</option>
+                {grades.map((g) => (
+                  <option key={g}>{g}</option>
+                ))}
+              </select>
+              <select
+                value={newAnnouncement.targetSection}
+                onChange={(e) =>
+                  setNewAnnouncement({
+                    ...newAnnouncement,
+                    targetSection: e.target.value,
+                  })
+                }
+                style={styles.select}
+              >
+                <option value="">Select Section (optional)</option>
+                {sections.map((s) => (
+                  <option key={s}>Section {s}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={styles.formActions}>
             <button
@@ -336,7 +323,6 @@ const AdminAnnouncementsPage = () => {
       <div style={styles.announcementsList}>
         {announcements.length === 0 ? (
           <div style={styles.emptyState}>
-            <FiBell size={48} style={styles.emptyIcon} />
             <p>No announcements yet.</p>
             <p style={styles.emptySubtext}>
               Click "New Announcement" to create one.
@@ -350,15 +336,15 @@ const AdminAnnouncementsPage = () => {
                   <h3>{ann.title}</h3>
                   <span style={styles.postedBy}>Posted by: {ann.postedBy}</span>
                 </div>
-                <div style={styles.announcementActions}>
+                {ann.postedById === user?.id && (
                   <button
                     onClick={() => handleDelete(ann.id)}
                     style={styles.deleteBtn}
-                    title="Delete Announcement"
+                    title="Delete"
                   >
                     <FiTrash2 size={16} />
                   </button>
-                </div>
+                )}
               </div>
               <p style={styles.announcementContent}>{ann.content}</p>
               <div style={styles.announcementFooter}>
@@ -480,12 +466,17 @@ const styles = {
     transition: "all 0.2s ease",
   },
   audienceBtnActive: { backgroundColor: "#4f46e5", color: "white" },
+  row: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+    marginBottom: "16px",
+  },
   select: {
     width: "100%",
     padding: "12px",
     border: "1px solid #e5e7eb",
     borderRadius: "8px",
-    marginBottom: "12px",
     backgroundColor: "white",
     fontSize: "14px",
   },
@@ -521,10 +512,6 @@ const styles = {
     border: "1px solid #e5e7eb",
     color: "#9ca3af",
   },
-  emptyIcon: {
-    marginBottom: "16px",
-    opacity: 0.5,
-  },
   emptySubtext: {
     fontSize: "12px",
     marginTop: "8px",
@@ -550,10 +537,6 @@ const styles = {
     color: "#9ca3af",
     display: "block",
     marginTop: "4px",
-  },
-  announcementActions: {
-    display: "flex",
-    gap: "8px",
   },
   announcementContent: {
     color: "#4b5563",
@@ -587,4 +570,4 @@ const styles = {
   },
 };
 
-export default AdminAnnouncementsPage;
+export default TeacherAnnouncementsPage;

@@ -14,6 +14,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiMenu,
+  FiUsers,
 } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -84,7 +85,6 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
         { path: "/calendar", icon: FiCalendar, label: "Calendar" },
         { path: "/homework", icon: FiClipboard, label: "Homework" },
         { path: "/materials", icon: FiFolder, label: "Materials" },
-        { path: "/profile", icon: FiUser, label: "Profile" },
       ];
     }
 
@@ -97,6 +97,7 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
         { path: "/calendar", icon: FiCalendar, label: "Calendar" },
         { path: "/materials", icon: FiFolder, label: "Materials" },
         { path: "/homework", icon: FiClipboard, label: "Homework" },
+        { path: "/my-students", icon: FiUsers, label: "My Students" },
       ];
     }
 
@@ -108,17 +109,17 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
         { path: "/calendar", icon: FiCalendar, label: "Calendar" },
         { path: "/homework", icon: FiClipboard, label: "Homework" },
         { path: "/materials", icon: FiFolder, label: "Materials" },
-        { path: "/profile", icon: FiUser, label: "Profile" },
       ];
     }
 
-    // ============ ADMIN MENU ============
+    // ============ ADMIN MENU (UPDATED) ============
     if (role === "admin") {
       return [
         { path: "/dashboard", icon: FiHome, label: "Dashboard" },
         { path: "/announcements", icon: FiBell, label: "Announcements" },
         { path: "/calendar", icon: FiCalendar, label: "Calendar" },
-        { path: "/profile", icon: FiUser, label: "Profile" },
+        { path: "/admin/users", icon: FiUsers, label: "Manage Users" },
+        { path: "/admin/stats", icon: FiClipboard, label: "Reports" },
       ];
     }
 

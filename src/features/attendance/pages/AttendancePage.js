@@ -38,23 +38,18 @@ export const AttendancePage = () => {
     try {
       let response;
 
-      // Different endpoints based on user role
       if (userRole === "student") {
         response = await attendanceAPI.getMyAttendance();
       } else if (userRole === "parent") {
-        // For parents, fetch attendance for selected child
-        // For now, get all attendance or show child selector
         response = await attendanceAPI.getMyAttendance();
       } else if (userRole === "teacher") {
-        // Teachers can view attendance for their class
         response = await attendanceAPI.getTodayAttendance();
       } else {
         response = { data: [] };
       }
 
-      const attendanceData = response.data;
+      const attendanceData = response.data || [];
 
-      // Transform API data to match component structure
       const formattedRecords = attendanceData.map((record) => ({
         id: record.id || record._id,
         date: record.date,
@@ -64,53 +59,15 @@ export const AttendancePage = () => {
       }));
 
       setAttendanceRecords(formattedRecords);
-
-      // Calculate statistics
       calculateStats(formattedRecords);
     } catch (error) {
       console.error("Error fetching attendance:", error);
-      toast.error("Failed to load attendance data. Using demo data.");
-
-      // Fallback to demo data
-      const demoRecords = generateDemoAttendance();
-      setAttendanceRecords(demoRecords);
-      calculateStats(demoRecords);
+      toast.error("Failed to load attendance data");
+      setAttendanceRecords([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateDemoAttendance = () => {
-    const demoRecords = [];
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    // Generate records for the current month
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const dayOfWeek = date.getDay();
-
-      // Skip weekends (Saturday = 6, Sunday = 0)
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
-      // Generate random status for demo
-      let status = "present";
-      if (day % 7 === 0) status = "late";
-      if (day % 10 === 0) status = "absent";
-
-      demoRecords.push({
-        id: day,
-        date: date.toISOString().split("T")[0],
-        status: status,
-        checkIn: status !== "absent" ? "8:30 AM" : "-",
-        checkOut: status !== "absent" ? "3:30 PM" : "-",
-      });
-    }
-
-    return demoRecords;
   };
 
   const calculateStats = (records) => {

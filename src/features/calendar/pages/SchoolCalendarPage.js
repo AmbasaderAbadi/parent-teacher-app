@@ -43,7 +43,6 @@ const SchoolCalendarPage = ({ user: propUser }) => {
   });
 
   useEffect(() => {
-    // Get user from localStorage
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -58,24 +57,17 @@ const SchoolCalendarPage = ({ user: propUser }) => {
   }, [propUser]);
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    if (user) {
+      fetchEvents();
+    }
+  }, [user]);
 
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      let response;
-
-      // Different endpoints based on user role
-      if (user?.role === "admin") {
-        response = await calendarAPI.getAllEvents();
-      } else {
-        response = await calendarAPI.getAllEvents(); // Get all events for regular users
-      }
-
+      const response = await calendarAPI.getAllEvents();
       const eventsData = response.data;
 
-      // Transform API data to match component structure
       const formattedEvents = eventsData.map((event) => ({
         id: event.id || event._id,
         title: event.title,
@@ -91,43 +83,8 @@ const SchoolCalendarPage = ({ user: propUser }) => {
       setEvents(formattedEvents);
     } catch (error) {
       console.error("Error fetching events:", error);
-      toast.error("Failed to load calendar events. Using demo data.");
-
-      // Fallback to demo data
-      const demoEvents = [
-        {
-          id: 1,
-          title: "Parent-Teacher Meeting",
-          date: format(new Date(), "yyyy-MM-dd"),
-          time: "2:00 PM - 5:00 PM",
-          location: "School Auditorium",
-          description:
-            "Annual parent-teacher meeting to discuss student progress",
-          type: "meeting",
-          attendees: "All parents and teachers",
-        },
-        {
-          id: 2,
-          title: "Spring Holiday",
-          date: format(addMonths(new Date(), 1), "yyyy-MM-dd"),
-          time: "All Day",
-          location: "",
-          description: "School closed for spring break",
-          type: "holiday",
-          attendees: "All students",
-        },
-        {
-          id: 3,
-          title: "Science Exhibition",
-          date: format(addMonths(new Date(), 2), "yyyy-MM-dd"),
-          time: "9:00 AM - 3:00 PM",
-          location: "Science Lab",
-          description: "Annual science exhibition showcasing student projects",
-          type: "event",
-          attendees: "All students and parents",
-        },
-      ];
-      setEvents(demoEvents);
+      toast.error("Failed to load calendar events");
+      setEvents([]);
     } finally {
       setLoading(false);
     }

@@ -1,12 +1,18 @@
+// src/services/api/attendance.js
 import apiClient from "./client";
 
 export const attendanceAPI = {
-  createAttendance: (attendanceData) =>
-    apiClient.post("/attendance", attendanceData),
-  getStudentAttendance: (studentId) =>
-    apiClient.get(`/attendance/student/${studentId}`),
+  markAttendance: (data) => apiClient.post("/attendance/mark", data),
+  bulkMarkAttendance: (data) => apiClient.post("/attendance/bulk", data),
+  getStudentAttendance: (phoneNumber, params = {}) =>
+    apiClient.get(`/attendance/student/${phoneNumber}`, { params }),
   getMyAttendance: () => apiClient.get("/attendance/my"),
+  getClassAttendance: (params) =>
+    apiClient.get("/attendance/class", { params }),
   getTodayAttendance: () => apiClient.get("/attendance/today"),
-  updateAttendance: (id, attendanceData) =>
-    apiClient.put(`/attendance/${id}`, attendanceData),
+  getAttendanceStats: (phoneNumber) =>
+    apiClient.get(`/attendance/stats/${phoneNumber}`),
+  getMonthlyReport: (phoneNumber, params) =>
+    apiClient.get(`/attendance/report/${phoneNumber}`, { params }),
+  updateAttendance: (id, data) => apiClient.put(`/attendance/${id}`, data),
 };

@@ -15,13 +15,14 @@ import {
   FiCalendar,
   FiMapPin,
   FiX,
+  FiPlus,
+  FiTrash2,
 } from "react-icons/fi";
 import {
   FaChalkboardTeacher,
   FaUserGraduate,
   FaUsers,
   FaSchool,
-  FaIdCard,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 
@@ -39,21 +40,29 @@ const RegisterPage = () => {
     password: "",
     confirmPassword: "",
     role: "parent",
-    teacherId: "",
-    subject: "",
+    // Teacher fields
+    primarySubject: "",
     qualification: "",
-    experience: "",
+    yearsOfExperience: "",
     department: "",
+    grades: [],
+    sections: [],
+    // Parent fields
     childrenCount: "",
-    relationship: "parent",
+    relationship: "Parent",
     occupation: "",
-    studentId: "",
+    // Student fields
     dateOfBirth: "",
     grade: "",
     className: "",
-    parentEmail: "",
     parentPhone: "",
   });
+
+  // Dynamic arrays for teacher grades and sections
+  const [newGrade, setNewGrade] = useState("");
+  const [newSection, setNewSection] = useState("");
+  const availableGrades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const availableSections = ["A", "B", "C", "D"];
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -64,11 +73,46 @@ const RegisterPage = () => {
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
+
   const handleRoleChange = (role) => {
     setSelectedRole(role);
     setFormData({ ...formData, role });
   };
+
   const handleClose = () => navigate("/");
+
+  // Teacher grade management
+  const addGrade = () => {
+    if (newGrade && !formData.grades.includes(newGrade)) {
+      setFormData({ ...formData, grades: [...formData.grades, newGrade] });
+      setNewGrade("");
+    }
+  };
+
+  const removeGrade = (gradeToRemove) => {
+    setFormData({
+      ...formData,
+      grades: formData.grades.filter((g) => g !== gradeToRemove),
+    });
+  };
+
+  // Teacher section management
+  const addSection = () => {
+    if (newSection && !formData.sections.includes(newSection)) {
+      setFormData({
+        ...formData,
+        sections: [...formData.sections, newSection],
+      });
+      setNewSection("");
+    }
+  };
+
+  const removeSection = (sectionToRemove) => {
+    setFormData({
+      ...formData,
+      sections: formData.sections.filter((s) => s !== sectionToRemove),
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -77,10 +121,12 @@ const RegisterPage = () => {
     if (
       !formData.firstName ||
       !formData.lastName ||
-      !formData.email ||
+      !formData.phone ||
       !formData.password
     ) {
-      toast.error("Please fill in all required fields");
+      toast.error(
+        "Please fill in all required fields (First Name, Last Name, Phone Number, Password)",
+      );
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -92,50 +138,83 @@ const RegisterPage = () => {
       return;
     }
 
+    // Role-specific validation
+    if (selectedRole === "teacher" && !formData.primarySubject) {
+      toast.error("Please fill in primary subject");
+      return;
+    }
+    if (selectedRole === "teacher" && formData.grades.length === 0) {
+      toast.error("Please add at least one grade");
+      return;
+    }
+    if (selectedRole === "teacher" && formData.sections.length === 0) {
+      toast.error("Please add at least one section");
+      return;
+    }
+    if (
+      selectedRole === "student" &&
+      (!formData.grade || !formData.className || !formData.parentPhone)
+    ) {
+      toast.error("Please fill in grade, class, and parent's phone number");
+      return;
+    }
+    if (selectedRole === "parent" && !formData.childrenCount) {
+      toast.error("Please enter number of children");
+      return;
+    }
+
     setLoading(true);
 
     try {
       let response;
 
-      // Common required fields for ALL users
-      const baseUserData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address || "Not provided", // ✅ ADD THIS - Required by backend
-        password: formData.password,
-      };
-
-      // Role-specific data preparation
       if (selectedRole === "teacher") {
-        response = await authAPI.registerTeacher({
-          ...baseUserData,
-          userId: formData.teacherId, // ✅ ADD THIS - Required by backend
-          subject: formData.subject,
+        const teacherData = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email || null,
+          phoneNumber: formData.phone,
+          address: formData.address || "Not provided",
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          primarySubject: formData.primarySubject,
           qualification: formData.qualification,
-          experience: parseInt(formData.experience) || 0,
+          yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
           department: formData.department,
-        });
+          grades: formData.grades,
+          sections: formData.sections,
+        };
+        response = await authAPI.registerTeacher(teacherData);
       } else if (selectedRole === "student") {
-        response = await authAPI.registerStudent({
-          ...baseUserData,
-          userId: formData.studentId, // ✅ ADD THIS - Required by backend
+        const studentData = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email || null,
+          phoneNumber: formData.phone,
+          address: formData.address || "Not provided",
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
           dateOfBirth: formData.dateOfBirth,
           grade: formData.grade,
           className: formData.className,
-          parentEmail: formData.parentEmail,
-          parentPhone: formData.parentPhone,
-        });
+          parentPhoneNumber: formData.parentPhone,
+        };
+        response = await authAPI.registerStudent(studentData);
       } else {
         // Parent registration
-        response = await authAPI.registerParent({
-          ...baseUserData,
-          userId: `parent_${Date.now()}`, // ✅ ADD THIS - Generate a userId
-          childrenCount: parseInt(formData.childrenCount) || 0,
+        const parentData = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email || null,
+          phoneNumber: formData.phone,
+          address: formData.address || "Not provided",
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          childrenCount: parseInt(formData.childrenCount) || 1,
           relationship: formData.relationship,
-          occupation: formData.occupation,
-        });
+          occupation: formData.occupation || "",
+        };
+        response = await authAPI.registerParent(parentData);
       }
 
       toast.success(
@@ -144,8 +223,11 @@ const RegisterPage = () => {
       setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
       console.error("Registration error:", error);
+      console.error("Error response:", error.response?.data);
+
       const errorMessage =
         error.response?.data?.message ||
+        error.response?.data?.error ||
         "Registration failed. Please try again.";
       toast.error(errorMessage);
     } finally {
@@ -158,11 +240,13 @@ const RegisterPage = () => {
     parent: <FaUsers size={20} />,
     student: <FaUserGraduate size={20} />,
   };
+
   const roleTitles = {
     teacher: "Join as Teacher",
     parent: "Join as Parent",
     student: "Join as Student",
   };
+
   const roleDescriptions = {
     teacher: "Manage classes, grade students, and communicate with parents",
     parent: "Monitor your child's progress and stay connected with teachers",
@@ -264,14 +348,13 @@ const RegisterPage = () => {
             </div>
             <div className="form-row">
               <Input
-                label="Email Address"
+                label="Email Address (Optional)"
                 name="email"
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="your@email.com"
                 icon={<FiMail />}
-                required
               />
               <Input
                 label="Phone Number"
@@ -302,26 +385,15 @@ const RegisterPage = () => {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="section-title">Teacher Information</div>
-                  <div className="form-row">
-                    <Input
-                      label="Teacher ID"
-                      name="teacherId"
-                      value={formData.teacherId}
-                      onChange={handleChange}
-                      placeholder="Teacher ID"
-                      icon={<FaIdCard />}
-                      required
-                    />
-                    <Input
-                      label="Primary Subject"
-                      name="subject"
-                      value={formData.subject}
-                      onChange={handleChange}
-                      placeholder="e.g., Mathematics"
-                      icon={<FiBookOpen />}
-                      required
-                    />
-                  </div>
+                  <Input
+                    label="Primary Subject"
+                    name="primarySubject"
+                    value={formData.primarySubject}
+                    onChange={handleChange}
+                    placeholder="e.g., Mathematics"
+                    icon={<FiBookOpen />}
+                    required
+                  />
                   <div className="form-row">
                     <Input
                       label="Qualification"
@@ -333,9 +405,9 @@ const RegisterPage = () => {
                     />
                     <Input
                       label="Years of Experience"
-                      name="experience"
+                      name="yearsOfExperience"
                       type="number"
-                      value={formData.experience}
+                      value={formData.yearsOfExperience}
                       onChange={handleChange}
                       placeholder="Years"
                       icon={<FiBriefcase />}
@@ -349,8 +421,85 @@ const RegisterPage = () => {
                     placeholder="e.g., Science Department"
                     icon={<FaSchool />}
                   />
+
+                  {/* Grades Selection */}
+                  <div className="section-title">Grades Taught</div>
+                  <div style={styles.arrayInputContainer}>
+                    <select
+                      value={newGrade}
+                      onChange={(e) => setNewGrade(e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="">Select Grade</option>
+                      {availableGrades.map((grade) => (
+                        <option key={grade} value={grade}>
+                          {grade}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={addGrade}
+                      style={styles.addBtn}
+                    >
+                      <FiPlus size={16} /> Add
+                    </button>
+                  </div>
+                  <div style={styles.chipContainer}>
+                    {formData.grades.map((grade) => (
+                      <div key={grade} style={styles.chip}>
+                        <span>{grade}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeGrade(grade)}
+                          style={styles.chipRemove}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Sections Selection */}
+                  <div className="section-title">Sections Taught</div>
+                  <div style={styles.arrayInputContainer}>
+                    <select
+                      value={newSection}
+                      onChange={(e) => setNewSection(e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="">Select Section</option>
+                      {availableSections.map((section) => (
+                        <option key={section} value={section}>
+                          Section {section}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={addSection}
+                      style={styles.addBtn}
+                    >
+                      <FiPlus size={16} /> Add
+                    </button>
+                  </div>
+                  <div style={styles.chipContainer}>
+                    {formData.sections.map((section) => (
+                      <div key={section} style={styles.chip}>
+                        <span>Section {section}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSection(section)}
+                          style={styles.chipRemove}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </motion.div>
               )}
+
               {selectedRole === "student" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -360,15 +509,6 @@ const RegisterPage = () => {
                 >
                   <div className="section-title">Student Information</div>
                   <div className="form-row">
-                    <Input
-                      label="Student ID"
-                      name="studentId"
-                      value={formData.studentId}
-                      onChange={handleChange}
-                      placeholder="Student ID"
-                      icon={<FaIdCard />}
-                      required
-                    />
                     <Input
                       label="Date of Birth"
                       name="dateOfBirth"
@@ -395,31 +535,22 @@ const RegisterPage = () => {
                       onChange={handleChange}
                       placeholder="e.g., Section A"
                       icon={<FaSchool />}
-                    />
-                  </div>
-                  <div className="form-row">
-                    <Input
-                      label="Parent's Email"
-                      name="parentEmail"
-                      type="email"
-                      value={formData.parentEmail}
-                      onChange={handleChange}
-                      placeholder="parent@email.com"
-                      icon={<FiMail />}
                       required
                     />
-                    <Input
-                      label="Parent's Phone"
-                      name="parentPhone"
-                      type="tel"
-                      value={formData.parentPhone}
-                      onChange={handleChange}
-                      placeholder="Parent phone"
-                      icon={<FiPhone />}
-                    />
                   </div>
+                  <Input
+                    label="Parent's Phone Number"
+                    name="parentPhone"
+                    type="tel"
+                    value={formData.parentPhone}
+                    onChange={handleChange}
+                    placeholder="Parent's phone number"
+                    icon={<FiPhone />}
+                    required
+                  />
                 </motion.div>
               )}
+
               {selectedRole === "parent" && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
@@ -438,6 +569,7 @@ const RegisterPage = () => {
                       placeholder="Number of children"
                       icon={<FaUsers />}
                       required
+                      min="1"
                     />
                     <Input
                       label="Occupation"
@@ -460,10 +592,10 @@ const RegisterPage = () => {
                       className="select-field"
                       required
                     >
-                      <option value="parent">Parent</option>
-                      <option value="guardian">Guardian</option>
-                      <option value="grandparent">Grandparent</option>
-                      <option value="other">Other</option>
+                      <option value="Parent">Parent</option>
+                      <option value="Guardian">Guardian</option>
+                      <option value="Grandparent">Grandparent</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
                 </motion.div>
@@ -525,7 +657,6 @@ const RegisterPage = () => {
   );
 };
 
-// Input Component - SINGLE BOX with icon on left inside the input
 const Input = ({
   label,
   name,
@@ -540,10 +671,8 @@ const Input = ({
     <label className="input-label">
       {label} {required && <span className="required">*</span>}
     </label>
-
     <div className="input-container">
       {icon && <span className="input-icon">{icon}</span>}
-
       <input
         name={name}
         type={type}
@@ -572,5 +701,60 @@ const FiCheckCircle = ({ className }) => (
     <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
+
+const styles = {
+  arrayInputContainer: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "12px",
+  },
+  select: {
+    flex: 1,
+    padding: "12px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    fontSize: "14px",
+    backgroundColor: "white",
+  },
+  addBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "0 16px",
+    backgroundColor: "#4f46e5",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "13px",
+    fontWeight: "500",
+  },
+  chipContainer: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    marginBottom: "20px",
+  },
+  chip: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "6px 12px",
+    backgroundColor: "#eef2ff",
+    borderRadius: "20px",
+    fontSize: "13px",
+    color: "#4f46e5",
+  },
+  chipRemove: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "16px",
+    color: "#4f46e5",
+    display: "flex",
+    alignItems: "center",
+    padding: "0",
+  },
+};
 
 export default RegisterPage;

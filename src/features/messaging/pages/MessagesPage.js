@@ -1,4 +1,3 @@
-// MessagesPage.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,6 +10,7 @@ import {
   FiPaperclip,
   FiSmile,
   FiX,
+  FiPlus,
 } from "react-icons/fi";
 import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
@@ -34,16 +34,16 @@ const MessagesPage = () => {
   const [showChat, setShowChat] = useState(false);
   const [user, setUser] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [socket, setSocket] = useState(null);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [composeRecipient, setComposeRecipient] = useState(null);
+  const [composeMessage, setComposeMessage] = useState("");
 
   const messagesEndRef = useRef(null);
   const chatAreaRef = useRef(null);
 
   // Check mobile view
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
+    const handleResize = () => setIsMobileView(window.innerWidth < 768);
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -59,174 +59,236 @@ const MessagesPage = () => {
       } catch (e) {
         console.error("Error parsing user:", e);
       }
+    } else if (storeUser) {
+      setUser(storeUser);
     }
-  }, []);
+  }, [storeUser]);
 
-  // Fetch conversations from API
+  // Fetch conversations when user loaded
   useEffect(() => {
     if (!user) return;
     fetchConversations();
   }, [user]);
 
+  // Check for pending direct chat from dashboard
+  useEffect(() => {
+    if (!user) return;
+    const directChat = localStorage.getItem("directChat");
+    if (directChat) {
+      localStorage.removeItem("directChat");
+      try {
+        const data = JSON.parse(directChat);
+        if (user.role === "parent") {
+          setComposeRecipient({
+            teacherId: data.teacherId,
+            name: data.teacherName,
+            studentId: data.studentId,
+            context: data.subject,
+          });
+        } else if (user.role === "teacher") {
+          setComposeRecipient({
+            parentId: data.teacherId,
+            name: data.teacherName,
+            studentId: data.studentId,
+            context: data.subject,
+          });
+        } else {
+          setComposeRecipient({
+            id: data.teacherId || data.parentId,
+            name: data.teacherName || data.parentName,
+            context: data.subject,
+          });
+        }
+        setShowComposeModal(true);
+      } catch (e) {
+        console.error("Failed to parse directChat", e);
+      }
+    }
+  }, [user]);
+
   const fetchConversations = async () => {
     setLoading(true);
     try {
-      // This endpoint needs to be created by your backend teammate
-      // const response = await messagingAPI.getConversations();
-      // const conversationsData = response.data;
+      let response;
+      if (user?.role === "parent") {
+        response = await messagingAPI.getParentChildren();
+      } else if (user?.role === "teacher") {
+        response = await messagingAPI.getTeacherStudents();
+      } else {
+        response = await messagingAPI.getConversations();
+      }
+      const convData = response.data?.data || response.data || [];
+      let conversationsArray = [];
 
-      // Mock data for demonstration
-      setTimeout(() => {
-        let demoConversations = [];
-
-        if (user.role === "parent") {
-          demoConversations = [
-            {
-              id: 1,
-              name: "Ms. Sarah Johnson",
-              role: "Teacher",
-              avatar: "SJ",
-              lastMessage: "Your child is doing great in mathematics!",
-              lastMessageTime: new Date().toISOString(),
-              unreadCount: 2,
-              online: true,
-              subject: "Mathematics",
-              teacherId: "teacher123",
-              recipientId: "teacher123",
-            },
-            {
-              id: 2,
-              name: "Mr. Michael Chen",
-              role: "Teacher",
-              avatar: "MC",
-              lastMessage: "When is the parent-teacher meeting?",
-              lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
-              unreadCount: 0,
+      if (user?.role === "parent") {
+        // Deduplicate teachers across children by conversationId (or temp teacherId)
+        const teacherMap = new Map();
+        convData.forEach((child) => {
+          (child.teachers || []).forEach((teacher) => {
+            const id = teacher.conversationId || `temp_${teacher.teacherId}`;
+            if (!teacherMap.has(id)) {
+              teacherMap.set(id, {
+                id: teacher.conversationId,
+                name: teacher.teacherName,
+                avatar: getInitials(teacher.teacherName),
+                lastMessage: teacher.lastMessage || "No messages yet",
+                lastMessageTime: teacher.lastMessageTime
+                  ? new Date(teacher.lastMessageTime)
+                  : new Date(),
+                unreadCount: teacher.unreadCount || 0,
+                subject: teacher.subject,
+                role: "teacher",
+                online: false,
+              });
+            } else {
+              const existing = teacherMap.get(id);
+              existing.unreadCount = teacher.unreadCount || 0;
+              if (
+                teacher.lastMessageTime &&
+                new Date(teacher.lastMessageTime) > existing.lastMessageTime
+              ) {
+                existing.lastMessage = teacher.lastMessage;
+                existing.lastMessageTime = new Date(teacher.lastMessageTime);
+              }
+            }
+          });
+        });
+        conversationsArray = Array.from(teacherMap.values());
+      } else if (user?.role === "teacher") {
+        // Deduplicate parents across students by conversationId (or parentId)
+        const parentMap = new Map();
+        convData.forEach((student) => {
+          const parent = student.parent;
+          if (!parent) return;
+          const id = student.conversationId || `temp_${parent.parentId}`;
+          if (!parentMap.has(id)) {
+            parentMap.set(id, {
+              id: student.conversationId,
+              name: parent.parentName,
+              avatar: getInitials(parent.parentName),
+              lastMessage: student.lastMessage || "No messages yet",
+              lastMessageTime: student.lastMessageTime
+                ? new Date(student.lastMessageTime)
+                : new Date(),
+              unreadCount: student.unreadCount || 0,
+              subject: student.subject,
+              role: "parent",
               online: false,
-              subject: "Science",
-              teacherId: "teacher456",
-              recipientId: "teacher456",
-            },
-          ];
-        } else if (user.role === "teacher") {
-          demoConversations = [
-            {
-              id: 1,
-              name: "John Doe (Parent)",
-              role: "Parent",
-              avatar: "JD",
-              lastMessage: "How is my child doing in class?",
-              lastMessageTime: new Date().toISOString(),
-              unreadCount: 1,
-              online: true,
-              subject: "Parent of John Doe",
-              parentId: "parent123",
-              recipientId: "parent123",
-            },
-            {
-              id: 2,
-              name: "Emma Smith (Parent)",
-              role: "Parent",
-              avatar: "ES",
-              lastMessage: "Thanks for the update!",
-              lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
-              unreadCount: 0,
-              online: false,
-              subject: "Parent of Emma Smith",
-              parentId: "parent456",
-              recipientId: "parent456",
-            },
-          ];
-        }
+            });
+          } else {
+            const existing = parentMap.get(id);
+            existing.unreadCount = student.unreadCount || 0;
+            if (
+              student.lastMessageTime &&
+              new Date(student.lastMessageTime) > existing.lastMessageTime
+            ) {
+              existing.lastMessage = student.lastMessage;
+              existing.lastMessageTime = new Date(student.lastMessageTime);
+            }
+          }
+        });
+        conversationsArray = Array.from(parentMap.values());
+      } else {
+        // admin or other
+        conversationsArray = convData.map((conv) => ({
+          id: conv.id,
+          name: conv.name,
+          avatar: conv.avatar || getInitials(conv.name),
+          lastMessage: conv.lastMessage || "No messages yet",
+          lastMessageTime: conv.lastMessageTime
+            ? new Date(conv.lastMessageTime)
+            : new Date(),
+          unreadCount: conv.unreadCount || 0,
+          subject: conv.subject,
+          role: conv.role,
+          online: conv.online || false,
+        }));
+      }
 
-        setConversations(demoConversations);
-        setLoading(false);
-      }, 500);
+      // Sort by lastMessageTime (most recent first)
+      conversationsArray.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
+      setConversations(conversationsArray);
     } catch (error) {
       console.error("Error fetching conversations:", error);
       toast.error("Failed to load conversations");
+      setConversations([]);
+    } finally {
       setLoading(false);
     }
   };
 
-  // Fetch messages when conversation is selected
+  // Fetch messages when conversation selected
   useEffect(() => {
     if (!selectedConversation || !user) return;
+    if (
+      selectedConversation.id &&
+      selectedConversation.id.toString().startsWith("temp_")
+    ) {
+      // No real conversation yet, clear messages and wait for user to send first message
+      setMessages([]);
+      return;
+    }
     fetchMessages(selectedConversation.id);
   }, [selectedConversation, user]);
 
   const fetchMessages = async (conversationId) => {
     try {
-      // This endpoint needs to be created by your backend teammate
-      // const response = await messagingAPI.getMessages(conversationId);
-      // const messagesData = response.data;
-
-      // Mock messages for demonstration
-      const demoMessages = [
-        {
-          id: 1,
-          senderId: conversationId,
-          senderName: selectedConversation.name,
-          content: `Hello! I wanted to discuss ${selectedConversation.subject} with you.`,
-          timestamp: new Date(Date.now() - 86400000).toISOString(),
-          read: true,
-        },
-        {
-          id: 2,
-          senderId: user?.id,
-          senderName: user?.name,
-          content: "Thank you for reaching out. How is everything going?",
-          timestamp: new Date(Date.now() - 86400000 + 3600000).toISOString(),
-          read: true,
-        },
-        {
-          id: 3,
-          senderId: conversationId,
-          senderName: selectedConversation.name,
-          content:
-            "Everything is going well! The student is showing great improvement.",
-          timestamp: new Date(Date.now() - 43200000).toISOString(),
-          read: true,
-        },
-      ];
-      setMessages(demoMessages);
-
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-
-      // Mark messages as read
-      if (selectedConversation.unreadCount > 0) {
-        markConversationAsRead(selectedConversation.id);
+      const response = await messagingAPI.getMessages(conversationId);
+      let messagesData = response.data?.data || response.data || [];
+      if (!Array.isArray(messagesData)) messagesData = [];
+      const formattedMessages = messagesData.map((msg) => ({
+        id: msg.id || msg._id,
+        senderId: msg.senderId || msg.sender?.id,
+        senderName: msg.senderName || msg.sender?.name,
+        content: msg.content,
+        timestamp: msg.createdAt || msg.timestamp,
+        read: msg.read || false,
+      }));
+      setMessages(formattedMessages);
+      // Mark unread messages as read
+      const unreadMsgIds = formattedMessages
+        .filter((msg) => !msg.read && msg.senderId !== user?.id)
+        .map((msg) => msg.id);
+      if (unreadMsgIds.length > 0) {
+        await markMessagesAsRead(unreadMsgIds);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            unreadMsgIds.includes(msg.id) ? { ...msg, read: true } : msg,
+          ),
+        );
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv,
+          ),
+        );
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast.error("Failed to load messages");
+      setMessages([]);
     }
   };
 
-  const markConversationAsRead = async (conversationId) => {
+  const markMessagesAsRead = async (messageIds) => {
     try {
-      // This endpoint needs to be created
-      // await messagingAPI.markAsRead(conversationId);
-
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv,
-        ),
-      );
+      await messagingAPI.markAsRead({ messageIds });
     } catch (error) {
-      console.error("Error marking as read:", error);
+      console.error("Error marking messages as read:", error);
     }
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sendingMessage) return;
-
+    if (
+      selectedConversation.id &&
+      selectedConversation.id.toString().startsWith("temp_")
+    ) {
+      toast.error("Please wait, conversation is being created...");
+      return;
+    }
     setSendingMessage(true);
-
-    const tempId = Date.now();
-    const newMsg = {
+    const tempId = `temp_${Date.now()}`;
+    const tempMsg = {
       id: tempId,
       senderId: user?.id,
       senderName: user?.name,
@@ -235,73 +297,80 @@ const MessagesPage = () => {
       read: false,
       temp: true,
     };
-
-    // Optimistically add message
-    setMessages((prev) => [...prev, newMsg]);
+    setMessages((prev) => [...prev, tempMsg]);
     setNewMessage("");
-
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-
+    setTimeout(
+      () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+      100,
+    );
     try {
-      // Send message to API
-      // This endpoint needs to be created by your backend teammate
-      // const response = await messagingAPI.sendMessage({
-      //   conversationId: selectedConversation.id,
-      //   recipientId: selectedConversation.recipientId,
-      //   content: newMessage,
-      // });
-
-      // Replace temp message with real one
-      // const realMessage = response.data;
-      // setMessages((prev) =>
-      //   prev.map((msg) => (msg.id === tempId ? realMessage : msg))
-      // );
-
-      // Update conversation last message
+      const response = await messagingAPI.sendMessage({
+        conversationId: selectedConversation.id,
+        content: newMessage,
+      });
+      const realMsg = response.data?.data || response.data;
+      const newMsg = {
+        id: realMsg.id || realMsg._id,
+        senderId: realMsg.senderId || user?.id,
+        senderName: realMsg.senderName || user?.name,
+        content: realMsg.content,
+        timestamp: realMsg.createdAt || new Date().toISOString(),
+        read: false,
+      };
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? newMsg : msg)),
+      );
       setConversations((prev) =>
         prev.map((conv) =>
-          conv.id === selectedConversation?.id
+          conv.id === selectedConversation.id
             ? {
                 ...conv,
                 lastMessage: newMessage,
-                lastMessageTime: new Date().toISOString(),
+                lastMessageTime: new Date(),
               }
             : conv,
         ),
       );
-
-      // Simulate reply (remove in production)
-      setTyping(true);
-      setTimeout(() => {
-        setTyping(false);
-        const replyMsg = {
-          id: Date.now() + 1,
-          senderId: selectedConversation?.id,
-          senderName: selectedConversation?.name,
-          content: "Thanks for your message! I'll get back to you soon.",
-          timestamp: new Date().toISOString(),
-          read: false,
-        };
-        setMessages((prev) => [...prev, replyMsg]);
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === selectedConversation?.id
-              ? {
-                  ...conv,
-                  lastMessage: replyMsg.content,
-                  lastMessageTime: new Date().toISOString(),
-                }
-              : conv,
-          ),
-        );
-      }, 1500);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
-      // Remove failed message
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleSendDirectMessage = async () => {
+    if (!composeRecipient || !composeMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      let response;
+      if (user?.role === "parent") {
+        response = await messagingAPI.sendParentToTeacher(
+          composeRecipient.teacherId,
+          composeRecipient.studentId,
+          composeMessage,
+        );
+      } else if (user?.role === "teacher") {
+        response = await messagingAPI.sendTeacherToParent(
+          composeRecipient.parentId,
+          composeRecipient.studentId,
+          composeMessage,
+        );
+      } else {
+        response = await messagingAPI.sendDirectMessage({
+          receiverId: composeRecipient.id,
+          content: composeMessage,
+        });
+      }
+      toast.success(`Message sent to ${composeRecipient.name}`);
+      setShowComposeModal(false);
+      setComposeMessage("");
+      setComposeRecipient(null);
+      await fetchConversations();
+    } catch (error) {
+      console.error("Error sending direct message:", error);
+      toast.error(error.response?.data?.message || "Failed to send message");
     } finally {
       setSendingMessage(false);
     }
@@ -315,6 +384,10 @@ const MessagesPage = () => {
   };
 
   const handleSelectConversation = (conv) => {
+    if (conv.id && conv.id.toString().startsWith("temp_")) {
+      toast.info("Start a conversation by sending a message first.");
+      return;
+    }
     setSelectedConversation(conv);
     if (isMobileView) setShowChat(true);
   };
@@ -331,20 +404,39 @@ const MessagesPage = () => {
     }
   };
 
-  const filteredConversations = conversations.filter(
-    (conv) =>
-      conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      conv.subject?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const getInitials = (name) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const formatMessageTime = (timestamp) => {
+    if (!timestamp) return "";
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Invalid date";
     const now = new Date();
     if (date.toDateString() === now.toDateString()) {
       return format(date, "h:mm a");
     }
     return format(date, "MMM d");
   };
+
+  const safeFormatDistance = (date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return "recently";
+    }
+    return formatDistanceToNow(date, { addSuffix: true });
+  };
+
+  const filteredConversations = conversations.filter(
+    (conv) =>
+      conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conv.subject?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   if (!user) {
     return (
@@ -357,21 +449,27 @@ const MessagesPage = () => {
 
   return (
     <div style={styles.pageContainer}>
-      {/* Page Header */}
       <div style={styles.pageHeader}>
-        <h1 style={styles.pageTitle}>Messages</h1>
-        <p style={styles.pageSubtitle}>
-          {user.role === "parent"
-            ? "Chat with your child's teachers"
-            : user.role === "teacher"
-              ? "Chat with parents"
-              : "Your conversations"}
-        </p>
+        <div>
+          <h1 style={styles.pageTitle}>Messages</h1>
+          <p style={styles.pageSubtitle}>
+            {user.role === "parent"
+              ? "Chat with your child's teachers"
+              : user.role === "teacher"
+                ? "Chat with parents"
+                : "Your conversations"}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowComposeModal(true)}
+          style={styles.composeBtn}
+        >
+          <FiPlus size={18} /> New Message
+        </button>
       </div>
 
-      {/* Main Chat Container */}
       <div style={styles.chatContainer}>
-        {/* Sidebar - Conversations List */}
+        {/* Conversations Sidebar */}
         <div
           style={{
             ...styles.conversationsSidebar,
@@ -380,7 +478,6 @@ const MessagesPage = () => {
             display: isMobileView && showChat ? "none" : "flex",
           }}
         >
-          {/* Search */}
           <div style={styles.searchSection}>
             <div style={styles.searchWrapper}>
               <FiSearch style={styles.searchIcon} size={18} />
@@ -394,7 +491,6 @@ const MessagesPage = () => {
             </div>
           </div>
 
-          {/* Conversations List */}
           <div style={styles.conversationsList}>
             {loading ? (
               <div style={styles.loadingState}>
@@ -405,6 +501,12 @@ const MessagesPage = () => {
               <div style={styles.emptyState}>
                 <FiMessageSquare size={48} style={styles.emptyIcon} />
                 <p style={styles.emptyText}>No conversations found</p>
+                <button
+                  onClick={() => setShowComposeModal(true)}
+                  style={styles.emptyBtn}
+                >
+                  Start a conversation
+                </button>
               </div>
             ) : (
               filteredConversations.map((conv) => (
@@ -435,9 +537,7 @@ const MessagesPage = () => {
                     <div style={styles.conversationHeader}>
                       <h3 style={styles.conversationName}>{conv.name}</h3>
                       <span style={styles.conversationTime}>
-                        {formatDistanceToNow(new Date(conv.lastMessageTime), {
-                          addSuffix: true,
-                        })}
+                        {safeFormatDistance(conv.lastMessageTime)}
                       </span>
                     </div>
                     <p style={styles.conversationLastMessage}>
@@ -464,10 +564,8 @@ const MessagesPage = () => {
         >
           {selectedConversation ? (
             <>
-              {/* Chat Header */}
               <div style={styles.chatHeader}>
                 <div style={styles.chatHeaderLeft}>
-                  {/* Mobile back button */}
                   {isMobileView && (
                     <button
                       onClick={handleExitChat}
@@ -487,7 +585,6 @@ const MessagesPage = () => {
                     </p>
                   </div>
                 </div>
-                {/* Desktop close button */}
                 {!isMobileView && (
                   <button onClick={handleExitChat} style={styles.closeBtn}>
                     <FiX size={18} style={{ color: "#ef4444" }} />
@@ -495,70 +592,72 @@ const MessagesPage = () => {
                 )}
               </div>
 
-              {/* Messages Area */}
               <div style={styles.messagesArea}>
-                {messages.map((msg) => {
-                  const isOwnMessage = msg.senderId === user?.id;
-                  return (
-                    <div
-                      key={msg.id}
-                      style={{
-                        ...styles.messageRow,
-                        justifyContent: isOwnMessage
-                          ? "flex-end"
-                          : "flex-start",
-                      }}
-                    >
-                      {!isOwnMessage && (
-                        <div style={styles.messageAvatar}>
-                          {selectedConversation.avatar}
-                        </div>
-                      )}
-                      <div style={{ maxWidth: "70%" }}>
-                        <div
-                          style={{
-                            ...styles.messageBubble,
-                            backgroundColor: isOwnMessage ? "#4f46e5" : "white",
-                            color: isOwnMessage ? "white" : "#1f2937",
-                            borderBottomRightRadius: isOwnMessage
-                              ? "4px"
-                              : "18px",
-                            borderBottomLeftRadius: isOwnMessage
-                              ? "18px"
-                              : "4px",
-                            boxShadow: !isOwnMessage
-                              ? "0 1px 2px rgba(0,0,0,0.05)"
-                              : "none",
-                            opacity: msg.temp ? 0.7 : 1,
-                          }}
-                        >
-                          <p style={styles.messageContent}>{msg.content}</p>
-                        </div>
-                        <div
-                          style={{
-                            ...styles.messageMeta,
-                            justifyContent: isOwnMessage
-                              ? "flex-end"
-                              : "flex-start",
-                          }}
-                        >
-                          <span>{formatMessageTime(msg.timestamp)}</span>
-                          {isOwnMessage && (
-                            <span>
-                              {msg.read ? (
-                                <FiCheckCircle size={12} />
-                              ) : (
-                                <FiCheck size={12} />
-                              )}
-                            </span>
-                          )}
+                {messages.length === 0 ? (
+                  <div style={styles.noMessagesState}>
+                    <p>No messages yet. Start the conversation!</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isOwnMessage = msg.senderId === user?.id;
+                    return (
+                      <div
+                        key={msg.id}
+                        style={{
+                          ...styles.messageRow,
+                          justifyContent: isOwnMessage
+                            ? "flex-end"
+                            : "flex-start",
+                        }}
+                      >
+                        {!isOwnMessage && (
+                          <div style={styles.messageAvatar}>
+                            {selectedConversation.avatar}
+                          </div>
+                        )}
+                        <div style={{ maxWidth: "70%" }}>
+                          <div
+                            style={{
+                              ...styles.messageBubble,
+                              backgroundColor: isOwnMessage
+                                ? "#4f46e5"
+                                : "white",
+                              color: isOwnMessage ? "white" : "#1f2937",
+                              borderBottomRightRadius: isOwnMessage
+                                ? "4px"
+                                : "18px",
+                              borderBottomLeftRadius: isOwnMessage
+                                ? "18px"
+                                : "4px",
+                              opacity: msg.temp ? 0.7 : 1,
+                            }}
+                          >
+                            <p style={styles.messageContent}>{msg.content}</p>
+                          </div>
+                          <div
+                            style={{
+                              ...styles.messageMeta,
+                              justifyContent: isOwnMessage
+                                ? "flex-end"
+                                : "flex-start",
+                            }}
+                          >
+                            <span>{formatMessageTime(msg.timestamp)}</span>
+                            {isOwnMessage && (
+                              <span>
+                                {msg.read ? (
+                                  <FiCheckCircle size={12} />
+                                ) : (
+                                  <FiCheck size={12} />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-
-                {/* Typing Indicator */}
+                    );
+                  })
+                )}
                 {typing && (
                   <div style={styles.typingRow}>
                     <div style={styles.messageAvatar}>
@@ -578,7 +677,6 @@ const MessagesPage = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
               <div style={styles.messageInput}>
                 <button style={styles.inputBtn} title="Attach file">
                   <FiPaperclip size={20} style={{ color: "#6b7280" }} />
@@ -623,14 +721,81 @@ const MessagesPage = () => {
               <FiMessageSquare size={64} style={styles.noSelectionIcon} />
               <h3 style={styles.noSelectionTitle}>No conversation selected</h3>
               <p style={styles.noSelectionText}>
-                Select a conversation from the list to start messaging
+                Select a conversation from the list or start a new one.
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Global Styles */}
+      {/* Compose Modal */}
+      {showComposeModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h3>New Message</h3>
+              <button
+                onClick={() => setShowComposeModal(false)}
+                style={styles.modalClose}
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              {composeRecipient ? (
+                <div style={styles.recipientInfo}>
+                  <strong>To:</strong> {composeRecipient.name}
+                  {composeRecipient.context && (
+                    <span style={styles.recipientContext}>
+                      {" "}
+                      ({composeRecipient.context})
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Recipient name or ID"
+                  style={styles.modalInput}
+                  onChange={(e) =>
+                    setComposeRecipient({
+                      id: e.target.value,
+                      name: e.target.value,
+                    })
+                  }
+                />
+              )}
+              <textarea
+                placeholder="Type your message..."
+                rows={4}
+                value={composeMessage}
+                onChange={(e) => setComposeMessage(e.target.value)}
+                style={styles.modalTextarea}
+              />
+            </div>
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setShowComposeModal(false)}
+                style={styles.cancelBtn}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendDirectMessage}
+                disabled={!composeMessage.trim() || !composeRecipient}
+                style={{
+                  ...styles.sendDirectBtn,
+                  opacity:
+                    !composeMessage.trim() || !composeRecipient ? 0.5 : 1,
+                }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
@@ -650,6 +815,9 @@ const styles = {
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   pageHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: "20px",
   },
   pageTitle: {
@@ -658,10 +826,19 @@ const styles = {
     color: "#1a1a2e",
     margin: "0 0 4px",
   },
-  pageSubtitle: {
+  pageSubtitle: { fontSize: "14px", color: "#6b7280", margin: 0 },
+  composeBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 16px",
+    backgroundColor: "#4f46e5",
+    color: "white",
+    border: "none",
+    borderRadius: "20px",
+    cursor: "pointer",
     fontSize: "14px",
-    color: "#6b7280",
-    margin: 0,
+    transition: "all 0.2s ease",
   },
   chatContainer: {
     flex: 1,
@@ -679,13 +856,8 @@ const styles = {
     overflow: "hidden",
     transition: "all 0.3s ease",
   },
-  searchSection: {
-    padding: "16px",
-    borderBottom: "1px solid #e5e7eb",
-  },
-  searchWrapper: {
-    position: "relative",
-  },
+  searchSection: { padding: "16px", borderBottom: "1px solid #e5e7eb" },
+  searchWrapper: { position: "relative" },
   searchIcon: {
     position: "absolute",
     left: "12px",
@@ -701,10 +873,7 @@ const styles = {
     fontSize: "14px",
     outline: "none",
   },
-  conversationsList: {
-    flex: 1,
-    overflowY: "auto",
-  },
+  conversationsList: { flex: 1, overflowY: "auto" },
   loadingContainer: {
     display: "flex",
     flexDirection: "column",
@@ -729,11 +898,7 @@ const styles = {
     animation: "spin 0.8s linear infinite",
     marginBottom: "12px",
   },
-  loadingText: {
-    color: "#9ca3af",
-    fontSize: "14px",
-    margin: 0,
-  },
+  loadingText: { color: "#9ca3af", fontSize: "14px", margin: 0 },
   emptyState: {
     display: "flex",
     flexDirection: "column",
@@ -743,12 +908,17 @@ const styles = {
     textAlign: "center",
     color: "#9ca3af",
   },
-  emptyIcon: {
-    marginBottom: "12px",
-  },
-  emptyText: {
-    fontSize: "14px",
-    margin: 0,
+  emptyIcon: { marginBottom: "12px" },
+  emptyText: { fontSize: "14px", margin: 0 },
+  emptyBtn: {
+    marginTop: "12px",
+    padding: "6px 12px",
+    backgroundColor: "#eef2ff",
+    border: "none",
+    borderRadius: "20px",
+    cursor: "pointer",
+    fontSize: "12px",
+    color: "#4f46e5",
   },
   conversationItem: {
     display: "flex",
@@ -758,9 +928,7 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.2s ease",
   },
-  avatarWrapper: {
-    position: "relative",
-  },
+  avatarWrapper: { position: "relative" },
   avatar: {
     width: "48px",
     height: "48px",
@@ -783,10 +951,7 @@ const styles = {
     backgroundColor: "#10b981",
     border: "2px solid white",
   },
-  conversationInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
+  conversationInfo: { flex: 1, minWidth: 0 },
   conversationHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -830,16 +995,8 @@ const styles = {
     justifyContent: "center",
     flexShrink: 0,
   },
-  unreadCount: {
-    color: "white",
-    fontSize: "11px",
-    fontWeight: "600",
-  },
-  chatArea: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  },
+  unreadCount: { color: "white", fontSize: "11px", fontWeight: "600" },
+  chatArea: { flex: 1, display: "flex", flexDirection: "column" },
   chatHeader: {
     padding: "16px",
     borderBottom: "1px solid #e5e7eb",
@@ -848,11 +1005,7 @@ const styles = {
     alignItems: "center",
     backgroundColor: "white",
   },
-  chatHeaderLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
+  chatHeaderLeft: { display: "flex", alignItems: "center", gap: "12px" },
   mobileBackBtn: {
     padding: "8px",
     background: "#f3f4f6",
@@ -862,7 +1015,6 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "all 0.2s ease",
   },
   chatAvatar: {
     width: "40px",
@@ -882,18 +1034,13 @@ const styles = {
     fontSize: "16px",
     margin: 0,
   },
-  chatRole: {
-    fontSize: "12px",
-    color: "#6b7280",
-    margin: "2px 0 0",
-  },
+  chatRole: { fontSize: "12px", color: "#6b7280", margin: "2px 0 0" },
   closeBtn: {
     padding: "8px",
     background: "#f3f4f6",
     border: "none",
     cursor: "pointer",
     borderRadius: "50%",
-    transition: "all 0.2s ease",
   },
   messagesArea: {
     flex: 1,
@@ -901,10 +1048,7 @@ const styles = {
     padding: "16px",
     backgroundColor: "#f9fafb",
   },
-  messageRow: {
-    display: "flex",
-    marginBottom: "16px",
-  },
+  messageRow: { display: "flex", marginBottom: "16px" },
   messageAvatar: {
     width: "32px",
     height: "32px",
@@ -926,11 +1070,7 @@ const styles = {
     lineHeight: "1.5",
     margin: 0,
   },
-  messageContent: {
-    fontSize: "14px",
-    lineHeight: "1.5",
-    margin: 0,
-  },
+  messageContent: { fontSize: "14px", lineHeight: "1.5", margin: 0 },
   messageMeta: {
     display: "flex",
     alignItems: "center",
@@ -975,7 +1115,6 @@ const styles = {
     border: "none",
     cursor: "pointer",
     borderRadius: "50%",
-    transition: "all 0.2s ease",
   },
   textarea: {
     flex: 1,
@@ -1004,9 +1143,7 @@ const styles = {
     height: "100%",
     color: "#9ca3af",
   },
-  noSelectionIcon: {
-    marginBottom: "16px",
-  },
+  noSelectionIcon: { marginBottom: "16px" },
   noSelectionTitle: {
     fontSize: "18px",
     fontWeight: "600",
@@ -1014,10 +1151,136 @@ const styles = {
     color: "#6b7280",
     margin: 0,
   },
-  noSelectionText: {
+  noSelectionText: { fontSize: "14px", marginTop: "4px", margin: 0 },
+  noMessagesState: { textAlign: "center", padding: "40px", color: "#9ca3af" },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modal: {
+    backgroundColor: "white",
+    borderRadius: "12px",
+    width: "90%",
+    maxWidth: "500px",
+    maxHeight: "90vh",
+    overflow: "auto",
+  },
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 20px",
+    borderBottom: "1px solid #e5e7eb",
+  },
+  modalClose: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#9ca3af",
+  },
+  modalBody: { padding: "20px" },
+  modalLabel: {
+    display: "block",
+    marginBottom: "8px",
+    fontWeight: 500,
     fontSize: "14px",
-    marginTop: "4px",
-    margin: 0,
+  },
+  loadingContacts: { textAlign: "center", padding: "20px", color: "#6b7280" },
+  emptyContacts: { textAlign: "center", padding: "20px", color: "#9ca3af" },
+  contactsList: { maxHeight: "300px", overflowY: "auto", marginTop: "12px" },
+  contactItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    transition: "background 0.2s",
+  },
+  contactAvatar: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #667eea, #764ba2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "white",
+    fontWeight: "600",
+  },
+  contactInfo: { flex: 1 },
+  contactName: { fontWeight: "600", color: "#1f2937" },
+  contactContext: { fontSize: "12px", color: "#6b7280" },
+  contactIcon: { color: "#9ca3af" },
+  selectedContact: {
+    padding: "12px",
+    background: "#f9fafb",
+    borderRadius: "12px",
+    marginBottom: "16px",
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "8px",
+  },
+  editContactBtn: {
+    background: "none",
+    border: "none",
+    color: "#4f46e5",
+    cursor: "pointer",
+    fontSize: "12px",
+    marginLeft: "auto",
+  },
+  modalTextarea: {
+    width: "100%",
+    padding: "10px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    fontSize: "14px",
+    resize: "vertical",
+  },
+  modalFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "12px",
+    padding: "16px 20px",
+    borderTop: "1px solid #e5e7eb",
+  },
+  cancelBtn: {
+    padding: "8px 16px",
+    backgroundColor: "#f3f4f6",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+  sendDirectBtn: {
+    padding: "8px 16px",
+    backgroundColor: "#4f46e5",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+  },
+  recipientInfo: {
+    marginBottom: "12px",
+    fontSize: "14px",
+    color: "#374151",
+  },
+  recipientContext: { fontSize: "12px", color: "#6b7280" },
+  modalInput: {
+    width: "100%",
+    padding: "10px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    marginBottom: "12px",
+    fontSize: "14px",
   },
 };
 

@@ -1,23 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+
 import {
   FiUsers,
   FiBookOpen,
   FiCalendar,
   FiMessageSquare,
-  FiTrendingUp,
-  FiAward,
   FiClock,
   FiCheckCircle,
-  FiStar,
   FiDownload,
   FiMessageCircle,
+  FiFile,
 } from "react-icons/fi";
-import { FaChild, FaChartLine } from "react-icons/fa";
+import { FaChild } from "react-icons/fa";
 import toast from "react-hot-toast";
 import "../../../assets/styles/dashboard.css";
-import { studentsAPI } from "../../../services/api";
+
+import {
+  usersAPI,
+  gradesAPI,
+  attendanceAPI,
+  materialsAPI,
+  homeworkAPI,
+  messagingAPI,
+} from "../../../services/api";
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
@@ -25,7 +32,10 @@ const ParentDashboard = () => {
   const [children, setChildren] = useState([]);
   const [grades, setGrades] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [homeworks, setHomeworks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("grades");
   const [isMobile, setIsMobile] = useState(false);
   const [parentUser, setParentUser] = useState(null);
 
@@ -43,215 +53,125 @@ const ParentDashboard = () => {
   const fetchParentData = async () => {
     setLoading(true);
     try {
-      // Get current user from localStorage
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const userData = JSON.parse(storedUser);
         setParentUser(userData);
       }
 
-      // Fetch children data from API
-      // Assuming the parent has children IDs in their profile
-      // You may need to adjust this based on your API structure
-      const childrenData = await fetchParentChildren();
-      setChildren(childrenData);
+      // Fetch children with teachers using the new endpoint
+      const response = await messagingAPI.getParentChildren();
+      const childrenData = response.data?.data || response.data || [];
+      const formattedChildren = childrenData.map((child) => ({
+        id: child.studentId,
+        studentId: child.studentId,
+        name: child.studentName,
+        grade: child.grade,
+        class: child.className,
+        phoneNumber: child.phoneNumber,
+        teachers: child.teachers,
+      }));
+      setChildren(formattedChildren);
+      if (formattedChildren.length > 0 && !selectedChild) {
+        setSelectedChild(formattedChildren[0]);
+      }
     } catch (error) {
       console.error("Error fetching parent data:", error);
-      toast.error("Failed to load data. Using demo data.");
-
-      // Fallback to demo data
-      setChildren([
-        {
-          id: 1,
-          name: "John Doe",
-          grade: "10th Grade",
-          class: "Section A",
-          teacher: "Mrs. Smith",
-          attendance: 92,
-          averageGrade: 85,
-          studentId: "student123",
-        },
-        {
-          id: 2,
-          name: "Emma Doe",
-          grade: "8th Grade",
-          class: "Section B",
-          teacher: "Mr. Johnson",
-          attendance: 88,
-          averageGrade: 78,
-          studentId: "student456",
-        },
-      ]);
+      toast.error("Failed to load children data");
+      setChildren([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchParentChildren = async () => {
-    // This function should fetch the parent's children
-    // You may need to create a specific endpoint for this
-    // For now, we'll use a mock implementation
-    try {
-      // If your API has an endpoint to get parent's children
-      // const response = await parentAPI.getChildren();
-      // return response.data;
-
-      // Temporary mock data
-      return [
-        {
-          id: 1,
-          name: "John Doe",
-          grade: "10th Grade",
-          class: "Section A",
-          teacher: "Mrs. Smith",
-          attendance: 92,
-          averageGrade: 85,
-          studentId: "student123",
-        },
-        {
-          id: 2,
-          name: "Emma Doe",
-          grade: "8th Grade",
-          class: "Section B",
-          teacher: "Mr. Johnson",
-          attendance: 88,
-          averageGrade: 78,
-          studentId: "student456",
-        },
-      ];
-    } catch (error) {
-      console.error("Error fetching children:", error);
-      throw error;
-    }
-  };
-
   useEffect(() => {
     if (selectedChild) {
-      fetchChildData(selectedChild.studentId || selectedChild.id);
+      fetchChildData(selectedChild);
     }
   }, [selectedChild]);
 
-  const fetchChildData = async (studentId) => {
+  const fetchChildData = async (child) => {
     try {
-      // Fetch grades for the selected student
-      const gradesResponse = await studentsAPI.getStudentProfile(studentId);
-      // You may need to adjust based on your actual API response structure
-      const studentData = gradesResponse.data;
-
-      // Fetch grades - you may need a specific grades endpoint
-      // For now, using the gradesAPI that we'll create
+      // 1. Grades
       let gradesData = [];
       try {
-        const gradesResponse = await import("../../../services/api").then(
-          (module) => module.gradesAPI,
-        );
-        const result = await gradesResponse.getStudentGrades(studentId);
-        gradesData = result.data;
+        const result = await gradesAPI.getStudentGrades(child.studentId);
+        let allGrades = result.data?.data || result.data || [];
+        if (!Array.isArray(allGrades)) allGrades = [];
+        // Transform grades to include teacher name from teachers array?
+        gradesData = allGrades.map((grade) => ({
+          id: grade.id || grade._id,
+          subject: grade.subject,
+          score: grade.score,
+          grade: grade.grade,
+          term: grade.term,
+          teacher: grade.teacherId?.firstName + " " + grade.teacherId?.lastName,
+          teacherId: grade.teacherId?._id,
+        }));
       } catch (error) {
-        console.log("Using demo grades data");
-        gradesData = [
-          {
-            id: 1,
-            subject: "Mathematics",
-            score: 85,
-            grade: "A",
-            term: "Term 1",
-            teacher: "Mr. Smith",
-            teacherId: "teacher123",
-            teacherAvatar: "MS",
-          },
-          {
-            id: 2,
-            subject: "Science",
-            score: 78,
-            grade: "B+",
-            term: "Term 1",
-            teacher: "Mrs. Johnson",
-            teacherId: "teacher456",
-            teacherAvatar: "MJ",
-          },
-          {
-            id: 3,
-            subject: "English",
-            score: 92,
-            grade: "A+",
-            term: "Term 1",
-            teacher: "Ms. Davis",
-            teacherId: "teacher789",
-            teacherAvatar: "MD",
-          },
-          {
-            id: 4,
-            subject: "History",
-            score: 88,
-            grade: "A-",
-            term: "Term 1",
-            teacher: "Mr. Brown",
-            teacherId: "teacher101",
-            teacherAvatar: "MB",
-          },
-          {
-            id: 5,
-            subject: "Physics",
-            score: 82,
-            grade: "B+",
-            term: "Term 1",
-            teacher: "Dr. Wilson",
-            teacherId: "teacher102",
-            teacherAvatar: "DW",
-          },
-        ];
+        gradesData = [];
       }
+      setGrades(gradesData);
 
-      // Fetch attendance
+      // 2. Attendance
       let attendanceData = [];
       try {
-        const { attendanceAPI } = await import("../../../services/api");
-        const result = await attendanceAPI.getStudentAttendance(studentId);
-        attendanceData = result.data;
+        const result = await attendanceAPI.getStudentAttendance(
+          child.phoneNumber,
+        );
+        attendanceData = result.data?.data || result.data || [];
       } catch (error) {
-        console.log("Using demo attendance data");
-        attendanceData = [
-          {
-            date: "2024-01-15",
-            status: "present",
-            checkIn: "8:30 AM",
-            checkOut: "3:30 PM",
-          },
-          {
-            date: "2024-01-14",
-            status: "present",
-            checkIn: "8:25 AM",
-            checkOut: "3:30 PM",
-          },
-          {
-            date: "2024-01-13",
-            status: "late",
-            checkIn: "9:00 AM",
-            checkOut: "3:30 PM",
-          },
-          {
-            date: "2024-01-12",
-            status: "present",
-            checkIn: "8:28 AM",
-            checkOut: "3:30 PM",
-          },
-          { date: "2024-01-11", status: "absent", checkIn: "-", checkOut: "-" },
-        ];
+        attendanceData = [];
       }
-
-      setGrades(gradesData);
       setAttendance(attendanceData);
+
+      // 3. Materials
+      let materialsData = [];
+      try {
+        const response = await materialsAPI.getAllMaterials();
+        let allMaterials = response.data?.data || response.data || [];
+        if (!Array.isArray(allMaterials)) allMaterials = [];
+        materialsData = allMaterials.filter(
+          (material) =>
+            material.grade === child.grade &&
+            (!material.section || material.section === child.class),
+        );
+      } catch (error) {
+        materialsData = [];
+      }
+      setMaterials(materialsData);
+
+      // 4. Homework
+      let homeworksData = [];
+      try {
+        const response = await homeworkAPI.getAllHomework();
+        let allHomework = response.data?.data || response.data || [];
+        if (!Array.isArray(allHomework)) allHomework = [];
+        homeworksData = allHomework.filter(
+          (hw) =>
+            hw.grade === child.grade &&
+            (!hw.className || hw.className === child.class),
+        );
+      } catch (error) {
+        homeworksData = [];
+      }
+      setHomeworks(homeworksData);
     } catch (error) {
       console.error("Error fetching child data:", error);
       toast.error("Failed to load child data");
     }
   };
 
-  const handleChatWithTeacher = (teacherName, teacherId, subject) => {
+  const handleChatWithTeacher = (
+    teacherId,
+    teacherName,
+    studentId,
+    subject,
+  ) => {
     const chatData = {
-      teacherName,
       teacherId,
+      teacherName,
+      studentId,
       subject,
       childName: selectedChild?.name,
     };
@@ -261,7 +181,10 @@ const ParentDashboard = () => {
   };
 
   const handleExportGrades = () => {
-    // Generate CSV export of grades
+    if (!grades.length) {
+      toast.error("No grades available to export");
+      return;
+    }
     const csvContent = [
       ["Subject", "Score", "Grade", "Term", "Teacher"],
       ...grades.map((grade) => [
@@ -272,7 +195,6 @@ const ParentDashboard = () => {
         grade.teacher,
       ]),
     ];
-
     const csvString = csvContent.map((row) => row.join(",")).join("\n");
     const blob = new Blob([csvString], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -283,7 +205,6 @@ const ParentDashboard = () => {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-
     toast.success("Grades exported successfully!");
   };
 
@@ -295,17 +216,15 @@ const ParentDashboard = () => {
   };
 
   const calculateAverageGrade = () => {
-    if (grades.length === 0) return 0;
-    const sum = grades.reduce((total, grade) => total + grade.score, 0);
+    if (!grades.length) return 0;
+    const sum = grades.reduce((total, g) => total + (g.score || 0), 0);
     return Math.round(sum / grades.length);
   };
 
   const calculateAttendanceRate = () => {
-    if (attendance.length === 0) return 0;
-    const presentCount = attendance.filter(
-      (a) => a.status === "present",
-    ).length;
-    return Math.round((presentCount / attendance.length) * 100);
+    if (!attendance.length) return 0;
+    const present = attendance.filter((a) => a.status === "present").length;
+    return Math.round((present / attendance.length) * 100);
   };
 
   const stats = [
@@ -330,7 +249,7 @@ const ParentDashboard = () => {
     {
       icon: <FiMessageSquare size={isMobile ? 20 : 24} />,
       label: "Messages",
-      value: "3",
+      value: "0",
       color: "#f59e0b",
       link: "/messages",
     },
@@ -394,144 +313,347 @@ const ParentDashboard = () => {
 
       <div className="dashboard-section">
         <h2 className="section-title">My Children</h2>
-        <div className="children-grid">
-          {children.map((child) => (
-            <motion.button
-              key={child.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setSelectedChild(child)}
-              className={`child-card ${selectedChild?.id === child.id ? "active" : ""}`}
-            >
-              <FaChild size={isMobile ? 28 : 32} className="child-icon" />
-              <div className="child-info">
-                <h3 className="child-name">{child.name}</h3>
-                <p className="child-meta">
-                  {child.grade} • {child.class}
-                </p>
-                <p className="child-teacher">Teacher: {child.teacher}</p>
-              </div>
-            </motion.button>
-          ))}
-        </div>
+        {children.length === 0 ? (
+          <div className="empty-state">
+            <p>No children added yet.</p>
+            <p className="text-sm text-gray-400 mt-2">
+              Children will appear here when they register with your phone
+              number.
+            </p>
+          </div>
+        ) : (
+          <div className="children-grid">
+            {children.map((child) => (
+              <motion.button
+                key={child.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedChild(child)}
+                className={`child-card ${selectedChild?.id === child.id ? "active" : ""}`}
+              >
+                <FaChild size={isMobile ? 28 : 32} className="child-icon" />
+                <div className="child-info">
+                  <h3 className="child-name">{child.name}</h3>
+                  <p className="child-meta">
+                    {child.grade} • {child.class}
+                  </p>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        )}
       </div>
 
       {selectedChild && (
         <>
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h2 className="section-title">
-                📚 {selectedChild.name}'s Grades
-              </h2>
-              <button onClick={handleExportGrades} className="export-btn">
-                <FiDownload size={16} /> Export
-              </button>
-            </div>
-            <div className="grades-grid">
-              {grades.map((grade, index) => (
-                <motion.div
-                  key={grade.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="grade-card"
-                >
-                  <div className="grade-info">
-                    <div>
-                      <h3 className="grade-subject">{grade.subject}</h3>
-                      <p className="grade-teacher">{grade.teacher}</p>
-                      <p className="grade-term">{grade.term}</p>
-                    </div>
-                    <div className="grade-score">
-                      <span
-                        className="grade-value"
-                        style={{ color: getGradeColor(grade.score) }}
-                      >
-                        {grade.score}%
-                      </span>
-                      <span className="grade-letter">{grade.grade}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() =>
-                      handleChatWithTeacher(
-                        grade.teacher,
-                        grade.teacherId,
-                        grade.subject,
-                      )
-                    }
-                    className="chat-btn"
-                  >
-                    <FiMessageCircle size={16} /> Chat with Teacher
+          <div className="dashboard-tabs" style={styles.tabs}>
+            <button
+              onClick={() => setActiveTab("grades")}
+              className={`tab-btn ${activeTab === "grades" ? "active" : ""}`}
+              style={activeTab === "grades" ? styles.activeTab : styles.tab}
+            >
+              📊 Grades
+            </button>
+            <button
+              onClick={() => setActiveTab("attendance")}
+              className={`tab-btn ${activeTab === "attendance" ? "active" : ""}`}
+              style={activeTab === "attendance" ? styles.activeTab : styles.tab}
+            >
+              📅 Attendance
+            </button>
+            <button
+              onClick={() => setActiveTab("materials")}
+              className={`tab-btn ${activeTab === "materials" ? "active" : ""}`}
+              style={activeTab === "materials" ? styles.activeTab : styles.tab}
+            >
+              📁 Materials
+            </button>
+            <button
+              onClick={() => setActiveTab("homework")}
+              className={`tab-btn ${activeTab === "homework" ? "active" : ""}`}
+              style={activeTab === "homework" ? styles.activeTab : styles.tab}
+            >
+              📝 Homework
+            </button>
+          </div>
+
+          {activeTab === "grades" && (
+            <div className="dashboard-section">
+              <div className="section-header">
+                <h2 className="section-title">
+                  📚 {selectedChild.name}'s Grades
+                </h2>
+                {grades.length > 0 && (
+                  <button onClick={handleExportGrades} className="export-btn">
+                    <FiDownload size={16} /> Export
                   </button>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          <div className="dashboard-section">
-            <h2 className="section-title">📅 Attendance Record</h2>
-            <div className="attendance-table-wrapper">
-              <table className="attendance-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Check In</th>
-                    <th>Check Out</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendance.map((record, index) => (
-                    <tr key={index}>
-                      <td>{record.date}</td>
-                      <td>
-                        <span
-                          className={`status-badge status-${record.status}`}
-                        >
-                          {record.status === "present" && (
-                            <FiCheckCircle size={12} />
-                          )}
-                          {record.status === "late" && <FiClock size={12} />}
-                          {record.status === "absent" && (
-                            <FiCalendar size={12} />
-                          )}
-                          {record.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>{record.checkIn}</td>
-                      <td>{record.checkOut}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="dashboard-section">
-            <h2 className="section-title">📈 Performance Overview</h2>
-            <div className="chart-container">
-              {grades.map((grade, index) => (
-                <div key={index} className="chart-bar">
-                  <div className="chart-label">{grade.subject}</div>
-                  <div className="chart-bar-container">
-                    <div
-                      className="chart-bar-fill"
-                      style={{
-                        width: `${grade.score}%`,
-                        backgroundColor: getGradeColor(grade.score),
-                      }}
-                    ></div>
-                  </div>
-                  <div className="chart-value">{grade.score}%</div>
+                )}
+              </div>
+              {grades.length === 0 ? (
+                <div className="empty-state">
+                  <p>No grades available for {selectedChild.name}.</p>
                 </div>
-              ))}
+              ) : (
+                <>
+                  <div className="grades-grid">
+                    {grades.map((grade, idx) => (
+                      <motion.div
+                        key={grade.id || idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="grade-card"
+                      >
+                        <div className="grade-info">
+                          <div>
+                            <h3 className="grade-subject">{grade.subject}</h3>
+                            <p className="grade-teacher">{grade.teacher}</p>
+                            <p className="grade-term">{grade.term}</p>
+                          </div>
+                          <div className="grade-score">
+                            <span
+                              className="grade-value"
+                              style={{ color: getGradeColor(grade.score) }}
+                            >
+                              {grade.score}%
+                            </span>
+                            <span className="grade-letter">{grade.grade}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() =>
+                            handleChatWithTeacher(
+                              grade.teacher,
+                              grade.teacherId,
+                              grade.subject,
+                            )
+                          }
+                          className="chat-btn"
+                        >
+                          <FiMessageCircle size={16} /> Chat with Teacher
+                        </button>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <div
+                    className="chart-container"
+                    style={{ marginTop: "24px" }}
+                  >
+                    <h3 className="section-title">Performance Overview</h3>
+                    {grades.map((grade, idx) => (
+                      <div key={idx} className="chart-bar">
+                        <div className="chart-label">{grade.subject}</div>
+                        <div className="chart-bar-container">
+                          <div
+                            className="chart-bar-fill"
+                            style={{
+                              width: `${grade.score}%`,
+                              backgroundColor: getGradeColor(grade.score),
+                            }}
+                          />
+                        </div>
+                        <div className="chart-value">{grade.score}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-          </div>
+          )}
+
+          {/* Attendance, Materials, Homework tabs remain unchanged – they already work */}
+
+          {activeTab === "attendance" && (
+            <div className="dashboard-section">
+              <h2 className="section-title">📅 Attendance Record</h2>
+              {attendance.length === 0 ? (
+                <div className="empty-state">
+                  <p>No attendance records for {selectedChild.name}.</p>
+                </div>
+              ) : (
+                <div className="attendance-table-wrapper">
+                  <table className="attendance-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendance.map((record, idx) => (
+                        <tr key={idx}>
+                          <td>{record.date}</td>
+                          <td>
+                            <span
+                              className={`status-badge status-${record.status}`}
+                            >
+                              {record.status === "present" && (
+                                <FiCheckCircle size={12} />
+                              )}
+                              {record.status === "late" && (
+                                <FiClock size={12} />
+                              )}
+                              {record.status === "absent" && (
+                                <FiCalendar size={12} />
+                              )}
+                              {record.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td>{record.checkIn || "-"}</td>
+                          <td>{record.checkOut || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "materials" && (
+            <div className="dashboard-section">
+              <h2 className="section-title">📁 Learning Materials</h2>
+              {materials.length === 0 ? (
+                <div className="empty-state">
+                  <p>No materials available for {selectedChild.name}.</p>
+                </div>
+              ) : (
+                <div className="materials-list">
+                  {materials.map((material) => (
+                    <div
+                      key={material.id}
+                      className="material-card"
+                      style={styles.materialCard}
+                    >
+                      <div style={styles.materialIcon}>
+                        <FiFile size={24} />
+                      </div>
+                      <div style={styles.materialInfo}>
+                        <h3>{material.title}</h3>
+                        <p>{material.description}</p>
+                        <p style={styles.materialMeta}>
+                          Subject: {material.subject} • Uploaded:{" "}
+                          {material.date}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => window.open(material.fileUrl, "_blank")}
+                        style={styles.viewBtn}
+                      >
+                        View
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "homework" && (
+            <div className="dashboard-section">
+              <h2 className="section-title">📝 Homework Assignments</h2>
+              {homeworks.length === 0 ? (
+                <div className="empty-state">
+                  <p>No homework assigned for {selectedChild.name}.</p>
+                </div>
+              ) : (
+                <div className="homework-list">
+                  {homeworks.map((hw) => (
+                    <div
+                      key={hw.id}
+                      className="homework-card"
+                      style={styles.homeworkCard}
+                    >
+                      <div>
+                        <h3>{hw.title}</h3>
+                        <p>{hw.description}</p>
+                        <p style={styles.meta}>Due: {hw.dueDate}</p>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/homework/${hw.id}`)}
+                        style={styles.viewBtn}
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
   );
+};
+
+const styles = {
+  tabs: {
+    display: "flex",
+    gap: "8px",
+    marginBottom: "24px",
+    borderBottom: "1px solid #e5e7eb",
+    paddingBottom: "12px",
+  },
+  tab: {
+    padding: "8px 16px",
+    backgroundColor: "transparent",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  activeTab: {
+    padding: "8px 16px",
+    backgroundColor: "#eef2ff",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#4f46e5",
+  },
+  materialCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    padding: "16px",
+    backgroundColor: "white",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
+    marginBottom: "12px",
+  },
+  materialIcon: {
+    padding: "12px",
+    backgroundColor: "#eef2ff",
+    borderRadius: "12px",
+    color: "#4f46e5",
+  },
+  materialInfo: { flex: 1 },
+  materialMeta: { fontSize: "12px", color: "#6b7280", marginTop: "4px" },
+  viewBtn: {
+    padding: "6px 12px",
+    backgroundColor: "#4f46e5",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+  homeworkCard: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px",
+    backgroundColor: "white",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
+    marginBottom: "12px",
+  },
+  meta: { fontSize: "12px", color: "#6b7280", marginTop: "4px" },
 };
 
 export default ParentDashboard;

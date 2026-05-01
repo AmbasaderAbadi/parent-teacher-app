@@ -1,84 +1,157 @@
 import React, { useState, useEffect } from "react";
 import { FiBell } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
+import { announcementsAPI } from "../../../services/api";
+import toast from "react-hot-toast";
 
 const UserAnnouncementsPage = () => {
-  const { user } = useAuthStore();
+  const { user: storeUser } = useAuthStore();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Get user from localStorage if store is empty
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setCurrentUser(parsedUser);
+      } catch (e) {
+        console.error("Error parsing user:", e);
+      }
+    } else if (storeUser) {
+      setCurrentUser(storeUser);
+    }
+  }, [storeUser]);
 
   useEffect(() => {
-    // Demo announcements with target audience
-    const allAnnouncements = [
-      {
-        id: 1,
-        title: "School Holiday",
-        content: "School closed on Friday",
-        targetType: "all",
-        date: "2024-04-01",
-        postedBy: "Admin",
-      },
-      {
-        id: 2,
-        title: "Teacher Meeting",
-        content: "All teachers attend meeting",
-        targetType: "role",
-        targetRole: "teacher",
-        date: "2024-04-02",
-        postedBy: "Admin",
-      },
-      {
-        id: 3,
-        title: "Parent-Teacher Meeting",
-        content: "Meeting for parents only",
-        targetType: "role",
-        targetRole: "parent",
-        date: "2024-04-03",
-        postedBy: "Admin",
-      },
-      {
-        id: 4,
-        title: "Grade 10 Exam",
-        content: "Exams start next week",
-        targetType: "grade",
-        targetGrade: "Grade 10",
-        date: "2024-04-04",
-        postedBy: "Admin",
-      },
-      {
-        id: 5,
-        title: "Section A Field Trip",
-        content: "Field trip for Section A",
-        targetType: "section",
-        targetGrade: "Grade 10",
-        targetSection: "A",
-        date: "2024-04-05",
-        postedBy: "Admin",
-      },
-    ];
+    if (currentUser) {
+      fetchAnnouncements();
+    }
+  }, [currentUser]);
 
-    // Filter announcements based on user's role and class
-    const filtered = allAnnouncements.filter((ann) => {
-      if (ann.targetType === "all") return true;
-      if (ann.targetType === "role" && ann.targetRole === user?.role)
-        return true;
-      if (ann.targetType === "grade" && ann.targetGrade === user?.grade)
-        return true;
+  const fetchAnnouncements = async () => {
+    setLoading(true);
+    try {
+      const response = await announcementsAPI.getAllAnnouncements();
+      let allData = response.data;
+      if (allData?.data && Array.isArray(allData.data)) {
+        allData = allData.data;
+      } else if (
+        allData?.announcements &&
+        Array.isArray(allData.announcements)
+      ) {
+        allData = allData.announcements;
+      } else if (!Array.isArray(allData)) {
+        allData = [];
+      }
+
+      const filtered = filterAnnouncementsByUser(allData, currentUser);
+
+      const formatted = filtered.map((ann) => ({
+        id: ann.id || ann._id,
+        title: ann.title,
+        content: ann.content,
+        targetAudience: ann.targetAudience || "all", // ✅ default to "all"
+        targetGrade: ann.targetGrade,
+        targetSection: ann.targetSection,
+        date: ann.createdAt
+          ? new Date(ann.createdAt).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        postedBy: ann.postedBy || ann.createdBy?.name || "Admin",
+      }));
+
+      setAnnouncements(formatted);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      if (error.response?.status !== 401) {
+        toast.error("Failed to load announcements");
+      }
+      setAnnouncements([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterAnnouncementsByUser = (allAnnouncements, userData) => {
+    if (!userData || !Array.isArray(allAnnouncements)) return [];
+
+    return allAnnouncements.filter((ann) => {
+      const target = ann.targetAudience || "all"; // ✅ treat missing as global
+
+      if (target === "all") return true;
+      if (target === "teachers" && userData.role === "teacher") return true;
+      if (target === "parents" && userData.role === "parent") return true;
+      if (target === "students" && userData.role === "student") return true;
+
+      // Grade/section targeting for students
+      if (userData.role === "student" && ann.targetGrade) {
+        if (ann.targetGrade === userData.grade) {
+          if (ann.targetSection) {
+            return (
+              ann.targetSection === (userData.className || userData.section)
+            );
+          }
+          return true;
+        }
+      }
+
+      // Parents: match any child's grade/section
       if (
-        ann.targetType === "section" &&
-        ann.targetGrade === user?.grade &&
-        ann.targetSection === user?.class
-      )
-        return true;
+        userData.role === "parent" &&
+        userData.children &&
+        Array.isArray(userData.children)
+      ) {
+        return userData.children.some((child) => {
+          if (ann.targetGrade && ann.targetGrade === child.grade) {
+            if (ann.targetSection) {
+              return ann.targetSection === child.section;
+            }
+            return true;
+          }
+          return false;
+        });
+      }
+
       return false;
     });
+  };
 
-    setAnnouncements(filtered);
-    setLoading(false);
-  }, [user]);
+  const getTargetText = (ann) => {
+    const target = ann.targetAudience || "all";
+    if (target === "all") return "📢 Everyone";
+    if (target === "teachers") return "👥 Teachers only";
+    if (target === "parents") return "👥 Parents only";
+    if (target === "students") return "👥 Students only";
+    if (ann.targetGrade && ann.targetSection) {
+      return `🏫 ${ann.targetGrade} - Section ${ann.targetSection}`;
+    }
+    if (ann.targetGrade) return `📚 ${ann.targetGrade}`;
+    return "🎯 Specific";
+  };
 
   if (loading) {
-    return <div style={styles.loading}>Loading announcements...</div>;
+    return (
+      <div style={styles.loadingContainer}>
+        <div className="loading-spinner" />
+        <p>Loading announcements...</p>
+        <style>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
   }
 
   return (
@@ -88,10 +161,26 @@ const UserAnnouncementsPage = () => {
         <p style={styles.subtitle}>Stay updated with important news</p>
       </div>
 
+      {currentUser && (
+        <div style={styles.userInfo}>
+          <p>
+            Showing announcements for:{" "}
+            <strong>{currentUser.role?.toUpperCase()}</strong>
+            {currentUser.grade && ` • ${currentUser.grade}`}
+            {(currentUser.className || currentUser.section) &&
+              ` • Section ${currentUser.className || currentUser.section}`}
+            {currentUser.role === "parent" &&
+              currentUser.children &&
+              ` • Children: ${currentUser.children.map((c) => c.name).join(", ")}`}
+          </p>
+        </div>
+      )}
+
       {announcements.length === 0 ? (
         <div style={styles.empty}>
-          <FiBell size={48} />
+          <FiBell size={48} style={styles.emptyIcon} />
           <p>No announcements for you at this time</p>
+          <p style={styles.emptySubtext}>Check back later for updates</p>
         </div>
       ) : (
         <div style={styles.announcementsList}>
@@ -99,7 +188,12 @@ const UserAnnouncementsPage = () => {
             <div key={ann.id} style={styles.announcementCard}>
               <div style={styles.announcementHeader}>
                 <FiBell size={20} style={{ color: "#4f46e5" }} />
-                <h3>{ann.title}</h3>
+                <div>
+                  <h3>{ann.title}</h3>
+                  {ann.targetAudience !== "all" && (
+                    <span style={styles.targetBadge}>{getTargetText(ann)}</span>
+                  )}
+                </div>
               </div>
               <p style={styles.announcementContent}>{ann.content}</p>
               <p style={styles.meta}>
@@ -109,34 +203,89 @@ const UserAnnouncementsPage = () => {
           ))}
         </div>
       )}
+
+      <style>{`
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #e5e7eb;
+          border-top-color: #4f46e5;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin-bottom: 12px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
 
 const styles = {
-  container: { padding: "24px", maxWidth: "1200px", margin: "0 auto" },
+  container: {
+    padding: "24px",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    fontFamily: "'Inter', sans-serif",
+  },
   header: { marginBottom: "24px" },
-  title: { fontSize: "28px", fontWeight: "700", color: "#1f2937" },
-  subtitle: { fontSize: "14px", color: "#6b7280", marginTop: "4px" },
-  loading: {
+  title: {
+    fontSize: "28px",
+    fontWeight: "700",
+    color: "#1f2937",
+    margin: "0 0 4px",
+  },
+  subtitle: { fontSize: "14px", color: "#6b7280", margin: 0 },
+  loadingContainer: {
     display: "flex",
+    flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
     height: "400px",
   },
-  empty: { textAlign: "center", padding: "60px", color: "#9ca3af" },
+  userInfo: {
+    marginBottom: "20px",
+    padding: "10px 16px",
+    backgroundColor: "#eef2ff",
+    borderRadius: "10px",
+    fontSize: "13px",
+    color: "#4f46e5",
+    border: "1px solid #c7d2fe",
+  },
+  empty: {
+    textAlign: "center",
+    padding: "60px",
+    backgroundColor: "white",
+    borderRadius: "16px",
+    border: "1px solid #e5e7eb",
+    color: "#9ca3af",
+  },
+  emptyIcon: { marginBottom: "16px", opacity: 0.5 },
+  emptySubtext: { fontSize: "12px", marginTop: "8px", color: "#d1d5db" },
   announcementsList: { display: "flex", flexDirection: "column", gap: "16px" },
   announcementCard: {
     padding: "20px",
     backgroundColor: "white",
     borderRadius: "12px",
     border: "1px solid #e5e7eb",
+    transition: "box-shadow 0.2s ease",
   },
   announcementHeader: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
     marginBottom: "12px",
+    flexWrap: "wrap",
+  },
+  targetBadge: {
+    display: "inline-block",
+    padding: "2px 8px",
+    backgroundColor: "#eef2ff",
+    borderRadius: "12px",
+    fontSize: "10px",
+    marginTop: "4px",
+    marginLeft: "8px",
   },
   announcementContent: {
     color: "#4b5563",

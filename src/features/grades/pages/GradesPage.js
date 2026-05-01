@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../shared/components/UI/Card";
 import { Table } from "../../../shared/components/UI/Table";
-import { gradesAPI } from "../../../services/api";
+import { gradesAPI, studentsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 export const GradesPage = () => {
@@ -15,8 +15,8 @@ export const GradesPage = () => {
     subjectsCount: 0,
   });
   const [userRole, setUserRole] = useState(null);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [students, setStudents] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const [children, setChildren] = useState([]);
 
   const columns = [
     { header: "Subject", accessor: "subject" },
@@ -34,39 +34,47 @@ export const GradesPage = () => {
       try {
         const user = JSON.parse(storedUser);
         setUserRole(user.role);
+        if (user.role === "parent" && user.linkedStudents) {
+          setChildren(user.linkedStudents);
+          if (user.linkedStudents.length > 0)
+            setSelectedChildId(user.linkedStudents[0]);
+        } else {
+          fetchGrades();
+        }
       } catch (e) {
         console.error("Error parsing user:", e);
       }
     }
-    fetchGrades();
   }, []);
 
-  const fetchGrades = async () => {
+  useEffect(() => {
+    if (userRole === "parent" && selectedChildId) {
+      fetchGrades(selectedChildId);
+    } else if (userRole !== "parent") {
+      fetchGrades();
+    }
+  }, [userRole, selectedChildId]);
+
+  const fetchGrades = async (childId = null) => {
     setLoading(true);
     try {
       let gradesData = [];
-
-      // Different endpoints based on user role
-      if (userRole === "student") {
+      if (userRole === "parent" && childId) {
+        // Parent: fetch grades for a specific child
+        const response = await gradesAPI.getStudentGrades(childId);
+        gradesData = response.data?.data || response.data || [];
+      } else if (userRole === "student") {
         const response = await gradesAPI.getMyGrades();
-        gradesData = response.data;
-      } else if (userRole === "parent") {
-        // For parents, we might need to select a child first
-        // For now, fetch grades for all children or show child selector
-        const response = await gradesAPI.getMyGrades();
-        gradesData = response.data;
+        gradesData = response.data?.data || response.data || [];
       } else if (userRole === "teacher") {
-        // Teachers can view grades they've assigned
         const response = await gradesAPI.getMyGrades();
-        gradesData = response.data;
+        gradesData = response.data?.data || response.data || [];
       } else {
-        // Admin or other roles
         const response = (await gradesAPI.getAllGrades?.()) || { data: [] };
-        gradesData = response.data;
+        gradesData = response.data?.data || response.data || [];
       }
 
-      // Transform API data to match component structure
-      const formattedGrades = gradesData.map((grade) => ({
+      const formatted = gradesData.map((grade) => ({
         id: grade.id || grade._id,
         subject: grade.subject,
         score: `${grade.score}%`,
@@ -74,74 +82,15 @@ export const GradesPage = () => {
         term: grade.term || "Term 1",
         teacher: grade.teacherName || grade.teacher,
         rawScore: grade.score,
-        date: grade.date || grade.createdAt?.split("T")[0],
+        date: grade.date || grade.assessmentDate,
       }));
 
-      setGrades(formattedGrades);
-      calculateSummary(formattedGrades);
+      setGrades(formatted);
+      calculateSummary(formatted);
     } catch (error) {
       console.error("Error fetching grades:", error);
-      toast.error("Failed to load grades. Using demo data.");
-
-      // Fallback to demo data
-      const demoGrades = [
-        {
-          id: 1,
-          subject: "Mathematics",
-          score: "85%",
-          grade: "A",
-          term: "Term 1",
-          teacher: "Mr. Smith",
-          rawScore: 85,
-        },
-        {
-          id: 2,
-          subject: "Science",
-          score: "78%",
-          grade: "B+",
-          term: "Term 1",
-          teacher: "Mrs. Johnson",
-          rawScore: 78,
-        },
-        {
-          id: 3,
-          subject: "English",
-          score: "92%",
-          grade: "A+",
-          term: "Term 1",
-          teacher: "Ms. Davis",
-          rawScore: 92,
-        },
-        {
-          id: 4,
-          subject: "History",
-          score: "88%",
-          grade: "A-",
-          term: "Term 1",
-          teacher: "Mr. Brown",
-          rawScore: 88,
-        },
-        {
-          id: 5,
-          subject: "Physics",
-          score: "82%",
-          grade: "B+",
-          term: "Term 1",
-          teacher: "Dr. Wilson",
-          rawScore: 82,
-        },
-        {
-          id: 6,
-          subject: "Chemistry",
-          score: "90%",
-          grade: "A",
-          term: "Term 1",
-          teacher: "Dr. Anderson",
-          rawScore: 90,
-        },
-      ];
-      setGrades(demoGrades);
-      calculateSummary(demoGrades);
+      toast.error("Failed to load grades");
+      setGrades([]);
     } finally {
       setLoading(false);
     }
@@ -170,15 +119,13 @@ export const GradesPage = () => {
       });
       return;
     }
-
-    const scores = gradesData.map((g) => g.rawScore || parseInt(g.score));
+    const scores = gradesData.map((g) => g.rawScore);
     const average = Math.round(
       scores.reduce((a, b) => a + b, 0) / scores.length,
     );
     const highest = Math.max(...scores);
     const lowest = Math.min(...scores);
     const uniqueSubjects = new Set(gradesData.map((g) => g.subject)).size;
-
     setSummary({
       average: `${average}%`,
       highest: `${highest}%`,
@@ -187,23 +134,10 @@ export const GradesPage = () => {
     });
   };
 
-  const getTermColor = (term) => {
-    switch (term) {
-      case "Term 1":
-        return "bg-blue-100 text-blue-700";
-      case "Term 2":
-        return "bg-green-100 text-green-700";
-      case "Term 3":
-        return "bg-purple-100 text-purple-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
   const filteredGrades =
     selectedTerm === "All"
       ? grades
-      : grades.filter((grade) => grade.term === selectedTerm);
+      : grades.filter((g) => g.term === selectedTerm);
 
   if (loading) {
     return (
@@ -218,19 +152,7 @@ export const GradesPage = () => {
             <p className="mt-4 text-gray-600">Loading grades...</p>
           </div>
         </div>
-        <style>{`
-          .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e5e7eb;
-            border-top-color: #4f46e5;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-          }
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`.loading-spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -241,6 +163,26 @@ export const GradesPage = () => {
         <h1 className="text-2xl font-bold text-gray-800">Grades</h1>
         <p className="text-gray-600">View academic performance</p>
       </div>
+
+      {/* Child selector for parents */}
+      {userRole === "parent" && children.length > 1 && (
+        <Card>
+          <div className="flex items-center gap-4">
+            <label className="font-medium text-gray-700">Select Child:</label>
+            <select
+              value={selectedChildId}
+              onChange={(e) => setSelectedChildId(e.target.value)}
+              className="px-3 py-2 border rounded-lg"
+            >
+              {children.map((child, idx) => (
+                <option key={idx} value={child}>
+                  {child}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -285,11 +227,7 @@ export const GradesPage = () => {
             <button
               key={term}
               onClick={() => setSelectedTerm(term)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedTerm === term
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTerm === term ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               {term}
             </button>
@@ -308,22 +246,21 @@ export const GradesPage = () => {
         <Table columns={columns} data={filteredGrades} />
       )}
 
-      {/* Performance Distribution (Optional) */}
+      {/* Performance Distribution */}
       {filteredGrades.length > 0 && (
         <Card>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             Performance Distribution
           </h3>
           <div className="space-y-3">
-            {filteredGrades.map((grade, index) => {
+            {filteredGrades.map((grade, idx) => {
               const score = parseInt(grade.score);
               let barColor = "bg-green-500";
               if (score < 70) barColor = "bg-red-500";
               else if (score < 80) barColor = "bg-yellow-500";
               else if (score < 90) barColor = "bg-blue-500";
-
               return (
-                <div key={index}>
+                <div key={idx}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium">{grade.subject}</span>
                     <span className="text-gray-600">{grade.score}</span>
@@ -340,20 +277,6 @@ export const GradesPage = () => {
           </div>
         </Card>
       )}
-
-      <style>{`
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #e5e7eb;
-          border-top-color: #4f46e5;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

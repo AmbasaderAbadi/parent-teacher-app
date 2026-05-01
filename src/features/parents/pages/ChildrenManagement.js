@@ -43,85 +43,45 @@ const ChildrenManagement = () => {
   const fetchChildren = async () => {
     setLoading(true);
     try {
-      // Get current user from localStorage
-      const storedUser = localStorage.getItem("user");
-      let parentId = null;
-
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        parentId = userData.id;
-      }
-
-      // This endpoint needs to be created by your backend teammate
-      // For now, we'll use mock data
-      // const response = await parentAPI.getChildren(parentId);
+      // TODO: Replace with actual API endpoint when available
+      // const response = await parentAPI.getChildren();
       // setChildren(response.data);
 
-      // Mock data for demonstration
-      setTimeout(() => {
-        const mockChildren = [
-          {
-            id: 1,
-            firstName: "John",
-            lastName: "Doe",
-            name: "John Doe",
-            email: "john.doe@student.com",
-            phone: "+1 (555) 123-4567",
-            studentId: "STU001",
-            grade: "10th Grade",
-            className: "Section A",
-            dateOfBirth: "2010-05-15",
-            address: "123 Main Street",
-            attendanceRate: 92,
-            averageGrade: 85,
-          },
-          {
-            id: 2,
-            firstName: "Emma",
-            lastName: "Doe",
-            name: "Emma Doe",
-            email: "emma.doe@student.com",
-            phone: "+1 (555) 234-5678",
-            studentId: "STU002",
-            grade: "8th Grade",
-            className: "Section B",
-            dateOfBirth: "2012-08-22",
-            address: "123 Main Street",
-            attendanceRate: 88,
-            averageGrade: 78,
-          },
-        ];
-        setChildren(mockChildren);
-        setLoading(false);
-      }, 500);
+      // Return empty array until endpoint is ready
+      setChildren([]);
     } catch (error) {
       console.error("Error fetching children:", error);
       toast.error("Failed to load children data");
+      setChildren([]);
+    } finally {
       setLoading(false);
     }
   };
 
   const fetchChildDetails = async (childId) => {
     try {
-      // Fetch grades for the child
-      const gradesResponse = await gradesAPI.getStudentGrades(childId);
-      setChildGrades(gradesResponse.data.slice(0, 5));
+      let gradesData = [];
+      let attendanceData = [];
 
-      // Fetch attendance for the child
-      const attendanceResponse =
-        await attendanceAPI.getStudentAttendance(childId);
-      const attendanceRecords = attendanceResponse.data;
-      const presentCount = attendanceRecords.filter(
-        (r) => r.status === "present",
-      ).length;
-      const attendanceRate =
-        attendanceRecords.length > 0
-          ? Math.round((presentCount / attendanceRecords.length) * 100)
-          : 0;
+      try {
+        const gradesResponse = await gradesAPI.getStudentGrades(childId);
+        gradesData = gradesResponse.data.slice(0, 5);
+      } catch (error) {
+        console.log("No grades available for this child");
+      }
 
-      setChildAttendance(attendanceRecords.slice(0, 10));
+      try {
+        const attendanceResponse =
+          await attendanceAPI.getStudentAttendance(childId);
+        attendanceData = attendanceResponse.data.slice(0, 10);
+      } catch (error) {
+        console.log("No attendance available for this child");
+      }
 
-      return { attendanceRate };
+      setChildGrades(gradesData);
+      setChildAttendance(attendanceData);
+
+      return { attendanceRate: 0 };
     } catch (error) {
       console.error("Error fetching child details:", error);
       return { attendanceRate: 0 };
@@ -140,20 +100,10 @@ const ChildrenManagement = () => {
     }
 
     try {
-      // This endpoint needs to be created by your backend teammate
+      // TODO: Replace with actual API endpoint when available
       // const response = await parentAPI.addChild(formData);
 
-      // Mock adding child
-      const newChild = {
-        id: children.length + 1,
-        ...formData,
-        name: `${formData.firstName} ${formData.lastName}`,
-        attendanceRate: 0,
-        averageGrade: 0,
-      };
-
-      setChildren([...children, newChild]);
-      toast.success("Child added successfully!");
+      toast.info("Add child API endpoint coming soon");
       setShowAddModal(false);
       resetForm();
     } catch (error) {
@@ -169,22 +119,10 @@ const ChildrenManagement = () => {
     }
 
     try {
-      // This endpoint needs to be created by your backend teammate
+      // TODO: Replace with actual API endpoint when available
       // const response = await parentAPI.updateChild(selectedChild.id, formData);
 
-      // Mock updating child
-      const updatedChildren = children.map((child) =>
-        child.id === selectedChild.id
-          ? {
-              ...child,
-              ...formData,
-              name: `${formData.firstName} ${formData.lastName}`,
-            }
-          : child,
-      );
-
-      setChildren(updatedChildren);
-      toast.success("Child updated successfully!");
+      toast.info("Update child API endpoint coming soon");
       setShowEditModal(false);
       setSelectedChild(null);
       resetForm();
@@ -201,12 +139,10 @@ const ChildrenManagement = () => {
       )
     ) {
       try {
-        // This endpoint needs to be created by your backend teammate
+        // TODO: Replace with actual API endpoint when available
         // await parentAPI.deleteChild(childId);
 
-        // Mock deletion
-        setChildren(children.filter((child) => child.id !== childId));
-        toast.success("Child removed successfully!");
+        toast.info("Delete child API endpoint coming soon");
       } catch (error) {
         console.error("Error deleting child:", error);
         toast.error(error.response?.data?.message || "Failed to delete child");
@@ -288,100 +224,103 @@ const ChildrenManagement = () => {
       </div>
 
       {/* Children Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {children.map((child) => (
-          <Card
-            key={child.id}
-            className="hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => handleViewChild(child)}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                    {child.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {child.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      ID: {child.studentId}
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className="flex gap-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={() => openEditModal(child)}
-                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Edit Child"
-                  >
-                    <FiEdit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteChild(child.id)}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete Child"
-                  >
-                    <FiTrash2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FiBookOpen className="flex-shrink-0" />
-                  <span>
-                    {child.grade} - {child.className}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FiMail className="flex-shrink-0" />
-                  <span className="truncate">{child.email}</span>
-                </div>
-                {child.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <FiPhone className="flex-shrink-0" />
-                    <span>{child.phone}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {child.attendanceRate || 0}%
-                    </p>
-                    <p className="text-xs text-gray-500">Attendance</p>
-                  </div>
-                  <div>
-                    <p
-                      className={`text-2xl font-bold ${getGradeColor(child.averageGrade || 0)}`}
-                    >
-                      {child.averageGrade || 0}%
-                    </p>
-                    <p className="text-xs text-gray-500">Average Grade</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {children.length === 0 && (
+      {children.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4">No children added yet</p>
+            <p className="text-sm text-gray-400 mb-4">
+              Child management API endpoints are coming soon
+            </p>
             <Button onClick={() => setShowAddModal(true)} variant="primary">
               Add Your First Child
             </Button>
           </div>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {children.map((child) => (
+            <Card
+              key={child.id}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleViewChild(child)}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                      {child.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {child.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        ID: {child.studentId}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className="flex gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => openEditModal(child)}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit Child"
+                    >
+                      <FiEdit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteChild(child.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete Child"
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FiBookOpen className="flex-shrink-0" />
+                    <span>
+                      {child.grade} - {child.className}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FiMail className="flex-shrink-0" />
+                    <span className="truncate">{child.email}</span>
+                  </div>
+                  {child.phone && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <FiPhone className="flex-shrink-0" />
+                      <span>{child.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {child.attendanceRate || 0}%
+                      </p>
+                      <p className="text-xs text-gray-500">Attendance</p>
+                    </div>
+                    <div>
+                      <p
+                        className={`text-2xl font-bold ${getGradeColor(child.averageGrade || 0)}`}
+                      >
+                        {child.averageGrade || 0}%
+                      </p>
+                      <p className="text-xs text-gray-500">Average Grade</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* View Child Modal */}

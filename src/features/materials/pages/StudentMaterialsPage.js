@@ -5,14 +5,30 @@ import { materialsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const StudentMaterialsPage = () => {
-  const { user } = useAuthStore();
+  const { user: storeUser } = useAuthStore();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [studentInfo, setStudentInfo] = useState(null);
 
   useEffect(() => {
-    fetchStudentInfo();
-  }, []);
+    const storedUser = localStorage.getItem("user");
+    let userData = storeUser;
+    if (storedUser && !userData) {
+      try {
+        userData = JSON.parse(storedUser);
+      } catch (e) {
+        console.error("Error parsing user:", e);
+      }
+    }
+    if (userData) {
+      setStudentInfo({
+        grade: userData.grade,
+        section: userData.className || userData.section,
+        studentId: userData.studentId || userData.id,
+        name: `${userData.firstName || ""} ${userData.lastName || ""}`.trim(),
+      });
+    }
+  }, [storeUser]);
 
   useEffect(() => {
     if (studentInfo) {
@@ -20,148 +36,72 @@ const StudentMaterialsPage = () => {
     }
   }, [studentInfo]);
 
-  const fetchStudentInfo = async () => {
-    try {
-      // Get current user from localStorage
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setStudentInfo({
-          grade: userData.grade,
-          section: userData.className || userData.section,
-          studentId: userData.studentId || userData.id,
-          name: `${userData.firstName || ""} ${userData.lastName || ""}`.trim(),
-        });
-      } else {
-        // Fallback to demo info
-        setStudentInfo({
-          grade: "Grade 10",
-          section: "A",
-          studentId: "STU001",
-          name: "Student",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching student info:", error);
-      setStudentInfo({
-        grade: "Grade 10",
-        section: "A",
-        studentId: "STU001",
-        name: "Student",
-      });
-    }
-  };
-
   const fetchMaterials = async () => {
     setLoading(true);
     try {
-      // Fetch materials by student's grade/class
-      const response = await materialsAPI.getMaterialsByClass(
-        studentInfo.grade,
-      );
-      let materialsData = response.data;
+      const response = await materialsAPI.getAllMaterials();
+      let allMaterials = response.data?.data || response.data || [];
+      if (!Array.isArray(allMaterials)) allMaterials = [];
 
-      // Filter by section if the API supports it
-      if (studentInfo.section && materialsData.length > 0) {
-        materialsData = materialsData.filter(
-          (m) => !m.section || m.section === studentInfo.section,
-        );
-      }
+      const filtered = allMaterials.filter((material) => {
+        if (material.grade !== studentInfo.grade) return false;
+        const materialSection = material.section || material.className;
+        if (materialSection && materialSection !== studentInfo.section)
+          return false;
+        return true;
+      });
 
-      // Transform API data to match component structure
-      const formattedMaterials = materialsData.map((material) => ({
-        id: material.id || material._id,
-        title: material.title,
-        subject: material.subject,
-        grade: material.grade,
-        section: material.section,
-        uploadedBy: material.uploadedBy || material.teacherName,
-        date: material.createdAt
-          ? new Date(material.createdAt).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0],
-        fileUrl: material.fileUrl,
-        fileName: material.fileName,
-        fileType: material.fileType,
-        description: material.description,
-      }));
+      const formatted = filtered.map((material) => {
+        // ✅ Extract uploadedBy name safely
+        let uploadedBy = "Unknown";
+        if (material.uploadedBy) {
+          if (typeof material.uploadedBy === "string") {
+            uploadedBy = material.uploadedBy;
+          } else if (material.uploadedBy.firstName) {
+            uploadedBy =
+              `${material.uploadedBy.firstName} ${material.uploadedBy.lastName || ""}`.trim();
+          } else if (material.uploadedBy.name) {
+            uploadedBy = material.uploadedBy.name;
+          } else {
+            uploadedBy = material.teacherName || "Unknown";
+          }
+        } else if (material.teacherName) {
+          uploadedBy = material.teacherName;
+        }
 
-      setMaterials(formattedMaterials);
+        return {
+          id: material.id || material._id,
+          title: material.title,
+          subject: material.subject,
+          grade: material.grade,
+          section: material.section || material.className,
+          uploadedBy,
+          date: material.createdAt
+            ? new Date(material.createdAt).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          fileUrl: material.fileUrl,
+          fileName: material.fileName,
+          fileType: material.fileType,
+          description: material.description,
+        };
+      });
+
+      setMaterials(formatted);
     } catch (error) {
       console.error("Error fetching materials:", error);
-      toast.error("Failed to load materials. Using demo data.");
-
-      // Fallback to demo data based on student's grade
-      const demoMaterials = [
-        {
-          id: 1,
-          title: "Algebra Worksheet",
-          subject: "Mathematics",
-          grade: studentInfo?.grade || "Grade 10",
-          section: studentInfo?.section || "A",
-          uploadedBy: "Mr. Smith",
-          date: "2024-04-01",
-          fileUrl: "#",
-          fileName: "algebra_worksheet.pdf",
-          description: "Practice problems for algebra chapter 1-5",
-        },
-        {
-          id: 2,
-          title: "Physics Lab Manual",
-          subject: "Physics",
-          grade: studentInfo?.grade || "Grade 10",
-          section: studentInfo?.section || "A",
-          uploadedBy: "Dr. Wilson",
-          date: "2024-04-02",
-          fileUrl: "#",
-          fileName: "physics_lab.pdf",
-          description: "Lab experiments for the semester",
-        },
-        {
-          id: 3,
-          title: "English Literature Guide",
-          subject: "English",
-          grade: studentInfo?.grade || "Grade 10",
-          section: studentInfo?.section || "A",
-          uploadedBy: "Ms. Davis",
-          date: "2024-03-28",
-          fileUrl: "#",
-          fileName: "english_guide.pdf",
-          description: "Study guide for upcoming exams",
-        },
-      ];
-      setMaterials(demoMaterials);
+      toast.error("Failed to load materials");
+      setMaterials([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = async (material) => {
-    try {
-      toast.loading(`Downloading ${material.title}...`, { id: "download" });
-
-      // Call API to download material
-      // const response = await materialsAPI.downloadMaterial(material.id);
-
-      // For actual file download, you would do:
-      // const blob = new Blob([response.data], { type: 'application/octet-stream' });
-      // const url = window.URL.createObjectURL(blob);
-      // const link = document.createElement('a');
-      // link.href = url;
-      // link.setAttribute('download', material.fileName || `${material.title}.pdf`);
-      // document.body.appendChild(link);
-      // link.click();
-      // link.remove();
-      // window.URL.revokeObjectURL(url);
-
-      // Simulate download for demo
-      setTimeout(() => {
-        toast.success(`${material.title} downloaded successfully!`, {
-          id: "download",
-        });
-      }, 1000);
-    } catch (error) {
-      console.error("Error downloading material:", error);
-      toast.error("Failed to download material", { id: "download" });
+  const handleDownload = (material) => {
+    if (material.fileUrl) {
+      window.open(material.fileUrl, "_blank");
+      toast.success(`Opening ${material.title}`);
+    } else {
+      toast.error("No file URL available");
     }
   };
 
@@ -203,7 +143,6 @@ const StudentMaterialsPage = () => {
         <p style={styles.subtitle}>Access your learning resources</p>
       </div>
 
-      {/* Student Info Banner */}
       {studentInfo && (
         <div style={styles.studentInfo}>
           <p>
@@ -333,11 +272,7 @@ const styles = {
     color: "#4f46e5",
   },
   materialInfo: { flex: 1 },
-  materialDescription: {
-    fontSize: "13px",
-    color: "#6b7280",
-    marginTop: "4px",
-  },
+  materialDescription: { fontSize: "13px", color: "#6b7280", marginTop: "4px" },
   materialMeta: { fontSize: "12px", color: "#6b7280", marginTop: "4px" },
   materialClass: {
     fontSize: "11px",
@@ -345,11 +280,7 @@ const styles = {
     marginTop: "2px",
     fontStyle: "italic",
   },
-  buttonGroup: {
-    display: "flex",
-    gap: "8px",
-    alignItems: "center",
-  },
+  buttonGroup: { display: "flex", gap: "8px", alignItems: "center" },
   viewBtn: {
     display: "flex",
     alignItems: "center",
@@ -381,11 +312,7 @@ const styles = {
     border: "1px solid #e5e7eb",
     color: "#9ca3af",
   },
-  emptyStateSubtext: {
-    fontSize: "12px",
-    marginTop: "8px",
-    color: "#d1d5db",
-  },
+  emptyStateSubtext: { fontSize: "12px", marginTop: "8px", color: "#d1d5db" },
 };
 
 export default StudentMaterialsPage;

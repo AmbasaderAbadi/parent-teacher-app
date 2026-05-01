@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import {
-  FiPlus,
-  FiEdit2,
-  FiTrash2,
-  FiEye,
-  FiFile,
-  FiImage,
-  FiUpload,
-  FiDownload,
-} from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiEye, FiPaperclip } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
 import { homeworkAPI } from "../../../services/api";
 import toast from "react-hot-toast";
@@ -18,25 +9,30 @@ const TeacherHomeworkPage = () => {
   const { user } = useAuthStore();
   const [homeworks, setHomeworks] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [editingHomework, setEditingHomework] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [newHomework, setNewHomework] = useState({
     title: "",
     description: "",
     subject: user?.subject || "",
     grade: "",
-    section: "",
+    className: "",
     dueDate: "",
-    dueTime: "23:59",
-    fileType: "",
-    fileName: "",
   });
 
   const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
-  const sections = ["A", "B", "C", "D"];
+  const classNames = ["A", "B", "C", "D"];
+  const subjects = [
+    "Mathematics",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "English",
+    "History",
+    "Geography",
+  ];
 
   useEffect(() => {
     fetchHomeworks();
@@ -45,77 +41,36 @@ const TeacherHomeworkPage = () => {
   const fetchHomeworks = async () => {
     setLoading(true);
     try {
-      const response = await homeworkAPI.getMyHomework();
-      let homeworkData = response.data;
+      const response = await homeworkAPI.getAllHomework();
+      const homeworkData = response.data?.data || response.data || [];
+      const homeworkList = Array.isArray(homeworkData) ? homeworkData : [];
 
-      // Filter by subject if needed
+      let filteredData = homeworkList;
       if (user?.subject) {
-        homeworkData = homeworkData.filter((h) => h.subject === user.subject);
+        filteredData = homeworkList.filter((h) => h.subject === user.subject);
       }
 
-      // Transform API data to match component structure
-      const formattedHomeworks = homeworkData.map((hw) => ({
+      const formattedHomeworks = filteredData.map((hw) => ({
         id: hw.id || hw._id,
         title: hw.title,
         description: hw.description,
         subject: hw.subject,
         grade: hw.grade,
-        section: hw.section,
+        className: hw.className,
         dueDate: hw.dueDate?.split("T")[0] || hw.dueDate,
-        dueTime: hw.dueTime || "23:59",
         postedBy: hw.postedBy || user?.name,
         postedDate: hw.createdAt
           ? new Date(hw.createdAt).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
-        fileType: hw.fileType || "document",
-        fileName: hw.fileName,
-        fileUrl: hw.fileUrl,
-        fileSize: hw.fileSize,
         submissionsCount: hw.submissionsCount || 0,
+        attachments: hw.attachments || [],
       }));
 
       setHomeworks(formattedHomeworks);
     } catch (error) {
       console.error("Error fetching homeworks:", error);
-      toast.error("Failed to load homework. Using demo data.");
-
-      // Fallback to demo data
-      const demoHomeworks = [
-        {
-          id: 1,
-          title: "Algebra Problems",
-          description: "Solve problems 1-10 from Chapter 5",
-          subject: "Mathematics",
-          grade: "Grade 10",
-          section: "A",
-          dueDate: "2024-04-15",
-          dueTime: "23:59",
-          postedBy: user?.name || "Mr. Smith",
-          postedDate: "2024-04-01",
-          fileType: "pdf",
-          fileName: "algebra_problems.pdf",
-          fileUrl: "#",
-          submissionsCount: 5,
-        },
-        {
-          id: 2,
-          title: "Geometry Assignment",
-          description: "Complete the geometry worksheet",
-          subject: "Mathematics",
-          grade: "Grade 10",
-          section: "B",
-          dueDate: "2024-04-20",
-          dueTime: "23:59",
-          postedBy: user?.name || "Mr. Smith",
-          postedDate: "2024-04-02",
-          fileType: "image",
-          fileName: "geometry_diagram.jpg",
-          fileUrl: "#",
-          submissionsCount: 3,
-        },
-      ];
-      const filtered = demoHomeworks.filter((h) => h.subject === user?.subject);
-      setHomeworks(filtered);
+      toast.error("Failed to load homework");
+      setHomeworks([]);
     } finally {
       setLoading(false);
     }
@@ -124,86 +79,84 @@ const TeacherHomeworkPage = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (max 50MB)
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error("File size must be less than 50MB");
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error("File size must be less than 20MB");
         return;
       }
-
       setSelectedFile(file);
-      setNewHomework({
-        ...newHomework,
-        fileType: file.type.startsWith("image/") ? "image" : "document",
-        fileName: file.name,
-      });
-
-      // Create preview for images
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreviewUrl(reader.result);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setPreviewUrl(null);
-      }
     }
   };
 
   const handlePost = async () => {
     if (
       !newHomework.title ||
+      !newHomework.subject ||
       !newHomework.grade ||
-      !newHomework.section ||
+      !newHomework.className ||
       !newHomework.dueDate
     ) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-    if (!selectedFile) {
-      toast.error("Please upload a file (image, PDF, or document)");
+      toast.error(
+        "Please fill all required fields (Title, Subject, Grade, Class, Due Date)",
+      );
       return;
     }
 
     setUploading(true);
-
     try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("title", newHomework.title);
-      formData.append("description", newHomework.description);
-      formData.append("subject", user?.subject || newHomework.subject);
-      formData.append("grade", newHomework.grade);
-      formData.append("section", newHomework.section);
-      formData.append("dueDate", newHomework.dueDate);
-      formData.append("dueTime", newHomework.dueTime);
+      let response;
+      if (selectedFile) {
+        // Use multipart/form-data upload
+        const formData = new FormData();
+        formData.append("files", selectedFile);
+        formData.append("title", newHomework.title);
+        formData.append("description", newHomework.description || "");
+        formData.append("subject", newHomework.subject);
+        formData.append("grade", newHomework.grade);
+        formData.append("className", newHomework.className);
+        formData.append("dueDate", newHomework.dueDate);
 
-      const response = await homeworkAPI.createHomework(formData);
-      const newHomeworkItem = response.data;
+        response = await homeworkAPI.createHomeworkWithFiles(formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (progressEvent) => {
+            const percent = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total,
+            );
+            console.log(`Upload progress: ${percent}%`);
+          },
+        });
+      } else {
+        // No file – use JSON endpoint
+        const payload = {
+          title: newHomework.title,
+          description: newHomework.description,
+          subject: newHomework.subject,
+          grade: newHomework.grade,
+          className: newHomework.className,
+          dueDate: newHomework.dueDate,
+        };
+        response = await homeworkAPI.createHomework(payload);
+      }
+
+      const newHomeworkItem = response.data?.data || response.data;
 
       const homework = {
         id: newHomeworkItem.id || newHomeworkItem._id,
         title: newHomework.title,
         description: newHomework.description,
-        subject: user?.subject,
+        subject: newHomework.subject,
         grade: newHomework.grade,
-        section: newHomework.section,
+        className: newHomework.className,
         dueDate: newHomework.dueDate,
-        dueTime: newHomework.dueTime,
         postedBy: user?.name,
         postedDate: new Date().toISOString().split("T")[0],
-        fileType: newHomework.fileType,
-        fileName: selectedFile.name,
-        fileUrl: newHomeworkItem.fileUrl,
-        fileSize: selectedFile.size,
         submissionsCount: 0,
+        attachments: selectedFile ? [selectedFile.name] : [],
       };
 
       setHomeworks([homework, ...homeworks]);
       setShowForm(false);
       resetForm();
-      toast.success("Homework assigned with attachment!");
+      toast.success("Homework assigned successfully!");
     } catch (error) {
       console.error("Error creating homework:", error);
       toast.error(error.response?.data?.message || "Failed to assign homework");
@@ -216,30 +169,17 @@ const TeacherHomeworkPage = () => {
     if (!editingHomework) return;
 
     setUploading(true);
-
     try {
       const updateData = {
         title: newHomework.title,
         description: newHomework.description,
+        subject: newHomework.subject,
         grade: newHomework.grade,
-        section: newHomework.section,
+        className: newHomework.className,
         dueDate: newHomework.dueDate,
-        dueTime: newHomework.dueTime,
       };
 
-      // If new file selected, upload it
-      if (selectedFile) {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        Object.keys(updateData).forEach((key) => {
-          formData.append(key, updateData[key]);
-        });
-        await homeworkAPI.updateHomework(editingHomework.id, formData);
-      } else {
-        await homeworkAPI.updateHomework(editingHomework.id, updateData);
-      }
-
-      // Refresh the list
+      await homeworkAPI.updateHomework(editingHomework.id, updateData);
       await fetchHomeworks();
 
       setShowForm(false);
@@ -276,43 +216,22 @@ const TeacherHomeworkPage = () => {
       description: homework.description || "",
       subject: homework.subject,
       grade: homework.grade,
-      section: homework.section,
+      className: homework.className,
       dueDate: homework.dueDate,
-      dueTime: homework.dueTime || "23:59",
-      fileType: homework.fileType,
-      fileName: homework.fileName,
     });
     setSelectedFile(null);
-    setPreviewUrl(null);
     setShowForm(true);
   };
 
   const handleViewSubmissions = async (homeworkId) => {
     try {
       const response = await homeworkAPI.getSubmissions(homeworkId);
-      const submissions = response.data;
+      const submissions = response.data?.data || response.data || [];
       toast.success(`${submissions.length} submissions received`);
-      // You can open a modal here to show submissions
+      // Optionally open a modal to display submissions
     } catch (error) {
       console.error("Error fetching submissions:", error);
       toast.error("Failed to load submissions");
-    }
-  };
-
-  const handleDownloadAttachment = async (homework) => {
-    try {
-      toast.loading(`Downloading ${homework.fileName}...`, { id: "download" });
-
-      // Call API to download file
-      // const response = await homeworkAPI.downloadAttachment(homework.id);
-
-      // Simulate download for demo
-      setTimeout(() => {
-        toast.success(`${homework.fileName} downloaded!`, { id: "download" });
-      }, 1000);
-    } catch (error) {
-      console.error("Error downloading attachment:", error);
-      toast.error("Failed to download file", { id: "download" });
     }
   };
 
@@ -322,25 +241,16 @@ const TeacherHomeworkPage = () => {
       description: "",
       subject: user?.subject || "",
       grade: "",
-      section: "",
+      className: "",
       dueDate: "",
-      dueTime: "23:59",
-      fileType: "",
-      fileName: "",
     });
     setSelectedFile(null);
-    setPreviewUrl(null);
-  };
-
-  const getFileIcon = (fileType) => {
-    if (fileType === "image") return <FiImage size={20} />;
-    return <FiFile size={20} />;
   };
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
-        <div className="loading-spinner"></div>
+        <div className="loading-spinner" />
         <p>Loading homework...</p>
         <style>{`
           .loading-spinner {
@@ -365,9 +275,7 @@ const TeacherHomeworkPage = () => {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>📝 Homework Management</h1>
-          <p style={styles.subtitle}>
-            Assign homework with files for your subject: {user?.subject}
-          </p>
+          <p style={styles.subtitle}>Assign homework for your classes</p>
         </div>
         <button
           onClick={() => {
@@ -411,6 +319,19 @@ const TeacherHomeworkPage = () => {
 
           <div style={styles.row}>
             <select
+              value={newHomework.subject}
+              onChange={(e) =>
+                setNewHomework({ ...newHomework, subject: e.target.value })
+              }
+              style={styles.select}
+              disabled={uploading}
+            >
+              <option value="">Select Subject *</option>
+              {subjects.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+            <select
               value={newHomework.grade}
               onChange={(e) =>
                 setNewHomework({ ...newHomework, grade: e.target.value })
@@ -423,22 +344,22 @@ const TeacherHomeworkPage = () => {
                 <option key={g}>{g}</option>
               ))}
             </select>
+          </div>
+
+          <div style={styles.row}>
             <select
-              value={newHomework.section}
+              value={newHomework.className}
               onChange={(e) =>
-                setNewHomework({ ...newHomework, section: e.target.value })
+                setNewHomework({ ...newHomework, className: e.target.value })
               }
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Section *</option>
-              {sections.map((s) => (
-                <option key={s}>Section {s}</option>
+              <option value="">Select Class *</option>
+              {classNames.map((c) => (
+                <option key={c}>Section {c}</option>
               ))}
             </select>
-          </div>
-
-          <div style={styles.row}>
             <input
               type="date"
               value={newHomework.dueDate}
@@ -447,60 +368,34 @@ const TeacherHomeworkPage = () => {
               }
               style={styles.input}
               disabled={uploading}
-            />
-            <input
-              type="time"
-              value={newHomework.dueTime}
-              onChange={(e) =>
-                setNewHomework({ ...newHomework, dueTime: e.target.value })
-              }
-              style={styles.input}
-              disabled={uploading}
+              required
             />
           </div>
 
-          {/* File Upload Section */}
-          <div style={styles.fileUploadSection}>
-            <label style={styles.fileLabel}>
-              Homework File {!editingHomework && "*"}
-            </label>
-            <div style={styles.fileUploadArea}>
+          {/* File Attachment */}
+          {!editingHomework && (
+            <div style={styles.fileSection}>
+              <label style={styles.fileLabel}>
+                <FiPaperclip size={14} /> Attachment (optional)
+              </label>
               <input
                 type="file"
-                id="homework-file"
-                accept="image/*,.pdf,.doc,.docx,.txt"
                 onChange={handleFileChange}
-                style={{ display: "none" }}
                 disabled={uploading}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt"
+                style={styles.fileInput}
               />
-              <label htmlFor="homework-file" style={styles.fileUploadBtn}>
-                <FiUpload size={20} /> Choose File
-              </label>
               {selectedFile && (
                 <div style={styles.fileInfo}>
-                  {getFileIcon(newHomework.fileType)}
                   <span>{selectedFile.name}</span>
                   <span style={styles.fileSize}>
-                    {(selectedFile.size / 1024).toFixed(1)} KB
+                    ({(selectedFile.size / 1024).toFixed(1)} KB)
                   </span>
                 </div>
               )}
-              {!selectedFile && editingHomework?.fileName && (
-                <div style={styles.fileInfo}>
-                  {getFileIcon(newHomework.fileType)}
-                  <span>Current: {editingHomework.fileName}</span>
-                </div>
-              )}
-            </div>
-            <p style={styles.fileHint}>
-              Supported formats: Images, PDF, DOC, DOCX, TXT (Max 50MB)
-            </p>
-          </div>
-
-          {previewUrl && (
-            <div style={styles.previewContainer}>
-              <p>Preview:</p>
-              <img src={previewUrl} alt="Preview" style={styles.previewImage} />
+              <p style={styles.fileHint}>
+                Max size: 20MB. Supported: PDF, images, Word, TXT
+              </p>
             </div>
           )}
 
@@ -554,20 +449,16 @@ const TeacherHomeworkPage = () => {
                 {hw.description && (
                   <p style={styles.homeworkDesc}>{hw.description}</p>
                 )}
+                {hw.attachments && hw.attachments.length > 0 && (
+                  <div style={styles.attachments}>
+                    <FiPaperclip size={12} />
+                    <span>{hw.attachments[0]}</span>
+                  </div>
+                )}
                 <p style={styles.meta}>
-                  Due: {hw.dueDate} by {hw.dueTime} • {hw.grade} - Section{" "}
-                  {hw.section}
+                  Subject: {hw.subject} • Due: {hw.dueDate} • {hw.grade} -{" "}
+                  {hw.className}
                 </p>
-                <div style={styles.attachmentInfo}>
-                  {getFileIcon(hw.fileType)}
-                  <span>{hw.fileName}</span>
-                  <button
-                    onClick={() => handleDownloadAttachment(hw)}
-                    style={styles.downloadLink}
-                  >
-                    <FiDownload size={12} /> Download
-                  </button>
-                </div>
               </div>
               <div style={styles.actions}>
                 <button
@@ -596,21 +487,6 @@ const TeacherHomeworkPage = () => {
           ))
         )}
       </div>
-
-      <style>{`
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #e5e7eb;
-          border-top-color: #4f46e5;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin-bottom: 12px;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };
@@ -694,54 +570,6 @@ const styles = {
     backgroundColor: "white",
     fontSize: "14px",
   },
-  fileUploadSection: { marginBottom: "16px" },
-  fileLabel: {
-    display: "block",
-    fontSize: "14px",
-    fontWeight: "500",
-    marginBottom: "8px",
-    color: "#374151",
-  },
-  fileUploadArea: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    flexWrap: "wrap",
-  },
-  fileUploadBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 16px",
-    backgroundColor: "#f3f4f6",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "14px",
-    transition: "all 0.2s ease",
-  },
-  fileInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 12px",
-    backgroundColor: "#eef2ff",
-    borderRadius: "8px",
-    fontSize: "13px",
-  },
-  fileSize: { fontSize: "11px", color: "#6b7280" },
-  fileHint: { fontSize: "11px", color: "#9ca3af", marginTop: "8px" },
-  previewContainer: {
-    marginTop: "12px",
-    padding: "12px",
-    backgroundColor: "#f9fafb",
-    borderRadius: "8px",
-  },
-  previewImage: {
-    maxWidth: "100%",
-    maxHeight: "150px",
-    borderRadius: "8px",
-    marginTop: "8px",
-  },
   formActions: {
     display: "flex",
     justifyContent: "flex-end",
@@ -818,27 +646,6 @@ const styles = {
     marginBottom: "8px",
   },
   meta: { fontSize: "12px", color: "#6b7280", margin: "4px 0" },
-  attachmentInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginTop: "8px",
-    padding: "6px 10px",
-    backgroundColor: "#f8fafc",
-    borderRadius: "6px",
-    fontSize: "12px",
-  },
-  downloadLink: {
-    background: "none",
-    border: "none",
-    color: "#4f46e5",
-    cursor: "pointer",
-    fontSize: "12px",
-    marginLeft: "8px",
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-  },
   actions: { display: "flex", gap: "8px" },
   viewBtn: {
     padding: "6px",
@@ -865,6 +672,50 @@ const styles = {
     cursor: "pointer",
     color: "#ef4444",
     transition: "all 0.2s ease",
+  },
+  fileSection: {
+    marginBottom: "16px",
+  },
+  fileLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "13px",
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: "8px",
+  },
+  fileInput: {
+    width: "100%",
+    padding: "8px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    fontSize: "13px",
+  },
+  fileInfo: {
+    marginTop: "8px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "12px",
+    color: "#4b5563",
+  },
+  fileSize: {
+    fontSize: "11px",
+    color: "#6b7280",
+  },
+  fileHint: {
+    fontSize: "11px",
+    color: "#9ca3af",
+    marginTop: "6px",
+  },
+  attachments: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "11px",
+    color: "#6b7280",
+    marginBottom: "6px",
   },
 };
 

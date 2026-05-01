@@ -25,29 +25,22 @@ const MyAttendance = () => {
   const fetchAttendanceData = async () => {
     setLoading(true);
     try {
-      // Get current user from localStorage
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const userData = JSON.parse(storedUser);
         setStudentUser(userData);
       }
 
-      // Fetch attendance records from API
       const response = await attendanceAPI.getMyAttendance();
       const records = response.data;
 
       setAttendanceRecords(records);
-
-      // Calculate statistics from the records
       calculateStats(records);
     } catch (error) {
       console.error("Error fetching attendance:", error);
-      toast.error("Failed to load attendance data. Using demo data.");
-
-      // Fallback to demo data
-      const demoRecords = generateDemoAttendance();
-      setAttendanceRecords(demoRecords);
-      calculateStats(demoRecords);
+      toast.error("Failed to load attendance data");
+      setAttendanceRecords([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
@@ -67,39 +60,6 @@ const MyAttendance = () => {
       total,
       rate,
     });
-  };
-
-  const generateDemoAttendance = () => {
-    const demoRecords = [];
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    // Generate records for the current month
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const dayOfWeek = date.getDay();
-
-      // Skip weekends (Saturday = 6, Sunday = 0)
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
-      // Generate random status for demo
-      let status = "present";
-      if (day % 7 === 0) status = "late";
-      if (day % 10 === 0) status = "absent";
-
-      demoRecords.push({
-        id: day,
-        date: date.toISOString().split("T")[0],
-        status: status,
-        checkIn: status !== "absent" ? "8:30 AM" : "-",
-        checkOut: status !== "absent" ? "3:30 PM" : "-",
-      });
-    }
-
-    return demoRecords;
   };
 
   const getAttendanceStatusForDay = (day) => {

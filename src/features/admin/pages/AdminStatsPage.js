@@ -44,22 +44,18 @@ const AdminStatsPage = () => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      // Fetch main stats from API
+      // Fetch stats – response is { success: true, data: {...} }
       const statsResponse = await adminAPI.getStats();
-      const statsData = statsResponse.data;
+      const statsData = statsResponse.data?.data || statsResponse.data || {};
 
-      // Fetch users for role distribution
+      // Fetch users – response is { success: true, data: [...] }
       const usersResponse = await adminAPI.getAllUsers();
-      const users = usersResponse.data;
+      const users = usersResponse.data?.data || usersResponse.data || [];
+      const usersList = Array.isArray(users) ? users : [];
 
       // Calculate role distribution
-      const roleCounts = {
-        parent: 0,
-        teacher: 0,
-        student: 0,
-      };
-
-      users.forEach((user) => {
+      const roleCounts = { parent: 0, teacher: 0, student: 0 };
+      usersList.forEach((user) => {
         if (user.role === "parent") roleCounts.parent++;
         else if (user.role === "teacher") roleCounts.teacher++;
         else if (user.role === "student") roleCounts.student++;
@@ -71,10 +67,7 @@ const AdminStatsPage = () => {
         { name: "Students", value: roleCounts.student, color: "#f59e0b" },
       ];
 
-      // Generate user growth data (last 6 months)
-      const userGrowth = generateUserGrowthData(users);
-
-      // Generate activity data (weekly)
+      const userGrowth = generateUserGrowthData(usersList);
       const activityData = generateActivityData();
 
       setStats({
@@ -87,40 +80,20 @@ const AdminStatsPage = () => {
       });
     } catch (error) {
       console.error("Error fetching statistics:", error);
-      toast.error("Failed to load statistics. Using demo data.");
-
-      // Fallback to demo data if API fails
+      toast.error("Failed to load statistics");
       setStats({
-        userGrowth: [
-          { month: "Jan", users: 65 },
-          { month: "Feb", users: 78 },
-          { month: "Mar", users: 90 },
-          { month: "Apr", users: 105 },
-          { month: "May", users: 120 },
-          { month: "Jun", users: 135 },
-        ],
-        roleDistribution: [
-          { name: "Parents", value: 45, color: "#3b82f6" },
-          { name: "Teachers", value: 12, color: "#10b981" },
-          { name: "Students", value: 68, color: "#f59e0b" },
-        ],
-        activityData: [
-          { day: "Mon", messages: 45, logins: 120 },
-          { day: "Tue", messages: 52, logins: 135 },
-          { day: "Wed", messages: 48, logins: 128 },
-          { day: "Thu", messages: 61, logins: 142 },
-          { day: "Fri", messages: 55, logins: 138 },
-        ],
-        totalMessages: 5234,
-        totalGrades: 342,
-        totalAttendance: 1245,
+        userGrowth: [],
+        roleDistribution: [],
+        activityData: [],
+        totalMessages: 0,
+        totalGrades: 0,
+        totalAttendance: 0,
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to generate user growth data from actual user creation dates
   const generateUserGrowthData = (users) => {
     const months = [
       "Jan",
@@ -139,7 +112,6 @@ const AdminStatsPage = () => {
     const currentDate = new Date();
     const last6Months = [];
 
-    // Get last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date(
         currentDate.getFullYear(),
@@ -153,7 +125,6 @@ const AdminStatsPage = () => {
       });
     }
 
-    // Count users created in each month
     users.forEach((user) => {
       const createdAt = new Date(user.createdAt);
       last6Months.forEach((monthData) => {
@@ -166,7 +137,6 @@ const AdminStatsPage = () => {
       });
     });
 
-    // Calculate cumulative growth
     let cumulative = 0;
     return last6Months.map((month) => ({
       month: month.month,
@@ -174,7 +144,6 @@ const AdminStatsPage = () => {
     }));
   };
 
-  // Helper function to generate activity data
   const generateActivityData = () => {
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     return days.map((day) => ({
@@ -185,7 +154,11 @@ const AdminStatsPage = () => {
   };
 
   const handleExportReport = () => {
-    // Generate CSV report
+    if (stats.userGrowth.length === 0 && stats.roleDistribution.length === 0) {
+      toast.error("No data available to export");
+      return;
+    }
+
     const reportData = {
       generatedAt: new Date().toISOString(),
       totalUsers: stats.roleDistribution.reduce((a, b) => a + b.value, 0),
@@ -197,7 +170,6 @@ const AdminStatsPage = () => {
       totalAttendance: stats.totalAttendance,
     };
 
-    // Create CSV content
     const csvContent = [
       ["Report Generated:", new Date().toLocaleString()],
       [""],
@@ -311,65 +283,97 @@ const AdminStatsPage = () => {
         {/* User Growth Chart */}
         <div style={styles.chartCard}>
           <h3 style={styles.chartTitle}>📈 User Growth</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={stats.userGrowth}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="users"
-                stroke="#4f46e5"
-                strokeWidth={2}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {stats.userGrowth.length === 0 ? (
+            <div style={styles.noDataMessage}>
+              No user growth data available
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={stats.userGrowth}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="users"
+                  stroke="#4f46e5"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Role Distribution Pie Chart */}
         <div style={styles.chartCard}>
           <h3 style={styles.chartTitle}>👥 User Distribution by Role</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={stats.roleDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) =>
-                  `${name}: ${(percent * 100).toFixed(0)}%`
-                }
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {stats.roleDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {stats.roleDistribution.length === 0 ||
+          stats.roleDistribution.every((r) => r.value === 0) ? (
+            <div style={styles.noDataMessage}>
+              No user distribution data available
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={stats.roleDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) =>
+                    `${name}: ${(percent * 100).toFixed(0)}%`
+                  }
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {stats.roleDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Activity Chart */}
         <div style={styles.chartCard}>
           <h3 style={styles.chartTitle}>📊 Weekly Activity</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stats.activityData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="messages" fill="#8b5cf6" name="Messages" />
-              <Bar dataKey="logins" fill="#10b981" name="Logins" />
-            </BarChart>
-          </ResponsiveContainer>
+          {stats.activityData.length === 0 ? (
+            <div style={styles.noDataMessage}>No activity data available</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stats.activityData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="messages" fill="#8b5cf6" name="Messages" />
+                <Bar dataKey="logins" fill="#10b981" name="Logins" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
+
+      <style>{`
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #e5e7eb;
+          border-top-color: #4f46e5;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin-bottom: 12px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -460,6 +464,12 @@ const styles = {
     fontWeight: "600",
     color: "#1f2937",
     marginBottom: "16px",
+  },
+  noDataMessage: {
+    textAlign: "center",
+    padding: "120px 20px",
+    color: "#9ca3af",
+    fontSize: "14px",
   },
   loadingContainer: {
     display: "flex",

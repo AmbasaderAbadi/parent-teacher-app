@@ -23,44 +23,13 @@ const ParentMaterialsPage = () => {
 
   const fetchChildren = async () => {
     try {
-      // Get current user from localStorage
-      const storedUser = localStorage.getItem("user");
-      let parentId = null;
+      // TODO: Replace with actual API endpoint when available
+      // const response = await parentAPI.getChildren();
+      // setChildren(response.data);
 
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        parentId = userData.id;
-      }
-
-      // This endpoint needs to be created by your backend teammate
-      // const response = await parentAPI.getChildren(parentId);
-      // const childrenData = response.data;
-
-      // Mock data for demonstration
-      setTimeout(() => {
-        const mockChildren = [
-          {
-            id: 1,
-            name: "John Doe",
-            grade: "Grade 10",
-            section: "A",
-            studentId: "STU001",
-          },
-          {
-            id: 2,
-            name: "Emma Doe",
-            grade: "Grade 8",
-            section: "B",
-            studentId: "STU002",
-          },
-        ];
-        setChildren(mockChildren);
-        if (mockChildren.length > 0) {
-          setSelectedChild(mockChildren[0]);
-        } else {
-          setLoading(false);
-        }
-      }, 500);
+      // Return empty array until endpoint is ready
+      setChildren([]);
+      setLoading(false);
     } catch (error) {
       console.error("Error fetching children:", error);
       toast.error("Failed to load children data");
@@ -71,16 +40,13 @@ const ParentMaterialsPage = () => {
   const fetchMaterials = async (grade, section) => {
     setLoading(true);
     try {
-      // Fetch materials by class/grade
       const response = await materialsAPI.getMaterialsByClass(grade);
       let materialsData = response.data;
 
-      // Filter by section if needed (if your API supports it)
       if (section) {
         materialsData = materialsData.filter((m) => m.section === section);
       }
 
-      // Transform API data to match component structure
       const formattedMaterials = materialsData.map((material) => ({
         id: material.id || material._id,
         title: material.title,
@@ -100,34 +66,8 @@ const ParentMaterialsPage = () => {
       setMaterials(formattedMaterials);
     } catch (error) {
       console.error("Error fetching materials:", error);
-      toast.error("Failed to load materials. Using demo data.");
-
-      // Fallback to demo data
-      const demoMaterials = [
-        {
-          id: 1,
-          title: "Algebra Worksheet",
-          subject: "Mathematics",
-          grade: grade,
-          section: section,
-          uploadedBy: "Mr. Smith",
-          date: "2024-04-01",
-          fileUrl: "#",
-          fileName: "algebra_worksheet.pdf",
-        },
-        {
-          id: 2,
-          title: "Physics Lab Manual",
-          subject: "Physics",
-          grade: grade,
-          section: section,
-          uploadedBy: "Dr. Wilson",
-          date: "2024-04-02",
-          fileUrl: "#",
-          fileName: "physics_lab.pdf",
-        },
-      ];
-      setMaterials(demoMaterials);
+      toast.error("Failed to load materials");
+      setMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -137,26 +77,12 @@ const ParentMaterialsPage = () => {
     try {
       toast.loading(`Downloading ${material.title}...`, { id: "download" });
 
-      // Call API to download material
+      // TODO: Implement actual download when API endpoint is ready
       // const response = await materialsAPI.downloadMaterial(material.id);
 
-      // For actual file download, you would do:
-      // const blob = new Blob([response.data], { type: 'application/octet-stream' });
-      // const url = window.URL.createObjectURL(blob);
-      // const link = document.createElement('a');
-      // link.href = url;
-      // link.setAttribute('download', material.fileName || `${material.title}.pdf`);
-      // document.body.appendChild(link);
-      // link.click();
-      // link.remove();
-      // window.URL.revokeObjectURL(url);
-
-      // Simulate download for demo
-      setTimeout(() => {
-        toast.success(`${material.title} downloaded successfully!`, {
-          id: "download",
-        });
-      }, 1000);
+      toast.success(`${material.title} downloaded successfully!`, {
+        id: "download",
+      });
     } catch (error) {
       console.error("Error downloading material:", error);
       toast.error("Failed to download material", { id: "download" });

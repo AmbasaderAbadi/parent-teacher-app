@@ -38,57 +38,17 @@ const ClassManagement = () => {
   const fetchClasses = async () => {
     setLoading(true);
     try {
-      // This endpoint may need to be created by your backend teammate
-      // For now, we'll use a mock implementation
+      // TODO: Replace with actual API endpoint when available
       // const response = await teacherAPI.getClasses();
       // setClasses(response.data);
 
-      // Mock data for demonstration
-      setTimeout(() => {
-        const mockClasses = [
-          {
-            id: 1,
-            className: "Class A",
-            grade: "10th",
-            section: "A",
-            teacherName: "Mr. Smith",
-            teacherId: "teacher123",
-            studentCount: 25,
-            capacity: 30,
-            roomNumber: "101",
-            academicYear: "2024",
-          },
-          {
-            id: 2,
-            className: "Class B",
-            grade: "10th",
-            section: "B",
-            teacherName: "Mrs. Johnson",
-            teacherId: "teacher456",
-            studentCount: 23,
-            capacity: 30,
-            roomNumber: "102",
-            academicYear: "2024",
-          },
-          {
-            id: 3,
-            className: "Class C",
-            grade: "9th",
-            section: "A",
-            teacherName: "Ms. Davis",
-            teacherId: "teacher789",
-            studentCount: 28,
-            capacity: 30,
-            roomNumber: "103",
-            academicYear: "2024",
-          },
-        ];
-        setClasses(mockClasses);
-        setLoading(false);
-      }, 500);
+      // For now, set empty array until endpoint is ready
+      setClasses([]);
     } catch (error) {
       console.error("Error fetching classes:", error);
       toast.error("Failed to load classes");
+      setClasses([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -105,12 +65,7 @@ const ClassManagement = () => {
       setTeachers(formattedTeachers);
     } catch (error) {
       console.error("Error fetching teachers:", error);
-      // Mock teachers for demo
-      setTeachers([
-        { id: "teacher123", name: "Mr. Smith", email: "smith@school.com" },
-        { id: "teacher456", name: "Mrs. Johnson", email: "johnson@school.com" },
-        { id: "teacher789", name: "Ms. Davis", email: "davis@school.com" },
-      ]);
+      setTeachers([]);
     }
   };
 
@@ -121,28 +76,11 @@ const ClassManagement = () => {
     }
 
     try {
-      // This endpoint may need to be created
+      // TODO: Replace with actual API endpoint when available
       // const response = await teacherAPI.createClass(formData);
       // toast.success("Class created successfully!");
 
-      // Mock creation
-      const newClass = {
-        id: classes.length + 1,
-        className: formData.className,
-        grade: formData.grade,
-        section: formData.section,
-        teacherName:
-          teachers.find((t) => t.id === formData.teacherId)?.name ||
-          "Not assigned",
-        teacherId: formData.teacherId,
-        studentCount: 0,
-        capacity: formData.capacity || 30,
-        roomNumber: formData.roomNumber,
-        academicYear: formData.academicYear,
-      };
-
-      setClasses([...classes, newClass]);
-      toast.success("Class created successfully!");
+      toast.info("Class creation API endpoint coming soon");
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
@@ -158,30 +96,10 @@ const ClassManagement = () => {
     }
 
     try {
-      // This endpoint may need to be created
+      // TODO: Replace with actual API endpoint when available
       // const response = await teacherAPI.updateClass(selectedClass.id, formData);
 
-      // Mock update
-      const updatedClasses = classes.map((cls) =>
-        cls.id === selectedClass.id
-          ? {
-              ...cls,
-              className: formData.className,
-              grade: formData.grade,
-              section: formData.section,
-              teacherId: formData.teacherId,
-              teacherName:
-                teachers.find((t) => t.id === formData.teacherId)?.name ||
-                cls.teacherName,
-              roomNumber: formData.roomNumber,
-              capacity: formData.capacity,
-              academicYear: formData.academicYear,
-            }
-          : cls,
-      );
-
-      setClasses(updatedClasses);
-      toast.success("Class updated successfully!");
+      toast.info("Class update API endpoint coming soon");
       setShowEditModal(false);
       setSelectedClass(null);
       resetForm();
@@ -194,12 +112,10 @@ const ClassManagement = () => {
   const handleDeleteClass = async (classId) => {
     if (window.confirm("Are you sure you want to delete this class?")) {
       try {
-        // This endpoint may need to be created
+        // TODO: Replace with actual API endpoint when available
         // await teacherAPI.deleteClass(classId);
 
-        // Mock deletion
-        setClasses(classes.filter((cls) => cls.id !== classId));
-        toast.success("Class deleted successfully!");
+        toast.info("Class deletion API endpoint coming soon");
       } catch (error) {
         console.error("Error deleting class:", error);
         toast.error(error.response?.data?.message || "Failed to delete class");
@@ -260,97 +176,100 @@ const ClassManagement = () => {
       </div>
 
       {/* Classes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {classes.map((classItem) => (
-          <Card
-            key={classItem.id}
-            className="hover:shadow-lg transition-shadow"
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {classItem.className}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Grade {classItem.grade} - Section {classItem.section}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openEditModal(classItem)}
-                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Edit Class"
-                  >
-                    <FiEdit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClass(classItem.id)}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete Class"
-                  >
-                    <FiTrash2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FiUsers className="flex-shrink-0" />
-                  <span>
-                    Teacher: {classItem.teacherName || "Not assigned"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FiBookOpen className="flex-shrink-0" />
-                  <span>
-                    Students: {classItem.studentCount || 0}/
-                    {classItem.capacity || 30}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FiCalendar className="flex-shrink-0" />
-                  <span>Academic Year: {classItem.academicYear}</span>
-                </div>
-                {classItem.roomNumber && (
-                  <div className="text-sm text-gray-600">
-                    Room: {classItem.roomNumber}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 rounded-full h-2 transition-all duration-300"
-                    style={{
-                      width: `${((classItem.studentCount || 0) / (classItem.capacity || 30)) * 100}%`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {Math.round(
-                    ((classItem.studentCount || 0) /
-                      (classItem.capacity || 30)) *
-                      100,
-                  )}
-                  % capacity
-                </p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {classes.length === 0 && (
+      {classes.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4">No classes created yet</p>
+            <p className="text-sm text-gray-400 mb-4">
+              Class management API endpoints are coming soon
+            </p>
             <Button onClick={() => setShowCreateModal(true)} variant="primary">
               Create Your First Class
             </Button>
           </div>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {classes.map((classItem) => (
+            <Card
+              key={classItem.id}
+              className="hover:shadow-lg transition-shadow"
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {classItem.className}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Grade {classItem.grade} - Section {classItem.section}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEditModal(classItem)}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit Class"
+                    >
+                      <FiEdit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClass(classItem.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete Class"
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FiUsers className="flex-shrink-0" />
+                    <span>
+                      Teacher: {classItem.teacherName || "Not assigned"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FiBookOpen className="flex-shrink-0" />
+                    <span>
+                      Students: {classItem.studentCount || 0}/
+                      {classItem.capacity || 30}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FiCalendar className="flex-shrink-0" />
+                    <span>Academic Year: {classItem.academicYear}</span>
+                  </div>
+                  {classItem.roomNumber && (
+                    <div className="text-sm text-gray-600">
+                      Room: {classItem.roomNumber}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 rounded-full h-2 transition-all duration-300"
+                      style={{
+                        width: `${((classItem.studentCount || 0) / (classItem.capacity || 30)) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {Math.round(
+                      ((classItem.studentCount || 0) /
+                        (classItem.capacity || 30)) *
+                        100,
+                    )}
+                    % capacity
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Create Class Modal */}

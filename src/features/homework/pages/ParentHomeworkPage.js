@@ -5,99 +5,68 @@ import {
   FiAlertCircle,
   FiCalendar,
 } from "react-icons/fi";
+import { useAuthStore } from "../../../store/authStore";
 import { homeworkAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const ParentHomeworkPage = () => {
+  const { user: storeUser } = useAuthStore();
   const [homeworks, setHomeworks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
 
+  // Get parent and children from localStorage or auth store
   useEffect(() => {
-    fetchChildren();
-  }, []);
+    const storedUser = localStorage.getItem("user");
+    let userData = storeUser;
+    if (storedUser && !userData) {
+      try {
+        userData = JSON.parse(storedUser);
+      } catch (e) {
+        console.error("Error parsing user:", e);
+      }
+    }
+    if (userData && userData.children && Array.isArray(userData.children)) {
+      setChildren(userData.children);
+      if (userData.children.length > 0) {
+        setSelectedChild(userData.children[0]);
+      }
+    } else {
+      setChildren([]);
+      setLoading(false);
+    }
+  }, [storeUser]);
 
   useEffect(() => {
     if (selectedChild) {
-      fetchHomeworks(selectedChild.id);
+      fetchHomeworks(selectedChild);
     }
   }, [selectedChild]);
 
-  const fetchChildren = async () => {
-    try {
-      // Get current user from localStorage
-      const storedUser = localStorage.getItem("user");
-      let parentId = null;
-
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        parentId = userData.id;
-      }
-
-      // This endpoint needs to be created by your backend teammate
-      // const response = await parentAPI.getChildren(parentId);
-      // const childrenData = response.data;
-
-      // Mock data for demonstration
-      setTimeout(() => {
-        const mockChildren = [
-          {
-            id: 1,
-            name: "John Doe",
-            grade: "Grade 10",
-            section: "A",
-            studentId: "STU001",
-          },
-          {
-            id: 2,
-            name: "Emma Doe",
-            grade: "Grade 8",
-            section: "B",
-            studentId: "STU002",
-          },
-        ];
-        setChildren(mockChildren);
-        if (mockChildren.length > 0) {
-          setSelectedChild(mockChildren[0]);
-        } else {
-          setLoading(false);
-        }
-      }, 500);
-    } catch (error) {
-      console.error("Error fetching children:", error);
-      toast.error("Failed to load children data");
-      setLoading(false);
-    }
-  };
-
-  const fetchHomeworks = async (childId) => {
+  const fetchHomeworks = async (child) => {
     setLoading(true);
     try {
-      // Fetch homework for the specific child/class
-      // You may need to adjust this based on your API structure
-      const response = await homeworkAPI.getMyHomework();
-      let homeworkData = response.data;
+      const response = await homeworkAPI.getAllHomework();
+      let allHomeworks = response.data?.data || response.data || [];
+      if (!Array.isArray(allHomeworks)) allHomeworks = [];
 
-      // Filter homework by child's grade/class
-      const child = children.find((c) => c.id === childId);
-      if (child) {
-        homeworkData = homeworkData.filter(
-          (hw) =>
-            hw.className?.includes(child.grade) || hw.grade === child.grade,
-        );
-      }
+      // Filter by child's grade and section
+      const filtered = allHomeworks.filter((hw) => {
+        if (hw.grade !== child.grade) return false;
+        if (hw.className && hw.className !== child.section) return false;
+        return true;
+      });
 
-      // Transform API data to match component structure
-      const formattedHomeworks = homeworkData.map((hw) => ({
+      const formattedHomeworks = filtered.map((hw) => ({
         id: hw.id || hw._id,
         title: hw.title,
         subject: hw.subject,
         description: hw.description,
         dueDate: hw.dueDate?.split("T")[0] || hw.dueDate,
         dueTime: hw.dueTime || "23:59",
-        child: child?.name || "Your Child",
-        childId: child?.id,
+        child: child.name,
+        childId: child.id,
         status: hw.status || "pending",
         submittedDate: hw.submittedDate,
         marks: hw.marks,
@@ -110,54 +79,8 @@ const ParentHomeworkPage = () => {
       setHomeworks(formattedHomeworks);
     } catch (error) {
       console.error("Error fetching homeworks:", error);
-      toast.error("Failed to load homework. Using demo data.");
-
-      // Fallback to demo data based on selected child
-      const child = children.find((c) => c.id === childId);
-      const demoHomeworks = [
-        {
-          id: 1,
-          title: "Algebra Problems",
-          subject: "Mathematics",
-          description: "Solve problems 1-10 from Chapter 5",
-          dueDate: "2024-04-15",
-          dueTime: "23:59",
-          child: child?.name || "Your Child",
-          childId: childId,
-          status: "pending",
-          postedBy: "Mr. Smith",
-          postedDate: "2024-04-01",
-        },
-        {
-          id: 2,
-          title: "Physics Assignment",
-          subject: "Physics",
-          description: "Complete lab report on motion and forces",
-          dueDate: "2024-04-20",
-          dueTime: "23:59",
-          child: child?.name || "Your Child",
-          childId: childId,
-          status: "submitted",
-          submittedDate: "2024-04-18",
-          postedBy: "Dr. Wilson",
-          postedDate: "2024-04-05",
-        },
-        {
-          id: 3,
-          title: "English Essay",
-          subject: "English",
-          description: "Write a 500-word essay about your favorite book",
-          dueDate: "2024-04-10",
-          dueTime: "23:59",
-          child: child?.name || "Your Child",
-          childId: childId,
-          status: "graded",
-          marks: 85,
-          postedBy: "Ms. Davis",
-          postedDate: "2024-03-28",
-        },
-      ];
-      setHomeworks(demoHomeworks);
+      toast.error("Failed to load homework");
+      setHomeworks([]);
     } finally {
       setLoading(false);
     }
@@ -193,7 +116,7 @@ const ParentHomeworkPage = () => {
     return new Date(dueDate) < new Date();
   };
 
-  if (loading && !homeworks.length) {
+  if (loading && !homeworks.length && children.length > 0) {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
@@ -233,7 +156,8 @@ const ParentHomeworkPage = () => {
             value={selectedChild?.id}
             onChange={(e) => {
               const child = children.find(
-                (c) => c.id === parseInt(e.target.value),
+                (c) =>
+                  c.id === parseInt(e.target.value) || c.id === e.target.value,
               );
               setSelectedChild(child);
             }}

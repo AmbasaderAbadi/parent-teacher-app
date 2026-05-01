@@ -6,8 +6,6 @@ import {
   FiUserCheck,
   FiBell,
   FiCalendar,
-  FiTrendingUp,
-  FiBarChart2,
   FiMessageSquare,
 } from "react-icons/fi";
 import "../../../assets/styles/dashboard.css";
@@ -42,87 +40,55 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Get current user from localStorage
       const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        setAdminUser(JSON.parse(storedUser));
-      }
+      if (storedUser) setAdminUser(JSON.parse(storedUser));
 
-      // Fetch stats from API
+      // Fetch statistics – response is { success: true, data: {...} }
       const statsResponse = await adminAPI.getStats();
-      const statsData = statsResponse.data;
+      const statsData = statsResponse.data?.data || statsResponse.data || {};
 
-      // Update stats with real data
-      setStats({
-        totalUsers: statsData.totalUsers || 0,
-        totalParents: statsData.totalParents || 0,
-        totalTeachers: statsData.totalTeachers || 0,
-        totalStudents: statsData.totalStudents || 0,
-        totalAnnouncements: statsData.totalAnnouncements || 0,
-        totalEvents: statsData.totalEvents || 0,
-        totalMessages: statsData.totalMessages || 0,
+      // Fetch all users to get accurate role counts and recent activities
+      const usersResponse = await adminAPI.getAllUsers();
+      const usersData = usersResponse.data?.data || usersResponse.data || [];
+      const usersList = Array.isArray(usersData) ? usersData : [];
+
+      // Calculate role counts from the users list
+      const roleCounts = { parent: 0, teacher: 0, student: 0 };
+      usersList.forEach((user) => {
+        if (user.role === "parent") roleCounts.parent++;
+        else if (user.role === "teacher") roleCounts.teacher++;
+        else if (user.role === "student") roleCounts.student++;
       });
 
-      // Fetch recent users for activity feed
-      const usersResponse = await adminAPI.getAllUsers();
-      const users = usersResponse.data;
+      // Use stats from API if available, otherwise fallback to calculated counts
+      setStats({
+        totalUsers: statsData.totalUsers ?? usersList.length,
+        totalParents: statsData.totalParents ?? roleCounts.parent,
+        totalTeachers: statsData.totalTeachers ?? roleCounts.teacher,
+        totalStudents: statsData.totalStudents ?? roleCounts.student,
+        totalAnnouncements: statsData.totalAnnouncements ?? 0,
+        totalEvents: statsData.totalEvents ?? 0,
+        totalMessages: statsData.totalMessages ?? 0,
+      });
 
-      // Create recent activities from recent users
-      const recentUsers = users.slice(0, 5);
-      const activities = recentUsers.map((user, index) => ({
-        id: index + 1,
-        action: `New ${user.role} registered`,
+      // Recent activities from the most recent users
+      const recentUsers = usersList.slice(0, 5);
+      const activities = recentUsers.map((user, idx) => ({
+        id: idx + 1,
+        action: `New ${user.role || "user"} registered`,
         user:
-          `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-        date: new Date(user.createdAt || Date.now())
-          .toISOString()
-          .split("T")[0],
-        type: user.role,
+          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+          user.email ||
+          user.phoneNumber,
+        date: user.createdAt
+          ? new Date(user.createdAt).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        type: user.role || "user",
       }));
-
       setRecentActivities(activities);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      // Fallback to mock data if API fails
-      setStats({
-        totalUsers: 125,
-        totalParents: 45,
-        totalTeachers: 12,
-        totalStudents: 68,
-        totalAnnouncements: 24,
-        totalEvents: 8,
-        totalMessages: 5234,
-      });
-      setRecentActivities([
-        {
-          id: 1,
-          action: "New teacher registered",
-          user: "Mr. Smith",
-          date: "2024-04-07",
-          type: "teacher",
-        },
-        {
-          id: 2,
-          action: "New parent registered",
-          user: "Jane Doe",
-          date: "2024-04-06",
-          type: "parent",
-        },
-        {
-          id: 3,
-          action: "Announcement posted",
-          user: "Admin",
-          date: "2024-04-05",
-          type: "announcement",
-        },
-        {
-          id: 4,
-          action: "Student removed",
-          user: "John Doe",
-          date: "2024-04-04",
-          type: "student",
-        },
-      ]);
+      // Keep zeros on error
     } finally {
       setLoading(false);
     }
@@ -231,21 +197,26 @@ const AdminDashboard = () => {
       <div className="dashboard-section">
         <h2 className="section-title">📋 Recent Activities</h2>
         <div className="activity-list">
-          {recentActivities.map((activity) => (
-            <div key={activity.id} className="activity-item">
-              <div className="activity-icon">
-                {activity.type === "teacher" && "👨‍🏫"}
-                {activity.type === "parent" && "👨‍👩‍👧"}
-                {activity.type === "student" && "🎓"}
-                {activity.type === "announcement" && "📢"}
-              </div>
-              <div className="activity-content">
-                <p className="activity-action">{activity.action}</p>
-                <p className="activity-user">{activity.user}</p>
-              </div>
-              <span className="activity-date">{activity.date}</span>
+          {recentActivities.length === 0 ? (
+            <div className="empty-activities">
+              <p>No recent activities</p>
             </div>
-          ))}
+          ) : (
+            recentActivities.map((activity) => (
+              <div key={activity.id} className="activity-item">
+                <div className="activity-icon">
+                  {activity.type === "teacher" && "👨‍🏫"}
+                  {activity.type === "parent" && "👨‍👩‍👧"}
+                  {activity.type === "student" && "🎓"}
+                </div>
+                <div className="activity-content">
+                  <p className="activity-action">{activity.action}</p>
+                  <p className="activity-user">{activity.user}</p>
+                </div>
+                <span className="activity-date">{activity.date}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

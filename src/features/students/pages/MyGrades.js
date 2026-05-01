@@ -30,18 +30,15 @@ const MyGrades = () => {
   const fetchGradesData = async () => {
     setLoading(true);
     try {
-      // Get current user from localStorage
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const userData = JSON.parse(storedUser);
         setStudentUser(userData);
       }
 
-      // Fetch grades from API
       const response = await gradesAPI.getMyGrades();
       const gradesData = response.data;
 
-      // Transform API data to match component structure
       const formattedGrades = gradesData.map((grade) => ({
         id: grade.id || grade._id,
         subject: grade.subject,
@@ -49,63 +46,16 @@ const MyGrades = () => {
         grade: grade.grade || calculateGradeLetter(grade.score),
         term: grade.term || "Term 1",
         teacher: grade.teacherName || grade.teacher || "Staff",
-        rawScore: grade.score, // Keep raw score for calculations
+        rawScore: grade.score,
       }));
 
       setGrades(formattedGrades);
-
-      // Calculate summary statistics
       calculateSummary(formattedGrades);
     } catch (error) {
       console.error("Error fetching grades:", error);
-      toast.error("Failed to load grades data. Using demo data.");
-
-      // Fallback to demo data
-      const demoGrades = [
-        {
-          subject: "Mathematics",
-          score: "85%",
-          grade: "A",
-          term: "Term 1",
-          teacher: "Mr. Smith",
-          rawScore: 85,
-        },
-        {
-          subject: "Science",
-          score: "78%",
-          grade: "B+",
-          term: "Term 1",
-          teacher: "Mrs. Johnson",
-          rawScore: 78,
-        },
-        {
-          subject: "English",
-          score: "92%",
-          grade: "A+",
-          term: "Term 1",
-          teacher: "Ms. Davis",
-          rawScore: 92,
-        },
-        {
-          subject: "History",
-          score: "88%",
-          grade: "A-",
-          term: "Term 1",
-          teacher: "Mr. Brown",
-          rawScore: 88,
-        },
-        {
-          subject: "Physics",
-          score: "82%",
-          grade: "B+",
-          term: "Term 1",
-          teacher: "Dr. Wilson",
-          rawScore: 82,
-        },
-      ];
-
-      setGrades(demoGrades);
-      calculateSummary(demoGrades);
+      toast.error("Failed to load grades data");
+      setGrades([]);
+      calculateSummary([]);
     } finally {
       setLoading(false);
     }
@@ -150,8 +100,12 @@ const MyGrades = () => {
     });
   };
 
-  // Optional: Add function to export grades
   const handleExportGrades = () => {
+    if (grades.length === 0) {
+      toast.error("No grades available to export");
+      return;
+    }
+
     const csvContent = [
       ["Subject", "Score", "Grade", "Term", "Teacher"],
       ...grades.map((grade) => [

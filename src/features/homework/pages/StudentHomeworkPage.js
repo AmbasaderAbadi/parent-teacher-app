@@ -13,7 +13,7 @@ import { homeworkAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const StudentHomeworkPage = () => {
-  const { user } = useAuthStore();
+  const { user: storeUser } = useAuthStore();
   const [homeworks, setHomeworks] = useState([]);
   const [submissions, setSubmissions] = useState({});
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -25,9 +25,30 @@ const StudentHomeworkPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [studentInfo, setStudentInfo] = useState(null);
 
+  // Get student info from localStorage or auth store
   useEffect(() => {
-    fetchStudentInfo();
-  }, []);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setStudentInfo({
+          grade: userData.grade,
+          section: userData.className || userData.section,
+          studentId: userData.studentId || userData.id,
+          name: `${userData.firstName || ""} ${userData.lastName || ""}`.trim(),
+        });
+      } catch (error) {
+        console.error("Error parsing user:", error);
+      }
+    } else if (storeUser) {
+      setStudentInfo({
+        grade: storeUser.grade,
+        section: storeUser.className || storeUser.section,
+        studentId: storeUser.studentId || storeUser.id,
+        name: `${storeUser.firstName || ""} ${storeUser.lastName || ""}`.trim(),
+      });
+    }
+  }, [storeUser]);
 
   useEffect(() => {
     if (studentInfo) {
@@ -36,55 +57,21 @@ const StudentHomeworkPage = () => {
     }
   }, [studentInfo]);
 
-  const fetchStudentInfo = async () => {
-    try {
-      // Get current user from localStorage
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setStudentInfo({
-          grade: userData.grade,
-          section: userData.className || userData.section,
-          studentId: userData.studentId || userData.id,
-          name: `${userData.firstName || ""} ${userData.lastName || ""}`.trim(),
-        });
-      } else {
-        setStudentInfo({
-          grade: "Grade 10",
-          section: "A",
-          studentId: "STU001",
-          name: "Student",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching student info:", error);
-      setStudentInfo({
-        grade: "Grade 10",
-        section: "A",
-        studentId: "STU001",
-        name: "Student",
-      });
-    }
-  };
-
   const fetchHomeworks = async () => {
     setLoading(true);
     try {
-      // Fetch homework for the student's class
-      const response = await homeworkAPI.getMyHomework();
-      let homeworkData = response.data;
+      const response = await homeworkAPI.getAllHomework();
+      let allHomeworks = response.data?.data || response.data || [];
+      if (!Array.isArray(allHomeworks)) allHomeworks = [];
 
-      // Filter homework by student's grade/class
-      if (studentInfo) {
-        homeworkData = homeworkData.filter(
-          (hw) =>
-            hw.className?.includes(studentInfo.grade) ||
-            hw.grade === studentInfo.grade,
-        );
-      }
+      // Filter by student's grade and section
+      const filtered = allHomeworks.filter((hw) => {
+        if (hw.grade !== studentInfo.grade) return false;
+        if (hw.className && hw.className !== studentInfo.section) return false;
+        return true;
+      });
 
-      // Transform API data to match component structure
-      const formattedHomeworks = homeworkData.map((hw) => ({
+      const formatted = filtered.map((hw) => ({
         id: hw.id || hw._id,
         title: hw.title,
         subject: hw.subject,
@@ -101,100 +88,51 @@ const StudentHomeworkPage = () => {
         attachments: hw.attachments || [],
       }));
 
-      setHomeworks(formattedHomeworks);
+      setHomeworks(formatted);
     } catch (error) {
       console.error("Error fetching homeworks:", error);
-      toast.error("Failed to load homework. Using demo data.");
-
-      // Fallback to demo data
-      const demoHomeworks = [
-        {
-          id: 1,
-          title: "Algebra Problems",
-          subject: "Mathematics",
-          description: "Solve problems 1-10 from Chapter 5",
-          dueDate: "2024-04-15",
-          dueTime: "23:59",
-          postedBy: "Mr. Smith",
-          postedDate: "2024-04-01",
-          fileType: "pdf",
-          fileName: "algebra_problems.pdf",
-          fileUrl: "#",
-        },
-        {
-          id: 2,
-          title: "Geometry Assignment",
-          subject: "Mathematics",
-          description: "Complete the geometry worksheet",
-          dueDate: "2024-04-20",
-          dueTime: "23:59",
-          postedBy: "Mr. Smith",
-          postedDate: "2024-04-05",
-          fileType: "image",
-          fileName: "geometry_diagram.jpg",
-          fileUrl: "#",
-        },
-        {
-          id: 3,
-          title: "Physics Lab Report",
-          subject: "Physics",
-          description: "Write a lab report on motion experiment",
-          dueDate: "2024-04-10",
-          dueTime: "23:59",
-          postedBy: "Dr. Wilson",
-          postedDate: "2024-03-28",
-          fileType: "pdf",
-          fileName: "lab_guide.pdf",
-          fileUrl: "#",
-        },
-      ];
-      setHomeworks(demoHomeworks);
+      toast.error("Failed to load homework");
+      setHomeworks([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchMySubmissions = async () => {
     try {
+      const response = await homeworkAPI.getMySubmissions();
+      let submissionsData = response.data?.data || response.data || [];
+      if (!Array.isArray(submissionsData)) submissionsData = [];
+
       const submissionsMap = {};
-      for (const hw of homeworks) {
-        try {
-          const response = await homeworkAPI.getMySubmission(hw.id);
-          const submission = response.data;
-          submissionsMap[hw.id] = {
-            status: submission.status || "submitted",
-            submittedAt: submission.submittedAt || submission.createdAt,
-            file: submission.fileName ? { name: submission.fileName } : null,
-            text: submission.content,
-            marks: submission.marks,
-            feedback: submission.feedback,
-          };
-        } catch (error) {
-          // No submission found
-          console.log(`No submission for homework ${hw.id}`);
-        }
-      }
+      submissionsData.forEach((sub) => {
+        submissionsMap[sub.homeworkId] = {
+          status: sub.status || "submitted",
+          submittedAt: sub.submittedAt || sub.createdAt,
+          file: sub.fileName ? { name: sub.fileName } : null,
+          text: sub.content,
+          marks: sub.marks,
+          feedback: sub.feedback,
+        };
+      });
       setSubmissions(submissionsMap);
     } catch (error) {
       console.error("Error fetching submissions:", error);
-    } finally {
-      setLoading(false);
+      // Not critical – keep empty submissions
     }
   };
 
   const handleSubmitFile = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (max 20MB)
       if (file.size > 20 * 1024 * 1024) {
         toast.error("File size must be less than 20MB");
         return;
       }
-
       setSubmissionFile(file);
       if (file.type.startsWith("image/")) {
         const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreviewUrl(reader.result);
-        };
+        reader.onloadend = () => setPreviewUrl(reader.result);
         reader.readAsDataURL(file);
       } else {
         setPreviewUrl(null);
@@ -209,31 +147,28 @@ const StudentHomeworkPage = () => {
     }
 
     setSubmitting(true);
-
     try {
-      // Create FormData for file upload
       const formData = new FormData();
-      formData.append("homeworkId", selectedHomework.id);
-      if (submissionFile) {
-        formData.append("file", submissionFile);
-      }
-      if (submissionText) {
-        formData.append("content", submissionText);
-      }
+      if (submissionFile) formData.append("file", submissionFile);
+      if (submissionText) formData.append("content", submissionText);
 
       const response = await homeworkAPI.submitHomework(
         selectedHomework.id,
         formData,
       );
-
       const submission = {
         status: "submitted",
         submittedAt: new Date().toISOString(),
         file: submissionFile ? { name: submissionFile.name } : null,
         text: submissionText,
+        marks: response.data?.marks,
+        feedback: response.data?.feedback,
       };
 
-      setSubmissions({ ...submissions, [selectedHomework.id]: submission });
+      setSubmissions((prev) => ({
+        ...prev,
+        [selectedHomework.id]: submission,
+      }));
       setShowSubmitModal(false);
       setSubmissionFile(null);
       setSubmissionText("");
@@ -249,19 +184,11 @@ const StudentHomeworkPage = () => {
   };
 
   const handleDownloadAttachment = async (homework) => {
-    try {
-      toast.loading(`Downloading ${homework.fileName}...`, { id: "download" });
-
-      // Call API to download file
-      // const response = await homeworkAPI.downloadAttachment(homework.id);
-
-      // Simulate download for demo
-      setTimeout(() => {
-        toast.success(`${homework.fileName} downloaded!`, { id: "download" });
-      }, 1000);
-    } catch (error) {
-      console.error("Error downloading attachment:", error);
-      toast.error("Failed to download file", { id: "download" });
+    if (homework.fileUrl) {
+      window.open(homework.fileUrl, "_blank");
+      toast.success(`Opening ${homework.fileName}`);
+    } else {
+      toast.error("No file available");
     }
   };
 
@@ -374,7 +301,6 @@ const StudentHomeworkPage = () => {
                   <span>Posted on: {hw.postedDate}</span>
                 </div>
 
-                {/* Attachment from teacher */}
                 {hw.fileName && (
                   <div style={styles.teacherAttachment}>
                     {getFileIcon(hw.fileType)}
@@ -457,7 +383,6 @@ const StudentHomeworkPage = () => {
                 style={styles.textarea}
                 disabled={submitting}
               />
-
               <div style={styles.fileUploadSection}>
                 <label style={styles.fileLabel}>Upload File (Optional)</label>
                 <div style={styles.fileUploadArea}>
@@ -490,7 +415,6 @@ const StudentHomeworkPage = () => {
                   Supported: Images, PDF, DOC, DOCX, TXT (Max 20MB)
                 </p>
               </div>
-
               {previewUrl && (
                 <div style={styles.previewContainer}>
                   <p>Image Preview:</p>
@@ -521,21 +445,6 @@ const StudentHomeworkPage = () => {
           </div>
         </div>
       )}
-
-      <style>{`
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #e5e7eb;
-          border-top-color: #4f46e5;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin-bottom: 12px;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

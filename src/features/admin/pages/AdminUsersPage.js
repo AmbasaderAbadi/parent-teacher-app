@@ -27,92 +27,48 @@ const AdminUsersPage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      let response;
-      if (selectedRole !== "all") {
-        response = await adminAPI.getUsersByRole(selectedRole);
-      } else {
-        response = await adminAPI.getAllUsers();
-      }
+      // Fetch all users (since role endpoint may be missing)
+      const response = await adminAPI.getAllUsers();
+      // Extract nested data array
+      const usersData = response.data?.data || response.data || [];
+      const usersList = Array.isArray(usersData) ? usersData : [];
 
-      const usersData = response.data;
-      // Transform API data to match component structure
-      const formattedUsers = usersData.map((user) => ({
+      const formattedUsers = usersList.map((user) => ({
         id: user.id || user._id,
         name:
           `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
           user.name ||
-          user.email,
-        email: user.email,
-        userId: user.teacherId || user.studentId || user.parentId || user.id,
-        role: user.role,
+          user.email ||
+          "Unknown",
+        email: user.email || "No email",
+        userId:
+          user.teacherId || user.studentId || user.parentId || user.id || "N/A",
+        role: user.role || "unknown",
         status: user.isActive ? "active" : "inactive",
         joinedDate: user.createdAt
           ? new Date(user.createdAt).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
       }));
+
       setUsers(formattedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error("Failed to load users. Using demo data.");
-      // Fallback to demo data
-      setUsers([
-        {
-          id: 1,
-          name: "Sarah Johnson",
-          email: "sarah@parent.com",
-          role: "parent",
-          userId: "parent123",
-          status: "active",
-          joinedDate: "2024-01-15",
-        },
-        {
-          id: 2,
-          name: "Michael Chen",
-          email: "michael@teacher.com",
-          role: "teacher",
-          userId: "teacher123",
-          status: "active",
-          joinedDate: "2024-01-10",
-        },
-        {
-          id: 3,
-          name: "John Doe",
-          email: "john@student.com",
-          role: "student",
-          userId: "student123",
-          status: "active",
-          joinedDate: "2024-02-01",
-        },
-        {
-          id: 4,
-          name: "Emma Smith",
-          email: "emma@parent.com",
-          role: "parent",
-          userId: "parent456",
-          status: "inactive",
-          joinedDate: "2024-01-20",
-        },
-        {
-          id: 5,
-          name: "David Brown",
-          email: "david@teacher.com",
-          role: "teacher",
-          userId: "teacher456",
-          status: "active",
-          joinedDate: "2024-02-15",
-        },
-      ]);
+      toast.error("Failed to load users");
+      setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Refetch when role filter changes
-  useEffect(() => {
-    if (!loading) {
-      fetchUsers();
-    }
-  }, [selectedRole]);
+  // Client-side role filtering (since backend role endpoint may be missing)
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.userId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === "all" || user.role === selectedRole;
+    return matchesSearch && matchesRole;
+  });
 
   const handleDeleteUser = async () => {
     if (selectedUser) {
@@ -157,15 +113,7 @@ const AdminUsersPage = () => {
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.userId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = selectedRole === "all" || user.role === selectedRole;
-    return matchesSearch && matchesRole;
-  });
-
+  // The JSX remains exactly the same as in your original code
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -236,6 +184,9 @@ const AdminUsersPage = () => {
               <tr>
                 <td colSpan="7" style={styles.emptyCell}>
                   <p>No users found</p>
+                  {searchTerm && (
+                    <p style={styles.emptySubtext}>Try adjusting your search</p>
+                  )}
                 </td>
               </tr>
             ) : (
@@ -385,6 +336,7 @@ const AdminUsersPage = () => {
 };
 
 const styles = {
+  // ... keep your existing styles exactly as they were
   container: {
     padding: "24px",
     maxWidth: "1200px",
@@ -531,6 +483,11 @@ const styles = {
     padding: "40px",
     textAlign: "center",
     color: "#9ca3af",
+  },
+  emptySubtext: {
+    fontSize: "12px",
+    marginTop: "8px",
+    color: "#d1d5db",
   },
   spinner: {
     width: "32px",
