@@ -10,18 +10,80 @@ import {
   FiPaperclip,
   FiSmile,
   FiX,
-  FiPlus,
 } from "react-icons/fi";
 import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../../../store/authStore";
-import { useAuth } from "../../../contexts/AuthContext";
 import { messagingAPI } from "../../../services/api";
+import MessageSummarizer from "../components/MessageSummarizer";
+
+const normalizeId = (id) => {
+  if (!id) return null;
+  if (typeof id === "string") return id;
+  if (typeof id === "object" && id.$oid) return id.$oid;
+  if (typeof id === "object" && id._id) return normalizeId(id._id);
+  return String(id);
+};
+
+const extractRecipient = (data, userRole) => {
+  let rawId = null;
+  let rawName = null;
+  let studentId = null;
+  let subject = null;
+
+  if (userRole === "parent") {
+    const possibleIds = [data.teacherId, data.teacherName];
+    for (const p of possibleIds) {
+      const id = normalizeId(p);
+      if (id && id.length > 10) {
+        rawId = id;
+        break;
+      }
+    }
+    rawName = possibleIds.find(
+      (p) => !normalizeId(p) || normalizeId(p).length <= 10,
+    );
+    if (rawName && typeof rawName === "object")
+      rawName = rawName.name || rawName.firstName || "User";
+    studentId = data.studentId;
+    subject = data.subject;
+  } else if (userRole === "teacher") {
+    const possibleIds = [data.parentId, data.teacherId, data.teacherName];
+    for (const p of possibleIds) {
+      const id = normalizeId(p);
+      if (id && id.length > 10) {
+        rawId = id;
+        break;
+      }
+    }
+    rawName = possibleIds.find(
+      (p) => !normalizeId(p) || normalizeId(p).length <= 10,
+    );
+    if (rawName && typeof rawName === "object")
+      rawName = rawName.name || rawName.firstName || "Parent";
+    studentId = data.studentId;
+    subject = data.subject;
+  } else {
+    rawId = normalizeId(data.id || data.teacherId || data.parentId);
+    rawName = data.name || data.teacherName || data.parentName || "User";
+    studentId = data.studentId;
+    subject = data.subject;
+  }
+
+  if (!rawId && rawName) rawId = `temp_${Date.now()}`;
+  if (!rawName) rawName = "User";
+
+  return {
+    recipientId: rawId,
+    recipientName: String(rawName),
+    studentId,
+    subject,
+  };
+};
 
 const MessagesPage = () => {
   const navigate = useNavigate();
   const { user: storeUser } = useAuthStore();
-  const { logout } = useAuth();
 
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -29,19 +91,19 @@ const MessagesPage = () => {
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [typing, setTyping] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [user, setUser] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [showComposeModal, setShowComposeModal] = useState(false);
-  const [composeRecipient, setComposeRecipient] = useState(null);
-  const [composeMessage, setComposeMessage] = useState("");
 
   const messagesEndRef = useRef(null);
-  const chatAreaRef = useRef(null);
+  const sendingRef = useRef(false);
+  const conversationsRef = useRef(conversations);
 
-  // Check mobile view
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
   useEffect(() => {
     const handleResize = () => setIsMobileView(window.innerWidth < 768);
     handleResize();
@@ -49,62 +111,115 @@ const MessagesPage = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Load user from localStorage
   useEffect(() => {
+    let rawUser = null;
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      } catch (e) {
-        console.error("Error parsing user:", e);
-      }
-    } else if (storeUser) {
-      setUser(storeUser);
+        rawUser = JSON.parse(storedUser);
+      } catch (e) {}
+    }
+    if (!rawUser && storeUser) rawUser = storeUser;
+    if (rawUser) {
+      const normalizedUser = {
+        ...rawUser,
+        id: normalizeId(rawUser.id || rawUser._id),
+      };
+      setUser(normalizedUser);
     }
   }, [storeUser]);
 
-  // Fetch conversations when user loaded
   useEffect(() => {
     if (!user) return;
     fetchConversations();
   }, [user]);
 
-  // Check for pending direct chat from dashboard
   useEffect(() => {
-    if (!user) return;
+    if (!user || loading) return;
+
     const directChat = localStorage.getItem("directChat");
-    if (directChat) {
-      localStorage.removeItem("directChat");
-      try {
-        const data = JSON.parse(directChat);
-        if (user.role === "parent") {
-          setComposeRecipient({
-            teacherId: data.teacherId,
-            name: data.teacherName,
-            studentId: data.studentId,
-            context: data.subject,
-          });
-        } else if (user.role === "teacher") {
-          setComposeRecipient({
-            parentId: data.teacherId,
-            name: data.teacherName,
-            studentId: data.studentId,
-            context: data.subject,
-          });
-        } else {
-          setComposeRecipient({
-            id: data.teacherId || data.parentId,
-            name: data.teacherName || data.parentName,
-            context: data.subject,
-          });
-        }
-        setShowComposeModal(true);
-      } catch (e) {
-        console.error("Failed to parse directChat", e);
+    if (!directChat) return;
+    localStorage.removeItem("directChat");
+
+    try {
+      const data = JSON.parse(directChat);
+      const { recipientId, recipientName, studentId, subject } =
+        extractRecipient(data, user.role);
+
+      const existingConv = conversationsRef.current.find(
+        (c) => c.id === recipientId || c.name === recipientName,
+      );
+      if (existingConv) {
+        setSelectedConversation(existingConv);
+        if (isMobileView) setShowChat(true);
+        return;
       }
+
+      const tempConv = {
+        id: `temp_${recipientId || Date.now()}`,
+        name: recipientName,
+        avatar: getInitials(recipientName),
+        lastMessage: "No messages yet",
+        lastMessageTime: new Date(),
+        unreadCount: 0,
+        subject: subject || (user.role === "teacher" ? "Parent" : "Teacher"),
+        role: user.role === "parent" ? "teacher" : "parent",
+        online: false,
+        temp: true,
+        recipientId,
+        studentId,
+      };
+      setSelectedConversation(tempConv);
+      if (isMobileView) setShowChat(true);
+      setMessages([]);
+    } catch (e) {
+      console.error("Failed to parse directChat", e);
     }
-  }, [user]);
+  }, [user, loading, isMobileView]);
+
+  useEffect(() => {
+    if (!selectedConversation || !user) return;
+    const convId = selectedConversation.id;
+    if (!convId || convId.toString().startsWith("temp_")) {
+      setMessages([]);
+      return;
+    }
+    fetchMessages(convId);
+  }, [selectedConversation?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const getInitials = (name) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((p) => p[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "";
+    const now = new Date();
+    return date.toDateString() === now.toDateString()
+      ? format(date, "h:mm a")
+      : format(date, "MMM d");
+  };
+
+  const safeFormatDistance = (date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime()))
+      return "recently";
+    try {
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch {
+      return "recently";
+    }
+  };
 
   const fetchConversations = async () => {
     setLoading(true);
@@ -117,11 +232,19 @@ const MessagesPage = () => {
       } else {
         response = await messagingAPI.getConversations();
       }
-      const convData = response.data?.data || response.data || [];
+
+      let convData = [];
+      if (user?.role === "teacher") {
+        convData =
+          response.data?.data?.students || response.data?.students || [];
+      } else {
+        convData = response.data?.data || response.data || [];
+      }
+      if (!Array.isArray(convData)) convData = [];
+
       let conversationsArray = [];
 
       if (user?.role === "parent") {
-        // Deduplicate teachers across children by conversationId (or temp teacherId)
         const teacherMap = new Map();
         convData.forEach((child) => {
           (child.teachers || []).forEach((teacher) => {
@@ -155,7 +278,6 @@ const MessagesPage = () => {
         });
         conversationsArray = Array.from(teacherMap.values());
       } else if (user?.role === "teacher") {
-        // Deduplicate parents across students by conversationId (or parentId)
         const parentMap = new Map();
         convData.forEach((student) => {
           const parent = student.parent;
@@ -189,7 +311,6 @@ const MessagesPage = () => {
         });
         conversationsArray = Array.from(parentMap.values());
       } else {
-        // admin or other
         conversationsArray = convData.map((conv) => ({
           id: conv.id,
           name: conv.name,
@@ -205,9 +326,12 @@ const MessagesPage = () => {
         }));
       }
 
-      // Sort by lastMessageTime (most recent first)
-      conversationsArray.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
-      setConversations(conversationsArray);
+      // Remove any conversation with null/undefined id to prevent key warning
+      const validConversations = conversationsArray.filter(
+        (conv) => conv.id != null,
+      );
+      validConversations.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
+      setConversations(validConversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
       toast.error("Failed to load conversations");
@@ -217,162 +341,207 @@ const MessagesPage = () => {
     }
   };
 
-  // Fetch messages when conversation selected
-  useEffect(() => {
-    if (!selectedConversation || !user) return;
-    if (
-      selectedConversation.id &&
-      selectedConversation.id.toString().startsWith("temp_")
-    ) {
-      // No real conversation yet, clear messages and wait for user to send first message
-      setMessages([]);
-      return;
+  const markConversationAsRead = async (conversationId) => {
+    if (!conversationId) return;
+    try {
+      await messagingAPI.markAsRead({ conversationId });
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+        ),
+      );
+    } catch (error) {
+      console.error("Error marking as read:", error);
     }
-    fetchMessages(selectedConversation.id);
-  }, [selectedConversation, user]);
+  };
 
   const fetchMessages = async (conversationId) => {
+    if (!conversationId || sendingRef.current) return;
     try {
       const response = await messagingAPI.getMessages(conversationId);
       let messagesData = response.data?.data || response.data || [];
       if (!Array.isArray(messagesData)) messagesData = [];
-      const formattedMessages = messagesData.map((msg) => ({
-        id: msg.id || msg._id,
-        senderId: msg.senderId || msg.sender?.id,
-        senderName: msg.senderName || msg.sender?.name,
-        content: msg.content,
-        timestamp: msg.createdAt || msg.timestamp,
-        read: msg.read || false,
-      }));
-      setMessages(formattedMessages);
-      // Mark unread messages as read
-      const unreadMsgIds = formattedMessages
-        .filter((msg) => !msg.read && msg.senderId !== user?.id)
-        .map((msg) => msg.id);
-      if (unreadMsgIds.length > 0) {
-        await markMessagesAsRead(unreadMsgIds);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            unreadMsgIds.includes(msg.id) ? { ...msg, read: true } : msg,
-          ),
-        );
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv,
-          ),
-        );
-      }
+
+      const formatted = messagesData
+        .map((msg) => {
+          let rawSenderId = null;
+          if (msg.senderId) {
+            rawSenderId = normalizeId(msg.senderId);
+          } else if (msg.sender) {
+            if (typeof msg.sender === "object") {
+              rawSenderId = normalizeId(msg.sender._id || msg.sender.id);
+            } else {
+              rawSenderId = normalizeId(msg.sender);
+            }
+          }
+          const messageId = msg.id || msg._id;
+          if (!messageId) return null;
+          return {
+            id: messageId,
+            senderId: rawSenderId,
+            senderName: msg.senderName || msg.sender?.name,
+            content: msg.content,
+            timestamp: msg.createdAt || msg.timestamp,
+            read: msg.read || false,
+          };
+        })
+        .filter((msg) => msg !== null && msg.id != null); // ensure id exists
+
+      setMessages(formatted);
+
+      const ownId = normalizeId(user?.id);
+      const hasUnread = formatted.some(
+        (msg) => !msg.read && msg.senderId !== ownId,
+      );
+      if (hasUnread) markConversationAsRead(conversationId);
     } catch (error) {
       console.error("Error fetching messages:", error);
-      toast.error("Failed to load messages");
       setMessages([]);
-    }
-  };
-
-  const markMessagesAsRead = async (messageIds) => {
-    try {
-      await messagingAPI.markAsRead({ messageIds });
-    } catch (error) {
-      console.error("Error marking messages as read:", error);
     }
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sendingMessage) return;
-    if (
-      selectedConversation.id &&
-      selectedConversation.id.toString().startsWith("temp_")
-    ) {
-      toast.error("Please wait, conversation is being created...");
-      return;
-    }
+
+    const isTemp = selectedConversation.id?.toString().startsWith("temp_");
+    const messageContent = newMessage;
+    setNewMessage("");
     setSendingMessage(true);
+    sendingRef.current = true;
+
     const tempId = `temp_${Date.now()}`;
+    const ownId = normalizeId(user?.id);
     const tempMsg = {
       id: tempId,
-      senderId: user?.id,
+      senderId: ownId,
       senderName: user?.name,
-      content: newMessage,
+      content: messageContent,
       timestamp: new Date().toISOString(),
       read: false,
       temp: true,
     };
     setMessages((prev) => [...prev, tempMsg]);
-    setNewMessage("");
-    setTimeout(
-      () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
-      100,
-    );
+
     try {
-      const response = await messagingAPI.sendMessage({
-        conversationId: selectedConversation.id,
-        content: newMessage,
-      });
-      const realMsg = response.data?.data || response.data;
-      const newMsg = {
-        id: realMsg.id || realMsg._id,
-        senderId: realMsg.senderId || user?.id,
-        senderName: realMsg.senderName || user?.name,
-        content: realMsg.content,
-        timestamp: realMsg.createdAt || new Date().toISOString(),
-        read: false,
-      };
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === tempId ? newMsg : msg)),
-      );
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === selectedConversation.id
-            ? {
-                ...conv,
-                lastMessage: newMessage,
-                lastMessageTime: new Date(),
-              }
-            : conv,
-        ),
-      );
+      if (isTemp) {
+        const recipientId = selectedConversation.recipientId;
+        const studentId = selectedConversation.studentId;
+
+        if (user?.role === "parent") {
+          await messagingAPI.sendParentToTeacher(
+            recipientId,
+            studentId,
+            messageContent,
+          );
+        } else if (user?.role === "teacher") {
+          await messagingAPI.sendTeacherToParent(
+            recipientId,
+            studentId,
+            messageContent,
+          );
+        } else {
+          await messagingAPI.sendDirectMessage({
+            receiverId: recipientId,
+            content: messageContent,
+          });
+        }
+
+        // Wait for backend to persist
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Reload conversations
+        await fetchConversations();
+
+        // Try to find the new conversation using multiple strategies
+        let foundConv = null;
+        const currentConvs = conversationsRef.current;
+        // Strategy 1: by recipientId (stored in temp)
+        foundConv = currentConvs.find((c) => c.id === recipientId);
+        // Strategy 2: by name
+        if (!foundConv)
+          foundConv = currentConvs.find(
+            (c) => c.name === selectedConversation.name,
+          );
+        // Strategy 3: by studentId (for teachers/parents)
+        if (!foundConv && studentId)
+          foundConv = currentConvs.find((c) => c.studentId === studentId);
+        // Strategy 4: take the most recent conversation if only one exists
+        if (!foundConv && currentConvs.length === 1)
+          foundConv = currentConvs[0];
+
+        if (foundConv) {
+          setSelectedConversation(foundConv);
+          await fetchMessages(foundConv.id);
+          toast.success("Message sent and conversation saved!");
+        } else {
+          // Last resort: select the first conversation after reload (if any)
+          if (currentConvs.length > 0) {
+            setSelectedConversation(currentConvs[0]);
+            await fetchMessages(currentConvs[0].id);
+            toast.success(
+              "Message sent! Conversation may appear in your list.",
+            );
+          } else {
+            toast.error(
+              "Message sent but conversation could not be loaded. Please refresh the page.",
+            );
+            setSelectedConversation(null);
+            setMessages([]);
+          }
+        }
+      } else {
+        // Normal send to existing conversation
+        const response = await messagingAPI.sendMessage({
+          conversationId: selectedConversation.id,
+          content: messageContent,
+        });
+        const raw =
+          response?.data?.data ||
+          response?.data?.message ||
+          response?.data ||
+          null;
+        if (raw && (raw.id || raw._id)) {
+          const confirmedMsg = {
+            id: raw.id || raw._id,
+            senderId: normalizeId(
+              raw.senderId || raw.sender?._id || raw.sender?.id || user?.id,
+            ),
+            senderName: raw.senderName || raw.sender?.name || user?.name,
+            content: raw.content || messageContent,
+            timestamp:
+              raw.createdAt || raw.timestamp || new Date().toISOString(),
+            read: false,
+          };
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === tempId ? confirmedMsg : msg)),
+          );
+        } else {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === tempId ? { ...msg, temp: false } : msg,
+            ),
+          );
+        }
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === selectedConversation.id
+              ? {
+                  ...conv,
+                  lastMessage: messageContent,
+                  lastMessageTime: new Date(),
+                }
+              : conv,
+          ),
+        );
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
+      setNewMessage(messageContent);
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     } finally {
       setSendingMessage(false);
-    }
-  };
-
-  const handleSendDirectMessage = async () => {
-    if (!composeRecipient || !composeMessage.trim()) return;
-    setSendingMessage(true);
-    try {
-      let response;
-      if (user?.role === "parent") {
-        response = await messagingAPI.sendParentToTeacher(
-          composeRecipient.teacherId,
-          composeRecipient.studentId,
-          composeMessage,
-        );
-      } else if (user?.role === "teacher") {
-        response = await messagingAPI.sendTeacherToParent(
-          composeRecipient.parentId,
-          composeRecipient.studentId,
-          composeMessage,
-        );
-      } else {
-        response = await messagingAPI.sendDirectMessage({
-          receiverId: composeRecipient.id,
-          content: composeMessage,
-        });
-      }
-      toast.success(`Message sent to ${composeRecipient.name}`);
-      setShowComposeModal(false);
-      setComposeMessage("");
-      setComposeRecipient(null);
-      await fetchConversations();
-    } catch (error) {
-      console.error("Error sending direct message:", error);
-      toast.error(error.response?.data?.message || "Failed to send message");
-    } finally {
-      setSendingMessage(false);
+      sendingRef.current = false;
     }
   };
 
@@ -384,10 +553,12 @@ const MessagesPage = () => {
   };
 
   const handleSelectConversation = (conv) => {
-    if (conv.id && conv.id.toString().startsWith("temp_")) {
+    if (!conv || !conv.id) return;
+    if (conv.id.toString().startsWith("temp_")) {
       toast.info("Start a conversation by sending a message first.");
       return;
     }
+    if (conv.unreadCount > 0) markConversationAsRead(conv.id);
     setSelectedConversation(conv);
     if (isMobileView) setShowChat(true);
   };
@@ -398,61 +569,29 @@ const MessagesPage = () => {
     setMessages([]);
   };
 
-  const handleChatAreaClick = (e) => {
-    if (chatAreaRef.current && e.target === chatAreaRef.current) {
-      handleExitChat();
-    }
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "?";
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const formatMessageTime = (timestamp) => {
-    if (!timestamp) return "";
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return "Invalid date";
-    const now = new Date();
-    if (date.toDateString() === now.toDateString()) {
-      return format(date, "h:mm a");
-    }
-    return format(date, "MMM d");
-  };
-
-  const safeFormatDistance = (date) => {
-    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-      return "recently";
-    }
-    return formatDistanceToNow(date, { addSuffix: true });
-  };
-
   const filteredConversations = conversations.filter(
     (conv) =>
-      conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conv.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.subject?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   if (!user) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-        <p style={styles.loadingText}>Loading...</p>
+      <div style={Styles.loadingFull}>
+        <div style={Styles.spinner} />
+        <p style={Styles.loadingText}>Loading…</p>
       </div>
     );
   }
 
+  const ownUserId = normalizeId(user.id);
+
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.pageHeader}>
+    <div style={Styles.page}>
+      <div style={Styles.pageHeader}>
         <div>
-          <h1 style={styles.pageTitle}>Messages</h1>
-          <p style={styles.pageSubtitle}>
+          <h1 style={Styles.pageTitle}>Messages</h1>
+          <p style={Styles.pageSubtitle}>
             {user.role === "parent"
               ? "Chat with your child's teachers"
               : user.role === "teacher"
@@ -460,195 +599,187 @@ const MessagesPage = () => {
                 : "Your conversations"}
           </p>
         </div>
-        <button
-          onClick={() => setShowComposeModal(true)}
-          style={styles.composeBtn}
-        >
-          <FiPlus size={18} /> New Message
-        </button>
       </div>
 
-      <div style={styles.chatContainer}>
-        {/* Conversations Sidebar */}
+      <div style={Styles.chatContainer}>
         <div
           style={{
-            ...styles.conversationsSidebar,
-            width: isMobileView && showChat ? "0" : "320px",
-            minWidth: isMobileView && showChat ? "0" : "320px",
-            display: isMobileView && showChat ? "none" : "flex",
+            ...Styles.sidebar,
+            ...(isMobileView && showChat ? Styles.sidebarHidden : {}),
           }}
         >
-          <div style={styles.searchSection}>
-            <div style={styles.searchWrapper}>
-              <FiSearch style={styles.searchIcon} size={18} />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={styles.searchInput}
-              />
-            </div>
+          <div style={Styles.searchWrap}>
+            <FiSearch size={15} style={Styles.searchIcon} />
+            <input
+              type="text"
+              placeholder="Search conversations…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={Styles.searchInput}
+            />
           </div>
-
-          <div style={styles.conversationsList}>
+          <div style={Styles.convList}>
             {loading ? (
-              <div style={styles.loadingState}>
-                <div style={styles.spinner} />
-                <p style={styles.loadingText}>Loading conversations...</p>
+              <div style={Styles.centerState}>
+                <div style={Styles.spinner} />
+                <p style={Styles.loadingText}>Loading…</p>
               </div>
             ) : filteredConversations.length === 0 ? (
-              <div style={styles.emptyState}>
-                <FiMessageSquare size={48} style={styles.emptyIcon} />
-                <p style={styles.emptyText}>No conversations found</p>
-                <button
-                  onClick={() => setShowComposeModal(true)}
-                  style={styles.emptyBtn}
-                >
-                  Start a conversation
-                </button>
+              <div style={Styles.centerState}>
+                <FiMessageSquare
+                  size={40}
+                  style={{ color: "#c4c9d4", marginBottom: 12 }}
+                />
+                <p style={{ ...Styles.loadingText, marginBottom: 12 }}>
+                  No conversations
+                </p>
               </div>
             ) : (
-              filteredConversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => handleSelectConversation(conv)}
-                  style={{
-                    ...styles.conversationItem,
-                    backgroundColor:
-                      selectedConversation?.id === conv.id && !isMobileView
-                        ? "#eef2ff"
-                        : "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedConversation?.id !== conv.id)
-                      e.currentTarget.style.backgroundColor = "#f9fafb";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedConversation?.id !== conv.id)
-                      e.currentTarget.style.backgroundColor = "transparent";
-                  }}
-                >
-                  <div style={styles.avatarWrapper}>
-                    <div style={styles.avatar}>{conv.avatar}</div>
-                    {conv.online && <span style={styles.onlineDot} />}
-                  </div>
-                  <div style={styles.conversationInfo}>
-                    <div style={styles.conversationHeader}>
-                      <h3 style={styles.conversationName}>{conv.name}</h3>
-                      <span style={styles.conversationTime}>
-                        {safeFormatDistance(conv.lastMessageTime)}
-                      </span>
+              filteredConversations.map((conv) => {
+                // Ensure we have a valid key – conv.id is never null here because we filtered
+                const isActive =
+                  selectedConversation?.id === conv.id && !isMobileView;
+                return (
+                  <div
+                    key={conv.id}
+                    onClick={() => handleSelectConversation(conv)}
+                    style={{
+                      ...Styles.convItem,
+                      backgroundColor: isActive ? "#eef2ff" : "transparent",
+                      borderLeft: isActive
+                        ? "3px solid #4f46e5"
+                        : "3px solid transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive)
+                        e.currentTarget.style.backgroundColor = "#f5f7ff";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive)
+                        e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <div style={Styles.avatarWrap}>
+                      <div style={Styles.avatar}>{conv.avatar}</div>
+                      {conv.online && <span style={Styles.onlineDot} />}
                     </div>
-                    <p style={styles.conversationLastMessage}>
-                      {conv.lastMessage}
-                    </p>
-                    <p style={styles.conversationSubject}>{conv.subject}</p>
-                  </div>
-                  {conv.unreadCount > 0 && (
-                    <div style={styles.unreadBadge}>
-                      <span style={styles.unreadCount}>{conv.unreadCount}</span>
+                    <div style={Styles.convInfo}>
+                      <div style={Styles.convRow}>
+                        <span style={Styles.convName}>{conv.name}</span>
+                        <span style={Styles.convTime}>
+                          {safeFormatDistance(conv.lastMessageTime)}
+                        </span>
+                      </div>
+                      <p style={Styles.convPreview}>{conv.lastMessage}</p>
+                      {conv.subject && (
+                        <p style={Styles.convSubject}>{conv.subject}</p>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))
+                    {conv.unreadCount > 0 && (
+                      <div style={Styles.badge}>
+                        <span style={Styles.badgeText}>{conv.unreadCount}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* Chat Area */}
-        <div
-          ref={chatAreaRef}
-          onClick={handleChatAreaClick}
-          style={styles.chatArea}
-        >
+        <div style={Styles.chatArea}>
           {selectedConversation ? (
             <>
-              <div style={styles.chatHeader}>
-                <div style={styles.chatHeaderLeft}>
+              <div style={Styles.chatHeader}>
+                <div style={Styles.chatHeaderLeft}>
                   {isMobileView && (
-                    <button
-                      onClick={handleExitChat}
-                      style={styles.mobileBackBtn}
-                    >
-                      <FiArrowLeft size={20} style={{ color: "#4f46e5" }} />
+                    <button onClick={handleExitChat} style={Styles.iconBtn}>
+                      <FiArrowLeft size={20} color="#4f46e5" />
                     </button>
                   )}
-                  <div style={styles.chatAvatar}>
+                  <div style={Styles.chatAvatar}>
                     {selectedConversation.avatar}
                   </div>
                   <div>
-                    <h3 style={styles.chatName}>{selectedConversation.name}</h3>
-                    <p style={styles.chatRole}>
-                      {selectedConversation.role} •{" "}
-                      {selectedConversation.subject}
+                    <h3 style={Styles.chatName}>{selectedConversation.name}</h3>
+                    <p style={Styles.chatMeta}>
+                      {[selectedConversation.role, selectedConversation.subject]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                 </div>
                 {!isMobileView && (
-                  <button onClick={handleExitChat} style={styles.closeBtn}>
-                    <FiX size={18} style={{ color: "#ef4444" }} />
+                  <button onClick={handleExitChat} style={Styles.iconBtn}>
+                    <FiX size={18} color="#ef4444" />
                   </button>
                 )}
               </div>
 
-              <div style={styles.messagesArea}>
+              <div style={Styles.messagesArea}>
                 {messages.length === 0 ? (
-                  <div style={styles.noMessagesState}>
-                    <p>No messages yet. Start the conversation!</p>
+                  <div style={Styles.noMsgs}>
+                    <FiMessageSquare
+                      size={32}
+                      style={{ color: "#c4c9d4", marginBottom: 8 }}
+                    />
+                    <p style={{ color: "#9ca3af", fontSize: 14 }}>
+                      No messages yet. Say hello!
+                    </p>
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isOwnMessage = msg.senderId === user?.id;
+                    // msg.id is guaranteed to be non‑null because we filtered
+                    const isOwn = msg.senderId === ownUserId;
                     return (
                       <div
                         key={msg.id}
                         style={{
-                          ...styles.messageRow,
-                          justifyContent: isOwnMessage
-                            ? "flex-end"
-                            : "flex-start",
+                          ...Styles.msgRow,
+                          flexDirection: isOwn ? "row-reverse" : "row",
+                          gap: isOwn ? 8 : 0,
                         }}
                       >
-                        {!isOwnMessage && (
-                          <div style={styles.messageAvatar}>
-                            {selectedConversation.avatar}
-                          </div>
-                        )}
-                        <div style={{ maxWidth: "70%" }}>
+                        <div
+                          style={{
+                            ...Styles.bubbleWrap,
+                            alignItems: isOwn ? "flex-end" : "flex-start",
+                          }}
+                        >
                           <div
                             style={{
-                              ...styles.messageBubble,
-                              backgroundColor: isOwnMessage
-                                ? "#4f46e5"
-                                : "white",
-                              color: isOwnMessage ? "white" : "#1f2937",
-                              borderBottomRightRadius: isOwnMessage
-                                ? "4px"
-                                : "18px",
-                              borderBottomLeftRadius: isOwnMessage
-                                ? "18px"
-                                : "4px",
-                              opacity: msg.temp ? 0.7 : 1,
+                              ...Styles.bubble,
+                              backgroundColor: isOwn ? "#4f46e5" : "#ffffff",
+                              color: isOwn ? "#ffffff" : "#1f2937",
+                              borderRadius: isOwn
+                                ? "18px 18px 4px 18px"
+                                : "18px 18px 18px 4px",
+                              opacity: msg.temp ? 0.65 : 1,
+                              boxShadow: isOwn
+                                ? "0 1px 2px rgba(79,70,229,0.25)"
+                                : "0 1px 2px rgba(0,0,0,0.08)",
                             }}
                           >
-                            <p style={styles.messageContent}>{msg.content}</p>
+                            <p style={Styles.bubbleText}>{msg.content}</p>
                           </div>
                           <div
                             style={{
-                              ...styles.messageMeta,
-                              justifyContent: isOwnMessage
-                                ? "flex-end"
-                                : "flex-start",
+                              ...Styles.msgMeta,
+                              justifyContent: isOwn ? "flex-end" : "flex-start",
                             }}
                           >
                             <span>{formatMessageTime(msg.timestamp)}</span>
-                            {isOwnMessage && (
-                              <span>
+                            {isOwn && (
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              >
                                 {msg.read ? (
-                                  <FiCheckCircle size={12} />
+                                  <FiCheckCircle size={11} color="#818cf8" />
                                 ) : (
-                                  <FiCheck size={12} />
+                                  <FiCheck size={11} color="#9ca3af" />
                                 )}
                               </span>
                             )}
@@ -658,38 +789,22 @@ const MessagesPage = () => {
                     );
                   })
                 )}
-                {typing && (
-                  <div style={styles.typingRow}>
-                    <div style={styles.messageAvatar}>
-                      {selectedConversation.avatar}
-                    </div>
-                    <div style={styles.typingBubble}>
-                      <span style={styles.typingDot} />
-                      <span
-                        style={{ ...styles.typingDot, animationDelay: "0.2s" }}
-                      />
-                      <span
-                        style={{ ...styles.typingDot, animationDelay: "0.4s" }}
-                      />
-                    </div>
-                  </div>
-                )}
                 <div ref={messagesEndRef} />
               </div>
 
-              <div style={styles.messageInput}>
-                <button style={styles.inputBtn} title="Attach file">
-                  <FiPaperclip size={20} style={{ color: "#6b7280" }} />
+              <div style={Styles.inputBar}>
+                <button style={Styles.inputIconBtn} title="Attach file">
+                  <FiPaperclip size={18} color="#9ca3af" />
                 </button>
-                <button style={styles.inputBtn} title="Add emoji">
-                  <FiSmile size={20} style={{ color: "#6b7280" }} />
+                <button style={Styles.inputIconBtn} title="Emoji">
+                  <FiSmile size={18} color="#9ca3af" />
                 </button>
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type a message..."
-                  style={styles.textarea}
+                  placeholder="Type a message…"
+                  style={Styles.textarea}
                   rows={1}
                   disabled={sendingMessage}
                 />
@@ -697,115 +812,49 @@ const MessagesPage = () => {
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || sendingMessage}
                   style={{
-                    ...styles.sendBtn,
+                    ...Styles.sendBtn,
                     backgroundColor:
                       newMessage.trim() && !sendingMessage
                         ? "#4f46e5"
                         : "#e5e7eb",
-                    color:
-                      newMessage.trim() && !sendingMessage
-                        ? "white"
-                        : "#9ca3af",
                     cursor:
                       newMessage.trim() && !sendingMessage
                         ? "pointer"
                         : "not-allowed",
                   }}
                 >
-                  <FiSend size={20} />
+                  <FiSend
+                    size={18}
+                    color={
+                      newMessage.trim() && !sendingMessage ? "#fff" : "#9ca3af"
+                    }
+                  />
                 </button>
               </div>
             </>
           ) : (
-            <div style={styles.noSelection}>
-              <FiMessageSquare size={64} style={styles.noSelectionIcon} />
-              <h3 style={styles.noSelectionTitle}>No conversation selected</h3>
-              <p style={styles.noSelectionText}>
-                Select a conversation from the list or start a new one.
+            <div style={Styles.noSelection}>
+              <FiMessageSquare
+                size={56}
+                style={{ color: "#c4c9d4", marginBottom: 16 }}
+              />
+              <h3 style={Styles.noSelTitle}>Select a conversation</h3>
+              <p style={Styles.noSelSub}>
+                Choose from the list or start a new conversation from your
+                dashboard.
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Compose Modal */}
-      {showComposeModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h3>New Message</h3>
-              <button
-                onClick={() => setShowComposeModal(false)}
-                style={styles.modalClose}
-              >
-                <FiX size={20} />
-              </button>
-            </div>
-            <div style={styles.modalBody}>
-              {composeRecipient ? (
-                <div style={styles.recipientInfo}>
-                  <strong>To:</strong> {composeRecipient.name}
-                  {composeRecipient.context && (
-                    <span style={styles.recipientContext}>
-                      {" "}
-                      ({composeRecipient.context})
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="Recipient name or ID"
-                  style={styles.modalInput}
-                  onChange={(e) =>
-                    setComposeRecipient({
-                      id: e.target.value,
-                      name: e.target.value,
-                    })
-                  }
-                />
-              )}
-              <textarea
-                placeholder="Type your message..."
-                rows={4}
-                value={composeMessage}
-                onChange={(e) => setComposeMessage(e.target.value)}
-                style={styles.modalTextarea}
-              />
-            </div>
-            <div style={styles.modalFooter}>
-              <button
-                onClick={() => setShowComposeModal(false)}
-                style={styles.cancelBtn}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSendDirectMessage}
-                disabled={!composeMessage.trim() || !composeRecipient}
-                style={{
-                  ...styles.sendDirectBtn,
-                  opacity:
-                    !composeMessage.trim() || !composeRecipient ? 0.5 : 1,
-                }}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };
 
-const styles = {
-  pageContainer: {
+const Styles = {
+  page: {
     height: "calc(100vh - 64px)",
     display: "flex",
     flexDirection: "column",
@@ -813,181 +862,158 @@ const styles = {
     backgroundColor: "#f8fafc",
     fontFamily:
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    boxSizing: "border-box",
   },
   pageHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "20px",
+    marginBottom: 20,
+    flexShrink: 0,
   },
   pageTitle: {
-    fontSize: "24px",
-    fontWeight: "700",
+    fontSize: 24,
+    fontWeight: 700,
     color: "#1a1a2e",
-    margin: "0 0 4px",
+    margin: "0 0 2px",
   },
-  pageSubtitle: { fontSize: "14px", color: "#6b7280", margin: 0 },
-  composeBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 16px",
-    backgroundColor: "#4f46e5",
-    color: "white",
-    border: "none",
-    borderRadius: "20px",
-    cursor: "pointer",
-    fontSize: "14px",
-    transition: "all 0.2s ease",
-  },
+  pageSubtitle: { fontSize: 13, color: "#6b7280", margin: 0 },
   chatContainer: {
     flex: 1,
-    backgroundColor: "white",
-    borderRadius: "16px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
     overflow: "hidden",
     display: "flex",
     minHeight: 0,
   },
-  conversationsSidebar: {
+  sidebar: {
+    width: 300,
+    minWidth: 300,
     borderRight: "1px solid #e5e7eb",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
     transition: "all 0.3s ease",
+    backgroundColor: "#fff",
   },
-  searchSection: { padding: "16px", borderBottom: "1px solid #e5e7eb" },
-  searchWrapper: { position: "relative" },
+  sidebarHidden: {
+    width: 0,
+    minWidth: 0,
+    display: "none",
+  },
+  searchWrap: {
+    position: "relative",
+    padding: "14px 16px",
+    borderBottom: "1px solid #f0f0f0",
+    flexShrink: 0,
+  },
   searchIcon: {
     position: "absolute",
-    left: "12px",
+    left: 28,
     top: "50%",
     transform: "translateY(-50%)",
     color: "#9ca3af",
   },
   searchInput: {
     width: "100%",
-    padding: "10px 16px 10px 40px",
+    padding: "9px 12px 9px 36px",
     border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    fontSize: "14px",
+    borderRadius: 10,
+    fontSize: 13,
     outline: "none",
+    backgroundColor: "#f9fafb",
+    boxSizing: "border-box",
+    color: "#1f2937",
   },
-  conversationsList: { flex: 1, overflowY: "auto" },
-  loadingContainer: {
+  convList: { flex: 1, overflowY: "auto" },
+  centerState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 200,
+    textAlign: "center",
+    padding: 20,
+  },
+  loadingFull: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     height: "100vh",
   },
-  loadingState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "256px",
-    textAlign: "center",
-  },
   spinner: {
-    width: "32px",
-    height: "32px",
-    border: "4px solid #e5e7eb",
+    width: 28,
+    height: 28,
+    border: "3px solid #e5e7eb",
     borderTopColor: "#4f46e5",
     borderRadius: "50%",
-    animation: "spin 0.8s linear infinite",
-    marginBottom: "12px",
+    animation: "spin 0.7s linear infinite",
+    marginBottom: 10,
   },
-  loadingText: { color: "#9ca3af", fontSize: "14px", margin: 0 },
-  emptyState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "256px",
-    textAlign: "center",
-    color: "#9ca3af",
-  },
-  emptyIcon: { marginBottom: "12px" },
-  emptyText: { fontSize: "14px", margin: 0 },
-  emptyBtn: {
-    marginTop: "12px",
-    padding: "6px 12px",
-    backgroundColor: "#eef2ff",
-    border: "none",
-    borderRadius: "20px",
-    cursor: "pointer",
-    fontSize: "12px",
-    color: "#4f46e5",
-  },
-  conversationItem: {
+  loadingText: { color: "#9ca3af", fontSize: 13, margin: 0 },
+  convItem: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    padding: "16px",
+    gap: 11,
+    padding: "13px 16px",
     cursor: "pointer",
-    transition: "all 0.2s ease",
+    transition: "background 0.15s",
+    borderLeft: "3px solid transparent",
   },
-  avatarWrapper: { position: "relative" },
+  avatarWrap: { position: "relative", flexShrink: 0 },
   avatar: {
-    width: "48px",
-    height: "48px",
+    width: 46,
+    height: 46,
     borderRadius: "50%",
     background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "white",
-    fontWeight: "600",
-    fontSize: "16px",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 15,
+    flexShrink: 0,
   },
   onlineDot: {
     position: "absolute",
-    bottom: "2px",
-    right: "2px",
-    width: "12px",
-    height: "12px",
+    bottom: 1,
+    right: 1,
+    width: 11,
+    height: 11,
     borderRadius: "50%",
     backgroundColor: "#10b981",
-    border: "2px solid white",
+    border: "2px solid #fff",
   },
-  conversationInfo: { flex: 1, minWidth: 0 },
-  conversationHeader: {
+  convInfo: { flex: 1, minWidth: 0 },
+  convRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "baseline",
+    gap: 6,
   },
-  conversationName: {
-    fontWeight: "600",
+  convName: {
+    fontWeight: 600,
     color: "#1f2937",
-    fontSize: "15px",
+    fontSize: 14,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    margin: 0,
   },
-  conversationTime: {
-    fontSize: "11px",
-    color: "#9ca3af",
-    marginLeft: "8px",
-    flexShrink: 0,
-  },
-  conversationLastMessage: {
-    fontSize: "13px",
+  convTime: { fontSize: 11, color: "#9ca3af", flexShrink: 0 },
+  convPreview: {
+    fontSize: 12,
     color: "#6b7280",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    margin: "4px 0 0",
+    margin: "3px 0 0",
   },
-  conversationSubject: {
-    fontSize: "12px",
-    color: "#4f46e5",
-    margin: "4px 0 0",
-  },
-  unreadBadge: {
-    width: "20px",
-    height: "20px",
+  convSubject: { fontSize: 11, color: "#4f46e5", margin: "3px 0 0" },
+  badge: {
+    width: 20,
+    height: 20,
     backgroundColor: "#4f46e5",
     borderRadius: "50%",
     display: "flex",
@@ -995,293 +1021,146 @@ const styles = {
     justifyContent: "center",
     flexShrink: 0,
   },
-  unreadCount: { color: "white", fontSize: "11px", fontWeight: "600" },
-  chatArea: { flex: 1, display: "flex", flexDirection: "column" },
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: 700 },
+  chatArea: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 },
   chatHeader: {
-    padding: "16px",
+    padding: "14px 20px",
     borderBottom: "1px solid #e5e7eb",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: "#fff",
+    flexShrink: 0,
   },
-  chatHeaderLeft: { display: "flex", alignItems: "center", gap: "12px" },
-  mobileBackBtn: {
-    padding: "8px",
-    background: "#f3f4f6",
-    border: "none",
-    cursor: "pointer",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  chatHeaderLeft: { display: "flex", alignItems: "center", gap: 12 },
   chatAvatar: {
-    width: "40px",
-    height: "40px",
+    width: 38,
+    height: 38,
     borderRadius: "50%",
     background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "white",
-    fontWeight: "600",
-    fontSize: "14px",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 13,
+    flexShrink: 0,
   },
-  chatName: {
-    fontWeight: "600",
-    color: "#1f2937",
-    fontSize: "16px",
-    margin: 0,
-  },
-  chatRole: { fontSize: "12px", color: "#6b7280", margin: "2px 0 0" },
-  closeBtn: {
-    padding: "8px",
+  chatName: { fontWeight: 600, color: "#1f2937", fontSize: 15, margin: 0 },
+  chatMeta: { fontSize: 12, color: "#6b7280", margin: "2px 0 0" },
+  iconBtn: {
+    padding: 8,
     background: "#f3f4f6",
     border: "none",
     cursor: "pointer",
     borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   messagesArea: {
     flex: 1,
     overflowY: "auto",
-    padding: "16px",
-    backgroundColor: "#f9fafb",
-  },
-  messageRow: { display: "flex", marginBottom: "16px" },
-  messageAvatar: {
-    width: "32px",
-    height: "32px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    padding: "20px 16px",
+    backgroundColor: "#f0f2f5",
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "white",
-    fontWeight: "600",
-    fontSize: "12px",
-    marginRight: "8px",
-    flexShrink: 0,
+    flexDirection: "column",
+    gap: 4,
   },
-  messageBubble: {
-    padding: "10px 14px",
-    borderRadius: "18px",
-    fontSize: "14px",
-    lineHeight: "1.5",
-    margin: 0,
-  },
-  messageContent: { fontSize: "14px", lineHeight: "1.5", margin: 0 },
-  messageMeta: {
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-    marginTop: "4px",
-    fontSize: "10px",
-    color: "#9ca3af",
-  },
-  typingRow: {
-    display: "flex",
-    marginBottom: "16px",
-    justifyContent: "flex-start",
-  },
-  typingBubble: {
-    backgroundColor: "white",
-    borderRadius: "18px",
-    borderBottomLeftRadius: "4px",
-    padding: "12px 16px",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    display: "flex",
-    gap: "4px",
-  },
-  typingDot: {
-    width: "8px",
-    height: "8px",
-    backgroundColor: "#9ca3af",
-    borderRadius: "50%",
-    animation: "bounce 0.6s infinite",
-    display: "inline-block",
-  },
-  messageInput: {
-    padding: "16px",
-    borderTop: "1px solid #e5e7eb",
-    backgroundColor: "white",
-    display: "flex",
-    alignItems: "flex-end",
-    gap: "8px",
-  },
-  inputBtn: {
-    padding: "8px",
-    background: "#f3f4f6",
-    border: "none",
-    cursor: "pointer",
-    borderRadius: "50%",
-  },
-  textarea: {
+  noMsgs: {
     flex: 1,
-    padding: "10px 12px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    fontSize: "14px",
-    outline: "none",
-    resize: "none",
-    fontFamily: "inherit",
-  },
-  sendBtn: {
-    padding: "8px",
-    borderRadius: "50%",
-    border: "none",
-    transition: "all 0.2s ease",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noSelection: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     height: "100%",
+  },
+  msgRow: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 8,
+    marginBottom: 6,
+  },
+  bubbleWrap: {
+    display: "flex",
+    flexDirection: "column",
+    maxWidth: "68%",
+  },
+  bubble: {
+    padding: "9px 13px",
+    fontSize: 14,
+    lineHeight: 1.5,
+    wordBreak: "break-word",
+  },
+  bubbleText: { margin: 0, fontSize: 14, lineHeight: 1.5 },
+  msgMeta: {
+    display: "flex",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 3,
+    fontSize: 10,
     color: "#9ca3af",
   },
-  noSelectionIcon: { marginBottom: "16px" },
-  noSelectionTitle: {
-    fontSize: "18px",
-    fontWeight: "600",
-    marginTop: "16px",
-    color: "#6b7280",
-    margin: 0,
-  },
-  noSelectionText: { fontSize: "14px", marginTop: "4px", margin: 0 },
-  noMessagesState: { textAlign: "center", padding: "40px", color: "#9ca3af" },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-  },
-  modal: {
-    backgroundColor: "white",
-    borderRadius: "12px",
-    width: "90%",
-    maxWidth: "500px",
-    maxHeight: "90vh",
-    overflow: "auto",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "16px 20px",
-    borderBottom: "1px solid #e5e7eb",
-  },
-  modalClose: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    color: "#9ca3af",
-  },
-  modalBody: { padding: "20px" },
-  modalLabel: {
-    display: "block",
-    marginBottom: "8px",
-    fontWeight: 500,
-    fontSize: "14px",
-  },
-  loadingContacts: { textAlign: "center", padding: "20px", color: "#6b7280" },
-  emptyContacts: { textAlign: "center", padding: "20px", color: "#9ca3af" },
-  contactsList: { maxHeight: "300px", overflowY: "auto", marginTop: "12px" },
-  contactItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    padding: "12px",
-    borderRadius: "12px",
-    cursor: "pointer",
-    transition: "background 0.2s",
-  },
-  contactAvatar: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #667eea, #764ba2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "white",
-    fontWeight: "600",
-  },
-  contactInfo: { flex: 1 },
-  contactName: { fontWeight: "600", color: "#1f2937" },
-  contactContext: { fontSize: "12px", color: "#6b7280" },
-  contactIcon: { color: "#9ca3af" },
-  selectedContact: {
-    padding: "12px",
-    background: "#f9fafb",
-    borderRadius: "12px",
-    marginBottom: "16px",
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "8px",
-  },
-  editContactBtn: {
-    background: "none",
-    border: "none",
-    color: "#4f46e5",
-    cursor: "pointer",
-    fontSize: "12px",
-    marginLeft: "auto",
-  },
-  modalTextarea: {
-    width: "100%",
-    padding: "10px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    fontSize: "14px",
-    resize: "vertical",
-  },
-  modalFooter: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "12px",
-    padding: "16px 20px",
+  inputBar: {
+    padding: "12px 16px",
     borderTop: "1px solid #e5e7eb",
+    backgroundColor: "#fff",
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 8,
+    flexShrink: 0,
   },
-  cancelBtn: {
-    padding: "8px 16px",
-    backgroundColor: "#f3f4f6",
+  inputIconBtn: {
+    padding: 8,
+    background: "#f3f4f6",
     border: "none",
-    borderRadius: "8px",
     cursor: "pointer",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  sendDirectBtn: {
-    padding: "8px 16px",
-    backgroundColor: "#4f46e5",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  recipientInfo: {
-    marginBottom: "12px",
-    fontSize: "14px",
-    color: "#374151",
-  },
-  recipientContext: { fontSize: "12px", color: "#6b7280" },
-  modalInput: {
-    width: "100%",
-    padding: "10px",
+  textarea: {
+    flex: 1,
+    padding: "10px 13px",
     border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    marginBottom: "12px",
-    fontSize: "14px",
+    borderRadius: 12,
+    fontSize: 14,
+    outline: "none",
+    resize: "none",
+    fontFamily: "inherit",
+    backgroundColor: "#f9fafb",
+    color: "#1f2937",
+    lineHeight: 1.5,
   },
+  sendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: "50%",
+    border: "none",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "background 0.2s",
+    flexShrink: 0,
+  },
+  noSelection: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#9ca3af",
+    padding: 40,
+  },
+  noSelTitle: {
+    fontSize: 17,
+    fontWeight: 600,
+    color: "#6b7280",
+    margin: "0 0 6px",
+  },
+  noSelSub: { fontSize: 13, margin: 0, textAlign: "center" },
 };
 
 export default MessagesPage;

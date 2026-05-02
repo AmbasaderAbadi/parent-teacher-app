@@ -1,21 +1,20 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   FiBell,
-  FiCheckCircle,
   FiTrash2,
   FiMail,
   FiCalendar,
   FiMessageSquare,
   FiAward,
   FiCheck,
-  FiX,
 } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
 import { useNotifications } from "../../../contexts/NotificationContext";
-import toast from "react-hot-toast";
 
 const NotificationsPage = () => {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -40,6 +39,39 @@ const NotificationsPage = () => {
         return <FiMail size={18} color="#f59e0b" />;
       default:
         return <FiBell size={18} color="#6b7280" />;
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    const notifId = notification._id || notification.id;
+    if (!notification.read) {
+      await markAsRead(notifId);
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    } else {
+      switch (notification.type) {
+        case "message":
+          navigate("/messages");
+          break;
+        case "homework":
+          navigate("/homework");
+          break;
+        case "material":
+          navigate("/materials");
+          break;
+        case "announcement":
+          navigate("/announcements");
+          break;
+        case "event":
+          navigate("/calendar");
+          break;
+        case "grade":
+          navigate("/student/grades");
+          break;
+        default:
+          navigate("/notifications");
+      }
     }
   };
 
@@ -99,7 +131,6 @@ const NotificationsPage = () => {
         )}
       </div>
 
-      {/* Filters */}
       <div style={styles.filters}>
         <button
           onClick={() => setSelectedFilter("all")}
@@ -130,7 +161,6 @@ const NotificationsPage = () => {
         </button>
       </div>
 
-      {/* Notifications List */}
       {filteredNotifications.length === 0 ? (
         <div style={styles.empty}>
           <FiBell size={64} style={styles.emptyIcon} />
@@ -139,51 +169,64 @@ const NotificationsPage = () => {
         </div>
       ) : (
         <div style={styles.list}>
-          {filteredNotifications.map((notification, index) => (
-            <motion.div
-              key={notification.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-              style={{
-                ...styles.notificationCard,
-                backgroundColor: notification.read ? "#ffffff" : "#f0f9ff",
-              }}
-            >
-              <div style={styles.notificationIcon}>
-                {getNotificationIcon(notification.type)}
-              </div>
-              <div style={styles.notificationContent}>
-                <p style={styles.notificationMessage}>{notification.message}</p>
-                <div style={styles.notificationMeta}>
-                  <span style={styles.notificationTime}>
-                    {formatTime(notification.createdAt)}
-                  </span>
-                  {!notification.read && (
-                    <span style={styles.unreadBadge}>New</span>
-                  )}
+          {filteredNotifications.map((notification, index) => {
+            const notifId = notification._id || notification.id;
+            return (
+              <motion.div
+                key={notifId}
+                onClick={() => handleNotificationClick(notification)}
+                style={{
+                  ...styles.notificationCard,
+                  backgroundColor: notification.read ? "#ffffff" : "#f0f9ff",
+                  cursor: "pointer",
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+              >
+                <div style={styles.notificationIcon}>
+                  {getNotificationIcon(notification.type)}
                 </div>
-              </div>
-              <div style={styles.notificationActions}>
-                {!notification.read && (
+                <div style={styles.notificationContent}>
+                  <p style={styles.notificationMessage}>
+                    {notification.message}
+                  </p>
+                  <div style={styles.notificationMeta}>
+                    <span style={styles.notificationTime}>
+                      {formatTime(notification.createdAt)}
+                    </span>
+                    {!notification.read && (
+                      <span style={styles.unreadBadge}>New</span>
+                    )}
+                  </div>
+                </div>
+                <div style={styles.notificationActions}>
+                  {!notification.read && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(notifId);
+                      }}
+                      style={styles.readBtn}
+                      title="Mark as read"
+                    >
+                      <FiCheck size={16} />
+                    </button>
+                  )}
                   <button
-                    onClick={() => markAsRead(notification.id)}
-                    style={styles.readBtn}
-                    title="Mark as read"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNotification(notifId);
+                    }}
+                    style={styles.deleteBtn}
+                    title="Delete"
                   >
-                    <FiCheck size={16} />
+                    <FiTrash2 size={16} />
                   </button>
-                )}
-                <button
-                  onClick={() => deleteNotification(notification.id)}
-                  style={styles.deleteBtn}
-                  title="Delete"
-                >
-                  <FiTrash2 size={16} />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

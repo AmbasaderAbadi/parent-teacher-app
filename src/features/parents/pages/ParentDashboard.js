@@ -177,7 +177,6 @@ const ParentDashboard = () => {
     };
     localStorage.setItem("directChat", JSON.stringify(chatData));
     navigate("/messages");
-    toast.success(`Opening chat with ${teacherName} about ${subject}`);
   };
 
   const handleExportGrades = () => {
@@ -423,8 +422,9 @@ const ParentDashboard = () => {
                         <button
                           onClick={() =>
                             handleChatWithTeacher(
-                              grade.teacher,
                               grade.teacherId,
+                              grade.teacher,
+                              selectedChild.studentId,
                               grade.subject,
                             )
                           }

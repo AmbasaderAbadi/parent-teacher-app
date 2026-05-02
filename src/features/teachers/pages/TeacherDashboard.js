@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FiUsers,
@@ -14,6 +14,7 @@ import {
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import "../../../assets/styles/dashboard.css";
+import QuizGenerator from "../components/QuizGenerator";
 import {
   studentsAPI,
   gradesAPI,
@@ -37,6 +38,7 @@ const TeacherDashboard = () => {
     assessmentDate: new Date().toISOString().split("T")[0],
     feedback: "",
   });
+  const navigate = useNavigate();
   const [attendanceData, setAttendanceData] = useState({});
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -243,7 +245,7 @@ const TeacherDashboard = () => {
     if (!selectedStudentForAttendance) return;
     try {
       const payload = {
-        phoneNumber: selectedStudentForAttendance.phoneNumber, // ✅ use phoneNumber
+        phoneNumber: selectedStudentForAttendance.phoneNumber,
         status: attendanceStatus,
         type: "daily",
         period: "1st Period",
@@ -286,7 +288,7 @@ const TeacherDashboard = () => {
       subject: `Parent of ${studentName}`,
     };
     localStorage.setItem("directChat", JSON.stringify(chatData));
-    window.location.href = "/messages";
+    navigate("/messages"); // ✅ changed from window.location.href
   };
 
   const calculateAverageClassGrade = () => {

@@ -26,16 +26,13 @@ export const NotificationProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Check if user is authenticated
   const isAuthenticated = () => {
     const token = localStorage.getItem("accessToken");
     const user = localStorage.getItem("user");
     return !!(token && user);
   };
 
-  // Fetch notifications
   const fetchNotifications = useCallback(async () => {
-    // Only fetch if user is authenticated
     const token = localStorage.getItem("accessToken");
     if (!token) {
       setLoading(false);
@@ -43,18 +40,16 @@ export const NotificationProvider = ({ children }) => {
     }
 
     try {
-      const [notificationsRes, countRes] = await Promise.all([
-        notificationsAPI.getNotifications(),
-        notificationsAPI.getUnreadCount(),
-      ]);
+      const response = await notificationsAPI.getNotifications();
+      // ✅ Backend returns { success: true, data: [...], unreadCount: x }
+      const notificationsData = response.data?.data || [];
+      const unread = response.data?.unreadCount || 0;
 
-      const notificationsData = notificationsRes.data;
       setNotifications(
         Array.isArray(notificationsData) ? notificationsData : [],
       );
-      setUnreadCount(countRes.data?.count || 0);
+      setUnreadCount(unread);
     } catch (error) {
-      // Don't show error for 401 - just silently fail
       if (error.response?.status !== 401) {
         console.error("Error fetching notifications:", error);
       }
@@ -65,16 +60,17 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []);
 
-  // Mark single notification as read
-  const markAsRead = async (id) => {
+  // Mark single notification as read – uses _id
+  const markAsRead = async (notificationId) => {
     if (!isAuthenticated()) return;
 
     try {
-      await notificationsAPI.markAsRead(id);
+      await notificationsAPI.markAsRead(notificationId);
       setNotifications((prev) =>
-        prev.map((notif) =>
-          notif.id === id ? { ...notif, read: true } : notif,
-        ),
+        prev.map((notif) => {
+          const id = notif._id || notif.id;
+          return id === notificationId ? { ...notif, read: true } : notif;
+        }),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
@@ -85,7 +81,7 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Mark all notifications as read
+  // Mark all as read
   const markAllAsRead = async () => {
     if (!isAuthenticated()) return;
 
@@ -104,14 +100,18 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Delete notification
-  const deleteNotification = async (id) => {
+  // Delete notification – uses _id
+  const deleteNotification = async (notificationId) => {
     if (!isAuthenticated()) return;
 
     try {
-      await notificationsAPI.deleteNotification(id);
-      const deletedNotif = notifications.find((n) => n.id === id);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      await notificationsAPI.deleteNotification(notificationId);
+      const deletedNotif = notifications.find(
+        (n) => (n._id || n.id) === notificationId,
+      );
+      setNotifications((prev) =>
+        prev.filter((n) => (n._id || n.id) !== notificationId),
+      );
       if (!deletedNotif?.read) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
@@ -141,7 +141,7 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Send notification (for admins/teachers)
+  // Send single notification (admin/teacher)
   const sendNotification = async (data) => {
     if (!isAuthenticated()) return;
 
@@ -158,7 +158,7 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Send bulk notification (for admins)
+  // Send bulk notification (admin)
   const sendBulkNotification = async (data) => {
     if (!isAuthenticated()) return;
 
@@ -175,15 +175,12 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Only fetch notifications when authenticated
+  // Poll every 30 seconds (only if authenticated)
   useEffect(() => {
     if (isAuthenticated()) {
       fetchNotifications();
-      // Set up polling every 30 seconds only if authenticated
       const interval = setInterval(() => {
-        if (isAuthenticated()) {
-          fetchNotifications();
-        }
+        if (isAuthenticated()) fetchNotifications();
       }, 30000);
       return () => clearInterval(interval);
     } else {

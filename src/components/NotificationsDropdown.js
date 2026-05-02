@@ -1,8 +1,8 @@
 import React, { useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   FiBell,
-  FiCheckCircle,
   FiTrash2,
   FiMail,
   FiCalendar,
@@ -11,8 +11,6 @@ import {
 } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
 import { useNotifications } from "../contexts/NotificationContext";
-import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
 
 const getNotificationIcon = (type) => {
   switch (type) {
@@ -46,16 +44,6 @@ const NotificationsDropdown = () => {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const isAuthenticated = () => {
-      const token = localStorage.getItem("accessToken");
-      return !!token;
-    };
-
-    // If not authenticated, don't show the bell
-    if (!isAuthenticated()) {
-      return null;
-    }
-
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false);
@@ -66,12 +54,36 @@ const NotificationsDropdown = () => {
   }, [setShowDropdown]);
 
   const handleNotificationClick = async (notification) => {
+    const notifId = notification._id || notification.id;
     if (!notification.read) {
-      await markAsRead(notification.id);
+      await markAsRead(notifId);
     }
-    // Navigate based on notification type or link
+    // Navigate using link if available, else fallback by type
     if (notification.link) {
       navigate(notification.link);
+    } else {
+      switch (notification.type) {
+        case "message":
+          navigate("/messages");
+          break;
+        case "homework":
+          navigate("/homework");
+          break;
+        case "material":
+          navigate("/materials");
+          break;
+        case "announcement":
+          navigate("/announcements");
+          break;
+        case "event":
+          navigate("/calendar");
+          break;
+        case "grade":
+          navigate("/student/grades");
+          break;
+        default:
+          navigate("/notifications");
+      }
     }
     setShowDropdown(false);
   };
@@ -84,7 +96,6 @@ const NotificationsDropdown = () => {
     }
   };
 
-  // Ensure notifications is always an array
   const notificationsList = Array.isArray(notifications) ? notifications : [];
   const hasNotifications = notificationsList.length > 0;
 
@@ -141,45 +152,49 @@ const NotificationsDropdown = () => {
                   <p>No notifications</p>
                 </div>
               ) : (
-                notificationsList.map((notification) => (
-                  <div
-                    key={notification.id || notification._id}
-                    onClick={() => handleNotificationClick(notification)}
-                    style={{
-                      ...styles.notificationItem,
-                      backgroundColor: notification.read
-                        ? "#ffffff"
-                        : "#f0f9ff",
-                    }}
-                  >
-                    <div style={styles.iconWrapper}>
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div style={styles.content}>
-                      <p style={styles.message}>
-                        {notification.message || notification.title}
-                      </p>
-                      <div style={styles.meta}>
-                        <span style={styles.time}>
-                          {formatTime(notification.createdAt)}
-                        </span>
-                        {!notification.read && (
-                          <span style={styles.unreadDot} />
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotification(notification.id || notification._id);
+                notificationsList.map((notification) => {
+                  const notifId = notification._id || notification.id;
+                  return (
+                    <div
+                      key={notifId}
+                      onClick={() => handleNotificationClick(notification)}
+                      style={{
+                        ...styles.notificationItem,
+                        backgroundColor: notification.read
+                          ? "#ffffff"
+                          : "#f0f9ff",
+                        cursor: "pointer",
                       }}
-                      style={styles.deleteBtn}
-                      title="Delete"
                     >
-                      <FiTrash2 size={14} />
-                    </button>
-                  </div>
-                ))
+                      <div style={styles.iconWrapper}>
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      <div style={styles.content}>
+                        <p style={styles.message}>
+                          {notification.message || notification.title}
+                        </p>
+                        <div style={styles.meta}>
+                          <span style={styles.time}>
+                            {formatTime(notification.createdAt)}
+                          </span>
+                          {!notification.read && (
+                            <span style={styles.unreadDot} />
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notifId);
+                        }}
+                        style={styles.deleteBtn}
+                        title="Delete"
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -210,9 +225,7 @@ const NotificationsDropdown = () => {
 };
 
 const styles = {
-  container: {
-    position: "relative",
-  },
+  container: { position: "relative" },
   bellButton: {
     position: "relative",
     padding: "8px",
@@ -261,16 +274,8 @@ const styles = {
     flexWrap: "wrap",
     gap: "8px",
   },
-  title: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#1f2937",
-    margin: 0,
-  },
-  headerActions: {
-    display: "flex",
-    gap: "12px",
-  },
+  title: { fontSize: "14px", fontWeight: "600", color: "#1f2937", margin: 0 },
+  headerActions: { display: "flex", gap: "12px" },
   markAllBtn: {
     background: "none",
     border: "none",
@@ -285,10 +290,7 @@ const styles = {
     fontSize: "12px",
     cursor: "pointer",
   },
-  list: {
-    maxHeight: "400px",
-    overflowY: "auto",
-  },
+  list: { maxHeight: "400px", overflowY: "auto" },
   loading: {
     display: "flex",
     flexDirection: "column",
@@ -314,42 +316,20 @@ const styles = {
     padding: "40px",
     color: "#9ca3af",
   },
-  emptyIcon: {
-    marginBottom: "12px",
-    opacity: 0.5,
-  },
+  emptyIcon: { marginBottom: "12px", opacity: 0.5 },
   notificationItem: {
     display: "flex",
     alignItems: "flex-start",
     gap: "12px",
     padding: "12px 16px",
     borderBottom: "1px solid #f3f4f6",
-    cursor: "pointer",
     transition: "background-color 0.2s ease",
   },
-  iconWrapper: {
-    flexShrink: 0,
-    marginTop: "2px",
-  },
-  content: {
-    flex: 1,
-  },
-  message: {
-    fontSize: "13px",
-    color: "#374151",
-    margin: 0,
-    lineHeight: "1.4",
-  },
-  meta: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginTop: "4px",
-  },
-  time: {
-    fontSize: "11px",
-    color: "#9ca3af",
-  },
+  iconWrapper: { flexShrink: 0, marginTop: "2px" },
+  content: { flex: 1 },
+  message: { fontSize: "13px", color: "#374151", margin: 0, lineHeight: "1.4" },
+  meta: { display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" },
+  time: { fontSize: "11px", color: "#9ca3af" },
   unreadDot: {
     width: "6px",
     height: "6px",
@@ -364,12 +344,8 @@ const styles = {
     cursor: "pointer",
     padding: "4px",
     borderRadius: "4px",
-    transition: "all 0.2s ease",
   },
-  footer: {
-    padding: "8px 16px 12px",
-    borderTop: "1px solid #e5e7eb",
-  },
+  footer: { padding: "8px 16px 12px", borderTop: "1px solid #e5e7eb" },
   viewAllBtn: {
     width: "100%",
     padding: "8px",
@@ -380,7 +356,6 @@ const styles = {
     fontSize: "12px",
     fontWeight: "500",
     color: "#4f46e5",
-    transition: "all 0.2s ease",
   },
 };
 
