@@ -13,8 +13,8 @@ import {
   FiFile,
 } from "react-icons/fi";
 import { FaChild } from "react-icons/fa";
-import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import "../../../assets/styles/dashboard.css";
 import {
   usersAPI,
@@ -373,6 +373,7 @@ const ParentDashboard = () => {
             </button>
           </div>
 
+          {/* Grades Tab */}
           {activeTab === "grades" && (
             <div className="dashboard-section">
               <div className="section-header">
@@ -462,6 +463,7 @@ const ParentDashboard = () => {
             </div>
           )}
 
+          {/* Attendance Tab */}
           {activeTab === "attendance" && (
             <div className="dashboard-section">
               <h2 className="section-title">{t("attendance_record")}</h2>
@@ -513,6 +515,7 @@ const ParentDashboard = () => {
             </div>
           )}
 
+          {/* Materials Tab */}
           {activeTab === "materials" && (
             <div className="dashboard-section">
               <h2 className="section-title">{t("learning_materials")}</h2>
@@ -554,6 +557,7 @@ const ParentDashboard = () => {
             </div>
           )}
 
+          {/* Homework Tab */}
           {activeTab === "homework" && (
             <div className="dashboard-section">
               <h2 className="section-title">{t("homework_assignments")}</h2>

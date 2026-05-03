@@ -10,12 +10,14 @@ import {
   FiPaperclip,
   FiSmile,
   FiX,
+  FiLoader,
+  FiFileText,
 } from "react-icons/fi";
 import { formatDistanceToNow, format } from "date-fns";
-import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import { useAuthStore } from "../../../store/authStore";
-import { messagingAPI } from "../../../services/api";
+import { messagingAPI, aiAPI } from "../../../services/api";
 
 const normalizeId = (id) => {
   if (!id) return null;
@@ -96,6 +98,9 @@ const MessagesPage = () => {
   const [showChat, setShowChat] = useState(false);
   const [user, setUser] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryText, setSummaryText] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
 
   const messagesEndRef = useRef(null);
   const sendingRef = useRef(false);
@@ -264,6 +269,7 @@ const MessagesPage = () => {
                 subject: teacher.subject,
                 role: "teacher",
                 online: false,
+                studentId: child.studentId,
               });
             } else {
               const existing = teacherMap.get(id);
@@ -556,6 +562,34 @@ const MessagesPage = () => {
     setMessages([]);
   };
 
+  const summarizeConversation = async () => {
+    if (!selectedConversation || !selectedConversation.id) return;
+    setSummarizing(true);
+    try {
+      let payload;
+      if (user?.role === "parent") {
+        const childId = selectedConversation.studentId;
+        if (!childId) {
+          toast.error(t("missing_child_id"));
+          setSummarizing(false);
+          return;
+        }
+        payload = { childId };
+      } else {
+        payload = { conversationId: selectedConversation.id };
+      }
+      const response = await aiAPI.summarizeConversations(payload);
+      setSummaryText(response.data?.summary || t("no_summary_available"));
+      setShowSummaryModal(true);
+    } catch (error) {
+      console.error("Error summarizing conversation:", error);
+      toast.error(t("summary_failed"));
+      setSummaryText(t("demo_summary"));
+    } finally {
+      setSummarizing(false);
+    }
+  };
+
   const filteredConversations = conversations.filter(
     (conv) =>
       conv.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -564,9 +598,9 @@ const MessagesPage = () => {
 
   if (!user) {
     return (
-      <div style={Styles.loadingFull}>
-        <div style={Styles.spinner} />
-        <p style={Styles.loadingText}>{t("loading")}</p>
+      <div style={styles.loadingFull}>
+        <div style={styles.spinner} />
+        <p style={styles.loadingText}>{t("loading")}</p>
       </div>
     );
   }
@@ -574,11 +608,11 @@ const MessagesPage = () => {
   const ownUserId = normalizeId(user.id);
 
   return (
-    <div style={Styles.page}>
-      <div style={Styles.pageHeader}>
+    <div style={styles.page}>
+      <div style={styles.pageHeader}>
         <div>
-          <h1 style={Styles.pageTitle}>{t("messages")}</h1>
-          <p style={Styles.pageSubtitle}>
+          <h1 style={styles.pageTitle}>{t("messages")}</h1>
+          <p style={styles.pageSubtitle}>
             {user.role === "parent"
               ? t("chat_with_teachers")
               : user.role === "teacher"
@@ -588,36 +622,36 @@ const MessagesPage = () => {
         </div>
       </div>
 
-      <div style={Styles.chatContainer}>
+      <div style={styles.chatContainer}>
         <div
           style={{
-            ...Styles.sidebar,
-            ...(isMobileView && showChat ? Styles.sidebarHidden : {}),
+            ...styles.sidebar,
+            ...(isMobileView && showChat ? styles.sidebarHidden : {}),
           }}
         >
-          <div style={Styles.searchWrap}>
-            <FiSearch size={15} style={Styles.searchIcon} />
+          <div style={styles.searchWrap}>
+            <FiSearch size={15} style={styles.searchIcon} />
             <input
               type="text"
               placeholder={t("search_conversations")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={Styles.searchInput}
+              style={styles.searchInput}
             />
           </div>
-          <div style={Styles.convList}>
+          <div style={styles.convList}>
             {loading ? (
-              <div style={Styles.centerState}>
-                <div style={Styles.spinner} />
-                <p style={Styles.loadingText}>{t("loading")}</p>
+              <div style={styles.centerState}>
+                <div style={styles.spinner} />
+                <p style={styles.loadingText}>{t("loading")}</p>
               </div>
             ) : filteredConversations.length === 0 ? (
-              <div style={Styles.centerState}>
+              <div style={styles.centerState}>
                 <FiMessageSquare
                   size={40}
                   style={{ color: "#c4c9d4", marginBottom: 12 }}
                 />
-                <p style={{ ...Styles.loadingText, marginBottom: 12 }}>
+                <p style={{ ...styles.loadingText, marginBottom: 12 }}>
                   {t("no_conversations")}
                 </p>
               </div>
@@ -630,7 +664,7 @@ const MessagesPage = () => {
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
                     style={{
-                      ...Styles.convItem,
+                      ...styles.convItem,
                       backgroundColor: isActive ? "#eef2ff" : "transparent",
                       borderLeft: isActive
                         ? "3px solid #4f46e5"
@@ -645,25 +679,25 @@ const MessagesPage = () => {
                         e.currentTarget.style.backgroundColor = "transparent";
                     }}
                   >
-                    <div style={Styles.avatarWrap}>
-                      <div style={Styles.avatar}>{conv.avatar}</div>
-                      {conv.online && <span style={Styles.onlineDot} />}
+                    <div style={styles.avatarWrap}>
+                      <div style={styles.avatar}>{conv.avatar}</div>
+                      {conv.online && <span style={styles.onlineDot} />}
                     </div>
-                    <div style={Styles.convInfo}>
-                      <div style={Styles.convRow}>
-                        <span style={Styles.convName}>{conv.name}</span>
-                        <span style={Styles.convTime}>
+                    <div style={styles.convInfo}>
+                      <div style={styles.convRow}>
+                        <span style={styles.convName}>{conv.name}</span>
+                        <span style={styles.convTime}>
                           {safeFormatDistance(conv.lastMessageTime)}
                         </span>
                       </div>
-                      <p style={Styles.convPreview}>{conv.lastMessage}</p>
+                      <p style={styles.convPreview}>{conv.lastMessage}</p>
                       {conv.subject && (
-                        <p style={Styles.convSubject}>{conv.subject}</p>
+                        <p style={styles.convSubject}>{conv.subject}</p>
                       )}
                     </div>
                     {conv.unreadCount > 0 && (
-                      <div style={Styles.badge}>
-                        <span style={Styles.badgeText}>{conv.unreadCount}</span>
+                      <div style={styles.badge}>
+                        <span style={styles.badgeText}>{conv.unreadCount}</span>
                       </div>
                     )}
                   </div>
@@ -673,22 +707,22 @@ const MessagesPage = () => {
           </div>
         </div>
 
-        <div style={Styles.chatArea}>
+        <div style={styles.chatArea}>
           {selectedConversation ? (
             <>
-              <div style={Styles.chatHeader}>
-                <div style={Styles.chatHeaderLeft}>
+              <div style={styles.chatHeader}>
+                <div style={styles.chatHeaderLeft}>
                   {isMobileView && (
-                    <button onClick={handleExitChat} style={Styles.iconBtn}>
+                    <button onClick={handleExitChat} style={styles.iconBtn}>
                       <FiArrowLeft size={20} color="#4f46e5" />
                     </button>
                   )}
-                  <div style={Styles.chatAvatar}>
+                  <div style={styles.chatAvatar}>
                     {selectedConversation.avatar}
                   </div>
                   <div>
-                    <h3 style={Styles.chatName}>{selectedConversation.name}</h3>
-                    <p style={Styles.chatMeta}>
+                    <h3 style={styles.chatName}>{selectedConversation.name}</h3>
+                    <p style={styles.chatMeta}>
                       {selectedConversation.role === "teacher"
                         ? t("teacher")
                         : t("parent")}
@@ -697,16 +731,31 @@ const MessagesPage = () => {
                     </p>
                   </div>
                 </div>
-                {!isMobileView && (
-                  <button onClick={handleExitChat} style={Styles.iconBtn}>
+                <div style={styles.chatHeaderRight}>
+                  {!isMobileView && (
+                    <button
+                      onClick={summarizeConversation}
+                      disabled={summarizing}
+                      style={styles.summaryBtn}
+                      title={t("summarize_conversation")}
+                    >
+                      {summarizing ? (
+                        <FiLoader size={14} className="spin" />
+                      ) : (
+                        <FiFileText size={14} />
+                      )}
+                      <span>{t("summarize")}</span>
+                    </button>
+                  )}
+                  <button onClick={handleExitChat} style={styles.iconBtn}>
                     <FiX size={18} color="#ef4444" />
                   </button>
-                )}
+                </div>
               </div>
 
-              <div style={Styles.messagesArea}>
+              <div style={styles.messagesArea}>
                 {messages.length === 0 ? (
-                  <div style={Styles.noMsgs}>
+                  <div style={styles.noMsgs}>
                     <FiMessageSquare
                       size={32}
                       style={{ color: "#c4c9d4", marginBottom: 8 }}
@@ -722,20 +771,20 @@ const MessagesPage = () => {
                       <div
                         key={msg.id}
                         style={{
-                          ...Styles.msgRow,
+                          ...styles.msgRow,
                           flexDirection: isOwn ? "row-reverse" : "row",
                           gap: isOwn ? 8 : 0,
                         }}
                       >
                         <div
                           style={{
-                            ...Styles.bubbleWrap,
+                            ...styles.bubbleWrap,
                             alignItems: isOwn ? "flex-end" : "flex-start",
                           }}
                         >
                           <div
                             style={{
-                              ...Styles.bubble,
+                              ...styles.bubble,
                               backgroundColor: isOwn ? "#4f46e5" : "#ffffff",
                               color: isOwn ? "#ffffff" : "#1f2937",
                               borderRadius: isOwn
@@ -747,22 +796,17 @@ const MessagesPage = () => {
                                 : "0 1px 2px rgba(0,0,0,0.08)",
                             }}
                           >
-                            <p style={Styles.bubbleText}>{msg.content}</p>
+                            <p style={styles.bubbleText}>{msg.content}</p>
                           </div>
                           <div
                             style={{
-                              ...Styles.msgMeta,
+                              ...styles.msgMeta,
                               justifyContent: isOwn ? "flex-end" : "flex-start",
                             }}
                           >
                             <span>{formatMessageTime(msg.timestamp)}</span>
                             {isOwn && (
-                              <span
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                }}
-                              >
+                              <span>
                                 {msg.read ? (
                                   <FiCheckCircle size={11} color="#818cf8" />
                                 ) : (
@@ -779,11 +823,11 @@ const MessagesPage = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div style={Styles.inputBar}>
-                <button style={Styles.inputIconBtn} title={t("attach_file")}>
+              <div style={styles.inputBar}>
+                <button style={styles.inputIconBtn} title={t("attach_file")}>
                   <FiPaperclip size={18} color="#9ca3af" />
                 </button>
-                <button style={Styles.inputIconBtn} title={t("emoji")}>
+                <button style={styles.inputIconBtn} title={t("emoji")}>
                   <FiSmile size={18} color="#9ca3af" />
                 </button>
                 <textarea
@@ -791,7 +835,7 @@ const MessagesPage = () => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder={t("type_message")}
-                  style={Styles.textarea}
+                  style={styles.textarea}
                   rows={1}
                   disabled={sendingMessage}
                 />
@@ -799,7 +843,7 @@ const MessagesPage = () => {
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || sendingMessage}
                   style={{
-                    ...Styles.sendBtn,
+                    ...styles.sendBtn,
                     backgroundColor:
                       newMessage.trim() && !sendingMessage
                         ? "#4f46e5"
@@ -820,41 +864,68 @@ const MessagesPage = () => {
               </div>
             </>
           ) : (
-            <div style={Styles.noSelection}>
+            <div style={styles.noSelection}>
               <FiMessageSquare
                 size={56}
                 style={{ color: "#c4c9d4", marginBottom: 16 }}
               />
-              <h3 style={Styles.noSelTitle}>{t("select_conversation")}</h3>
-              <p style={Styles.noSelSub}>{t("select_instruction")}</p>
+              <h3 style={styles.noSelTitle}>{t("select_conversation")}</h3>
+              <p style={styles.noSelSub}>{t("select_instruction")}</p>
             </div>
           )}
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {/* Summary Modal */}
+      {showSummaryModal && (
+        <div
+          style={styles.modalOverlay}
+          onClick={() => setShowSummaryModal(false)}
+        >
+          <div style={styles.summaryModal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3>{t("conversation_summary")}</h3>
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                style={styles.modalClose}
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              <p>{summaryText}</p>
+            </div>
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                style={styles.closeModalBtn}
+              >
+                {t("close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };
 
-const Styles = {
+const styles = {
   page: {
     height: "calc(100vh - 64px)",
     display: "flex",
     flexDirection: "column",
     padding: "24px",
     backgroundColor: "#f8fafc",
-    fontFamily:
-      "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "'Inter', sans-serif",
     boxSizing: "border-box",
   },
-  pageHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    flexShrink: 0,
-  },
+  pageHeader: { marginBottom: 20, flexShrink: 0 },
   pageTitle: {
     fontSize: 24,
     fontWeight: 700,
@@ -881,11 +952,7 @@ const Styles = {
     transition: "all 0.3s ease",
     backgroundColor: "#fff",
   },
-  sidebarHidden: {
-    width: 0,
-    minWidth: 0,
-    display: "none",
-  },
+  sidebarHidden: { width: 0, minWidth: 0, display: "none" },
   searchWrap: {
     position: "relative",
     padding: "14px 16px",
@@ -920,13 +987,6 @@ const Styles = {
     textAlign: "center",
     padding: 20,
   },
-  loadingFull: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100vh",
-  },
   spinner: {
     width: 28,
     height: 28,
@@ -937,6 +997,13 @@ const Styles = {
     marginBottom: 10,
   },
   loadingText: { color: "#9ca3af", fontSize: 13, margin: 0 },
+  loadingFull: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100vh",
+  },
   convItem: {
     display: "flex",
     alignItems: "center",
@@ -958,7 +1025,6 @@ const Styles = {
     color: "#fff",
     fontWeight: 600,
     fontSize: 15,
-    flexShrink: 0,
   },
   onlineDot: {
     position: "absolute",
@@ -1017,6 +1083,7 @@ const Styles = {
     flexShrink: 0,
   },
   chatHeaderLeft: { display: "flex", alignItems: "center", gap: 12 },
+  chatHeaderRight: { display: "flex", alignItems: "center", gap: 12 },
   chatAvatar: {
     width: 38,
     height: 38,
@@ -1028,10 +1095,23 @@ const Styles = {
     color: "#fff",
     fontWeight: 600,
     fontSize: 13,
-    flexShrink: 0,
   },
   chatName: { fontWeight: 600, color: "#1f2937", fontSize: 15, margin: 0 },
   chatMeta: { fontSize: 12, color: "#6b7280", margin: "2px 0 0" },
+  summaryBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 12px",
+    backgroundColor: "#fef3c7",
+    border: "none",
+    borderRadius: 20,
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 500,
+    color: "#b45309",
+    transition: "all 0.2s ease",
+  },
   iconBtn: {
     padding: 8,
     background: "#f3f4f6",
@@ -1059,17 +1139,8 @@ const Styles = {
     justifyContent: "center",
     height: "100%",
   },
-  msgRow: {
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 8,
-    marginBottom: 6,
-  },
-  bubbleWrap: {
-    display: "flex",
-    flexDirection: "column",
-    maxWidth: "68%",
-  },
+  msgRow: { display: "flex", alignItems: "flex-end", gap: 8, marginBottom: 6 },
+  bubbleWrap: { display: "flex", flexDirection: "column", maxWidth: "68%" },
   bubble: {
     padding: "9px 13px",
     fontSize: 14,
@@ -1145,6 +1216,55 @@ const Styles = {
     margin: "0 0 6px",
   },
   noSelSub: { fontSize: 13, margin: 0, textAlign: "center" },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  summaryModal: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 0,
+    width: "90%",
+    maxWidth: 500,
+    overflow: "hidden",
+  },
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 20px",
+    borderBottom: "1px solid #e5e7eb",
+  },
+  modalClose: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 20,
+    color: "#6b7280",
+  },
+  modalBody: { padding: "20px", color: "#4b5563", lineHeight: 1.6 },
+  modalFooter: {
+    padding: "16px 20px",
+    borderTop: "1px solid #e5e7eb",
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  closeModalBtn: {
+    padding: "8px 16px",
+    backgroundColor: "#4f46e5",
+    color: "white",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+  },
 };
 
 export default MessagesPage;

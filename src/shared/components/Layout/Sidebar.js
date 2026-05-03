@@ -115,6 +115,7 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
         { path: "/materials", icon: FiFolder, label: t("materials") },
         { path: "/homework", icon: FiClipboard, label: t("homework") },
         { path: "/my-students", icon: FiUsers, label: t("my_students") },
+        { path: "/my-quizzes", icon: FiBook, label: t("my_quizzes") },
       ];
     }
     if (role === "student") {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { FiFile, FiDownload, FiEye } from "react-icons/fi";
+import { FiFile, FiDownload, FiEye, FiFileText } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { materialsAPI } from "../../../services/api";
+import { exportMaterialToPDF } from "../../../shared/utils/pdfExport";
 import toast from "react-hot-toast";
 
 const ParentMaterialsPage = () => {
@@ -28,8 +29,6 @@ const ParentMaterialsPage = () => {
       // TODO: Replace with actual API endpoint when available
       // const response = await parentAPI.getChildren();
       // setChildren(response.data);
-
-      // Return empty array until endpoint is ready
       setChildren([]);
       setLoading(false);
     } catch (error) {
@@ -43,10 +42,13 @@ const ParentMaterialsPage = () => {
     setLoading(true);
     try {
       const response = await materialsAPI.getMaterialsByClass(grade);
-      let materialsData = response.data;
+      let materialsData = response.data?.data || response.data || [];
+      if (!Array.isArray(materialsData)) materialsData = [];
 
       if (section) {
-        materialsData = materialsData.filter((m) => m.section === section);
+        materialsData = materialsData.filter(
+          (m) => (m.section || m.className) === section,
+        );
       }
 
       const formattedMaterials = materialsData.map((material) => ({
@@ -54,7 +56,7 @@ const ParentMaterialsPage = () => {
         title: material.title,
         subject: material.subject,
         grade: material.grade,
-        section: material.section,
+        section: material.section || material.className,
         uploadedBy: material.uploadedBy || material.teacherName,
         date: material.createdAt
           ? new Date(material.createdAt).toISOString().split("T")[0]
@@ -76,17 +78,11 @@ const ParentMaterialsPage = () => {
   };
 
   const handleDownload = async (material) => {
-    try {
-      toast.loading(t("downloading", { title: material.title }), {
-        id: "download",
-      });
-      // TODO: Implement actual download endpoint
-      toast.success(t("download_success", { title: material.title }), {
-        id: "download",
-      });
-    } catch (error) {
-      console.error("Error downloading material:", error);
-      toast.error(t("download_failed"), { id: "download" });
+    if (material.fileUrl) {
+      window.open(material.fileUrl, "_blank");
+      toast.success(t("opening", { title: material.title }));
+    } else {
+      toast.error(t("no_file_url"));
     }
   };
 
@@ -96,6 +92,11 @@ const ParentMaterialsPage = () => {
     } else {
       toast.info(t("preview_not_available"));
     }
+  };
+
+  const handleExportPDF = (material) => {
+    exportMaterialToPDF(material, material.title);
+    toast.success(t("material_exported_pdf"));
   };
 
   if (loading && !materials.length) {
@@ -128,7 +129,6 @@ const ParentMaterialsPage = () => {
         <p style={styles.subtitle}>{t("access_child_materials")}</p>
       </div>
 
-      {/* Child Selector */}
       {children.length > 1 && (
         <div style={styles.childSelector}>
           <label style={styles.childLabel}>{t("select_child")}:</label>
@@ -199,6 +199,13 @@ const ParentMaterialsPage = () => {
                   style={styles.downloadBtn}
                 >
                   <FiDownload size={16} /> {t("download")}
+                </button>
+                <button
+                  onClick={() => handleExportPDF(material)}
+                  style={styles.pdfBtn}
+                  title={t("export_pdf")}
+                >
+                  <FiFileText size={16} />
                 </button>
               </div>
             </div>
@@ -327,6 +334,17 @@ const styles = {
     borderRadius: "8px",
     cursor: "pointer",
     transition: "all 0.2s ease",
+  },
+  pdfBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px",
+    backgroundColor: "#fee2e2",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    color: "#dc2626",
   },
   emptyState: {
     textAlign: "center",

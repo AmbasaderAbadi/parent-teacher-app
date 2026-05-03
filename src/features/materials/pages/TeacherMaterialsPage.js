@@ -8,10 +8,12 @@ import {
   FiEye,
   FiPlus,
   FiX,
+  FiFileText,
 } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { materialsAPI, apiClient } from "../../../services/api";
+import { exportMaterialToPDF } from "../../../shared/utils/pdfExport";
 import toast from "react-hot-toast";
 
 const TeacherMaterialsPage = () => {
@@ -226,6 +228,11 @@ const TeacherMaterialsPage = () => {
     } else {
       toast.info(t("no_preview_available"));
     }
+  };
+
+  const handleExportPDF = (material) => {
+    exportMaterialToPDF(material, material.title);
+    toast.success(t("material_exported_pdf"));
   };
 
   const resetForm = () => {
@@ -520,6 +527,13 @@ const TeacherMaterialsPage = () => {
                   <FiDownload size={16} />
                 </button>
                 <button
+                  onClick={() => handleExportPDF(material)}
+                  style={styles.pdfBtn}
+                  title={t("export_pdf")}
+                >
+                  <FiFileText size={16} />
+                </button>
+                <button
                   onClick={() => handleDelete(material.id)}
                   style={styles.deleteBtn}
                   title={t("delete")}
@@ -783,6 +797,14 @@ const styles = {
     borderRadius: "6px",
     cursor: "pointer",
     color: "#10b981",
+  },
+  pdfBtn: {
+    padding: "6px",
+    backgroundColor: "#fee2e2",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    color: "#dc2626",
   },
   deleteBtn: {
     padding: "6px",

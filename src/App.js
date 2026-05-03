@@ -52,6 +52,7 @@ import AdminCalendarPage from "./features/calendar/pages/AdminCalendarPage";
 import UserCalendarPage from "./features/calendar/pages/UserCalendarPage";
 import TeacherProfilePage from "./features/teachers/pages/TeacherProfilePage";
 import NotificationsPage from "./features/notifications/pages/NotificationsPage";
+import TeacherQuizzesPage from "./features/teachers/pages/TeacherQuizzesPage";
 
 // Admin Pages
 import AdminUsersPage from "./features/admin/pages/AdminUsersPage";
@@ -227,6 +228,7 @@ function App() {
                   />
                   <Route path="/admin-dashboard" element={<AdminDashboard />} />
                   <Route path="/dashboard" element={<DashboardRouter />} />
+                  <Route path="/my-quizzes" element={<TeacherQuizzesPage />} />
 
                   {/* Admin Routes */}
                   <Route

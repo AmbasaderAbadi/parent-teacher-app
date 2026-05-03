@@ -11,3 +11,4 @@ export { materialsAPI } from "./materials";
 export { messagingAPI } from "./messaging";
 export { calendarAPI } from "./calendar";
 export { notificationsAPI } from "./notifications";
+export { aiAPI } from "./ai";
