@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiPlus, FiTrash2, FiEdit2, FiCalendar } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { calendarAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const AdminCalendarPage = () => {
+  const { t } = useTranslation();
   const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,9 +28,20 @@ const AdminCalendarPage = () => {
     icon: "📅",
   });
 
-  const eventTypes = ["event", "holiday", "exam", "meeting", "class"];
-  const priorities = ["low", "medium", "high", "urgent"]; // ✅ added "urgent"
-  const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const eventTypes = [
+    t("event_type"),
+    t("holiday_type"),
+    t("exam_type"),
+    t("meeting_type"),
+    t("class_type"),
+  ];
+  const priorities = [
+    t("priority_low"),
+    t("priority_medium"),
+    t("priority_high"),
+    t("priority_urgent"),
+  ];
+  const grades = [t("grade_9"), t("grade_10"), t("grade_11"), t("grade_12")];
   const sections = ["A", "B", "C", "D"];
   const colorOptions = [
     "#4f46e5",
@@ -68,7 +81,7 @@ const AdminCalendarPage = () => {
       setEvents(formatted);
     } catch (error) {
       console.error("Error fetching events:", error);
-      toast.error("Failed to load events");
+      toast.error(t("failed_load_events"));
       setEvents([]);
     } finally {
       setLoading(false);
@@ -84,7 +97,7 @@ const AdminCalendarPage = () => {
 
   const handleAdd = async () => {
     if (!newEvent.title || !newEvent.startDate) {
-      toast.error("Please fill title and start date");
+      toast.error(t("title_start_required"));
       return;
     }
 
@@ -108,8 +121,6 @@ const AdminCalendarPage = () => {
       icon: newEvent.icon,
     };
 
-    console.log("📤 Sending payload:", payload);
-
     try {
       const response = await calendarAPI.createEvent(payload);
       const newEv = response.data?.data || response.data;
@@ -129,19 +140,19 @@ const AdminCalendarPage = () => {
       };
       setEvents([formatted, ...events]);
       resetForm();
-      toast.success("Event added successfully!");
+      toast.success(t("event_added_success"));
     } catch (error) {
       console.error(
-        "❌ Error creating event:",
+        "Error creating event:",
         error.response?.data || error.message,
       );
-      toast.error(error.response?.data?.message || "Failed to add event");
+      toast.error(error.response?.data?.message || t("event_add_failed"));
     }
   };
 
   const handleUpdate = async () => {
     if (!editingEvent || !newEvent.title || !newEvent.startDate) {
-      toast.error("Please fill title and start date");
+      toast.error(t("title_start_required"));
       return;
     }
 
@@ -172,24 +183,24 @@ const AdminCalendarPage = () => {
       );
       setEvents(updatedEvents);
       resetForm();
-      toast.success("Event updated successfully!");
+      toast.success(t("event_updated_success"));
     } catch (error) {
       console.error(
-        "❌ Error updating event:",
+        "Error updating event:",
         error.response?.data || error.message,
       );
-      toast.error(error.response?.data?.message || "Failed to update event");
+      toast.error(error.response?.data?.message || t("event_update_failed"));
     }
   };
 
   const handleDelete = async (eventId) => {
-    if (window.confirm("Delete this event?")) {
+    if (window.confirm(t("confirm_delete_event"))) {
       try {
         await calendarAPI.deleteEvent(eventId);
         setEvents(events.filter((ev) => ev.id !== eventId));
-        toast.success("Event deleted");
+        toast.success(t("event_deleted_success"));
       } catch (error) {
-        toast.error("Failed to delete event");
+        toast.error(t("event_delete_failed"));
       }
     }
   };
@@ -263,13 +274,13 @@ const AdminCalendarPage = () => {
 
   const getEventTypeColor = (type) => {
     switch (type) {
-      case "holiday":
+      case t("holiday_type"):
         return { bg: "#fef3c7", color: "#92400e" };
-      case "exam":
+      case t("exam_type"):
         return { bg: "#fee2e2", color: "#991b1b" };
-      case "meeting":
+      case t("meeting_type"):
         return { bg: "#d1fae5", color: "#065f46" };
-      case "class":
+      case t("class_type"):
         return { bg: "#e0e7ff", color: "#3730a3" };
       default:
         return { bg: "#eef2ff", color: "#4f46e5" };
@@ -280,7 +291,7 @@ const AdminCalendarPage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner" />
-        <p>Loading events...</p>
+        <p>{t("loading_events")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -303,11 +314,11 @@ const AdminCalendarPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📅 Calendar</h1>
-          <p style={styles.subtitle}>Manage events</p>
+          <h1 style={styles.title}>{t("calendar")}</h1>
+          <p style={styles.subtitle}>{t("manage_events")}</p>
         </div>
         <button onClick={() => setShowForm(true)} style={styles.addBtn}>
-          <FiPlus size={16} /> Add Event
+          <FiPlus size={16} /> {t("add_event")}
         </button>
       </div>
 
@@ -317,11 +328,11 @@ const AdminCalendarPage = () => {
           animate={{ opacity: 1, y: 0 }}
           style={styles.formCard}
         >
-          <h3>{editingEvent ? "Edit Event" : "Add New Event"}</h3>
+          <h3>{editingEvent ? t("edit_event") : t("add_new_event")}</h3>
 
           <input
             type="text"
-            placeholder="Event Title *"
+            placeholder={t("event_title_placeholder")}
             value={newEvent.title}
             onChange={(e) =>
               setNewEvent({ ...newEvent, title: e.target.value })
@@ -329,7 +340,7 @@ const AdminCalendarPage = () => {
             style={styles.input}
           />
           <textarea
-            placeholder="Description"
+            placeholder={t("description_placeholder")}
             rows={3}
             value={newEvent.description}
             onChange={(e) =>
@@ -340,7 +351,7 @@ const AdminCalendarPage = () => {
 
           <div style={styles.formRow}>
             <div style={styles.dateTimeGroup}>
-              <label style={styles.smallLabel}>Start Date *</label>
+              <label style={styles.smallLabel}>{t("start_date")}</label>
               <input
                 type="date"
                 value={newEvent.startDate}
@@ -351,7 +362,7 @@ const AdminCalendarPage = () => {
               />
             </div>
             <div style={styles.dateTimeGroup}>
-              <label style={styles.smallLabel}>Start Time</label>
+              <label style={styles.smallLabel}>{t("start_time")}</label>
               <input
                 type="time"
                 value={newEvent.startTime}
@@ -365,7 +376,7 @@ const AdminCalendarPage = () => {
 
           <div style={styles.formRow}>
             <div style={styles.dateTimeGroup}>
-              <label style={styles.smallLabel}>End Date</label>
+              <label style={styles.smallLabel}>{t("end_date")}</label>
               <input
                 type="date"
                 value={newEvent.endDate}
@@ -376,7 +387,7 @@ const AdminCalendarPage = () => {
               />
             </div>
             <div style={styles.dateTimeGroup}>
-              <label style={styles.smallLabel}>End Time</label>
+              <label style={styles.smallLabel}>{t("end_time")}</label>
               <input
                 type="time"
                 value={newEvent.endTime}
@@ -415,7 +426,7 @@ const AdminCalendarPage = () => {
 
           <input
             type="text"
-            placeholder="Location (optional)"
+            placeholder={t("location_placeholder")}
             value={newEvent.location}
             onChange={(e) =>
               setNewEvent({ ...newEvent, location: e.target.value })
@@ -423,7 +434,7 @@ const AdminCalendarPage = () => {
             style={styles.input}
           />
 
-          <label style={styles.label}>Target Grades:</label>
+          <label style={styles.label}>{t("target_grades")}</label>
           <div style={styles.tagGroup}>
             {grades.map((grade) => (
               <button
@@ -442,7 +453,7 @@ const AdminCalendarPage = () => {
             ))}
           </div>
 
-          <label style={styles.label}>Target Sections:</label>
+          <label style={styles.label}>{t("target_sections")}</label>
           <div style={styles.tagGroup}>
             {sections.map((section) => (
               <button
@@ -456,13 +467,13 @@ const AdminCalendarPage = () => {
                     : {}),
                 }}
               >
-                Section {section}
+                {t("section")} {section}
               </button>
             ))}
           </div>
 
           <div style={styles.formRow}>
-            <label style={styles.label}>Color:</label>
+            <label style={styles.label}>{t("color")}</label>
             <div style={styles.colorGroup}>
               {colorOptions.map((color) => (
                 <button
@@ -485,7 +496,7 @@ const AdminCalendarPage = () => {
           <div style={styles.formRow}>
             <input
               type="text"
-              placeholder="Icon (emoji)"
+              placeholder={t("icon_placeholder")}
               value={newEvent.icon}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, icon: e.target.value })
@@ -501,19 +512,19 @@ const AdminCalendarPage = () => {
                   setNewEvent({ ...newEvent, isPublic: e.target.checked })
                 }
               />
-              Public event
+              {t("public_event")}
             </label>
           </div>
 
           <div style={styles.formActions}>
             <button onClick={resetForm} style={styles.cancelBtn}>
-              Cancel
+              {t("cancel")}
             </button>
             <button
               onClick={editingEvent ? handleUpdate : handleAdd}
               style={styles.submitBtn}
             >
-              {editingEvent ? "Update Event" : "Add Event"}
+              {editingEvent ? t("update_event") : t("add_event")}
             </button>
           </div>
         </motion.div>
@@ -523,7 +534,7 @@ const AdminCalendarPage = () => {
         {events.length === 0 ? (
           <div style={styles.emptyState}>
             <FiCalendar size={48} />
-            <p>No events yet</p>
+            <p>{t("no_events")}</p>
           </div>
         ) : (
           events.map((event) => {
@@ -543,7 +554,7 @@ const AdminCalendarPage = () => {
                         color: typeColor.color,
                       }}
                     >
-                      {event.type.toUpperCase()}
+                      {event.type?.toUpperCase()}
                     </span>
                     {event.priority && (
                       <span style={styles.priorityBadge}>{event.priority}</span>
@@ -566,7 +577,7 @@ const AdminCalendarPage = () => {
                     <p style={styles.eventTargets}>
                       🎯 {event.targetGrades?.join(", ")}{" "}
                       {event.targetSections
-                        ?.map((s) => `Section ${s}`)
+                        ?.map((s) => `${t("section")} ${s}`)
                         .join(", ")}
                     </p>
                   )}
@@ -595,6 +606,7 @@ const AdminCalendarPage = () => {
 };
 
 const styles = {
+  // All styles remain unchanged (same as in your original file)
   container: {
     padding: "24px",
     maxWidth: "1200px",
@@ -675,15 +687,8 @@ const styles = {
     marginBottom: "12px",
     alignItems: "center",
   },
-  dateTimeGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  smallLabel: {
-    fontSize: "12px",
-    color: "#6b7280",
-  },
+  dateTimeGroup: { display: "flex", flexDirection: "column", gap: "4px" },
+  smallLabel: { fontSize: "12px", color: "#6b7280" },
   label: {
     fontSize: "14px",
     fontWeight: "500",
@@ -706,15 +711,8 @@ const styles = {
     cursor: "pointer",
     fontSize: "13px",
   },
-  tagBtnActive: {
-    backgroundColor: "#4f46e5",
-    color: "white",
-  },
-  colorGroup: {
-    display: "flex",
-    gap: "8px",
-    marginBottom: "12px",
-  },
+  tagBtnActive: { backgroundColor: "#4f46e5", color: "white" },
+  colorGroup: { display: "flex", gap: "8px", marginBottom: "12px" },
   colorBtn: {
     width: "32px",
     height: "32px",

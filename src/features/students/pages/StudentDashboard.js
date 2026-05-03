@@ -11,11 +11,13 @@ import {
   FiStar,
   FiDownload,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import "../../../assets/styles/dashboard.css";
 import { gradesAPI, attendanceAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const StudentDashboard = () => {
+  const { t } = useTranslation();
   const [grades, setGrades] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ const StudentDashboard = () => {
       ]);
     } catch (error) {
       console.error("Error fetching student data:", error);
-      toast.error("Failed to load data");
+      toast.error(t("failed_load_data"));
     } finally {
       setLoading(false);
     }
@@ -59,12 +61,10 @@ const StudentDashboard = () => {
   const fetchGrades = async () => {
     try {
       const response = await gradesAPI.getMyGrades();
-      // Backend returns { success: true, data: [...] }
       let gradesData = response.data?.data || response.data;
       if (!Array.isArray(gradesData)) gradesData = [];
 
       const formattedGrades = gradesData.map((grade) => {
-        // Extract teacher name from nested teacherId object
         let teacherName = grade.teacherName;
         if (!teacherName && grade.teacherId) {
           if (typeof grade.teacherId === "object") {
@@ -124,8 +124,8 @@ const StudentDashboard = () => {
       if (attendanceRate >= 90) {
         generatedAchievements.push({
           id: 1,
-          title: "Perfect Attendance",
-          description: `${attendanceRate}% attendance rate`,
+          title: t("perfect_attendance"),
+          description: t("attendance_rate_desc", { rate: attendanceRate }),
           icon: "star",
         });
       }
@@ -133,8 +133,8 @@ const StudentDashboard = () => {
       if (avgGrade >= 85) {
         generatedAchievements.push({
           id: 2,
-          title: "Academic Excellence",
-          description: `${avgGrade}% average grade`,
+          title: t("academic_excellence"),
+          description: t("avg_grade_desc", { grade: avgGrade }),
           icon: "award",
         });
       }
@@ -186,16 +186,23 @@ const StudentDashboard = () => {
 
   const handleExportReport = () => {
     if (grades.length === 0 && attendance.length === 0) {
-      toast.error("No data available to export");
+      toast.error(t("no_data_export"));
       return;
     }
 
     const csvContent = [
-      ["STUDENT PERFORMANCE REPORT"],
-      ["Generated:", new Date().toLocaleString()],
+      [t("report_title")],
+      [t("generated"), new Date().toLocaleString()],
       [""],
-      ["GRADES"],
-      ["Subject", "Score", "Grade", "Term", "Teacher", "Date"],
+      [t("grades_section")],
+      [
+        t("subject"),
+        t("score"),
+        t("grade_letter"),
+        t("term"),
+        t("teacher"),
+        t("date"),
+      ],
       ...grades.map((grade) => [
         grade.subject,
         grade.score,
@@ -205,13 +212,13 @@ const StudentDashboard = () => {
         grade.date,
       ]),
       [""],
-      ["SUMMARY"],
-      ["Average Grade", `${calculateAverage()}%`],
-      ["Attendance Rate", `${calculateAttendanceRate()}%`],
-      ["Total Subjects", grades.length],
+      [t("summary")],
+      [t("average_grade"), `${calculateAverage()}%`],
+      [t("attendance_rate"), `${calculateAttendanceRate()}%`],
+      [t("total_subjects"), grades.length],
       [""],
-      ["ATTENDANCE RECORD"],
-      ["Date", "Status", "Check In", "Check Out"],
+      [t("attendance_record")],
+      [t("date"), t("status"), t("check_in"), t("check_out")],
       ...attendance.map((record) => [
         record.date,
         record.status.toUpperCase(),
@@ -231,25 +238,25 @@ const StudentDashboard = () => {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    toast.success("Report exported successfully!");
+    toast.success(t("export_success"));
   };
 
   const stats = [
     {
       icon: <FiBookOpen size={isMobile ? 20 : 24} />,
-      label: "Average Grade",
+      label: t("average_grade"),
       value: `${calculateAverage()}%`,
       color: "#3b82f6",
     },
     {
       icon: <FiCalendar size={isMobile ? 20 : 24} />,
-      label: "Attendance Rate",
+      label: t("attendance_rate"),
       value: `${calculateAttendanceRate()}%`,
       color: "#10b981",
     },
     {
       icon: <FiAward size={isMobile ? 20 : 24} />,
-      label: "Subjects",
+      label: t("subjects"),
       value: grades.length,
       color: "#8b5cf6",
     },
@@ -259,7 +266,7 @@ const StudentDashboard = () => {
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
+        <p>{t("loading_dashboard")}</p>
       </div>
     );
   }
@@ -268,10 +275,10 @@ const StudentDashboard = () => {
     <div className="dashboard-container">
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">Student Dashboard</h1>
+          <h1 className="dashboard-title">{t("student_dashboard")}</h1>
           <p className="dashboard-subtitle">
-            Welcome back,{" "}
-            {studentUser?.firstName || studentUser?.name || "Student"}! 🎓
+            {t("welcome_back")}{" "}
+            {studentUser?.firstName || studentUser?.name || t("student")}! 🎓
           </p>
         </div>
       </div>
@@ -303,9 +310,9 @@ const StudentDashboard = () => {
         <>
           <div className="dashboard-section">
             <div className="section-header">
-              <h2 className="section-title">📚 My Grades</h2>
+              <h2 className="section-title">📚 {t("my_grades")}</h2>
               <button onClick={handleExportReport} className="export-btn">
-                <FiDownload size={16} /> Download Report
+                <FiDownload size={16} /> {t("download_report")}
               </button>
             </div>
             <div className="grades-grid">
@@ -339,7 +346,7 @@ const StudentDashboard = () => {
           </div>
 
           <div className="dashboard-section">
-            <h2 className="section-title">📈 Performance Overview</h2>
+            <h2 className="section-title">📈 {t("performance_overview")}</h2>
             <div className="chart-container">
               {grades.map((grade, index) => (
                 <div key={index} className="chart-bar">
@@ -362,22 +369,22 @@ const StudentDashboard = () => {
       ) : (
         <div className="dashboard-section">
           <div className="empty-state">
-            <p>No grades available yet.</p>
+            <p>{t("no_grades_available")}</p>
           </div>
         </div>
       )}
 
       {attendance.length > 0 ? (
         <div className="dashboard-section">
-          <h2 className="section-title">📅 Attendance Record</h2>
+          <h2 className="section-title">📅 {t("attendance_record")}</h2>
           <div className="attendance-table-wrapper">
             <table className="attendance-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
+                  <th>{t("date")}</th>
+                  <th>{t("status")}</th>
+                  <th>{t("check_in")}</th>
+                  <th>{t("check_out")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -405,14 +412,14 @@ const StudentDashboard = () => {
       ) : (
         <div className="dashboard-section">
           <div className="empty-state">
-            <p>No attendance records available yet.</p>
+            <p>{t("no_attendance_records")}</p>
           </div>
         </div>
       )}
 
       {achievements.length > 0 && (
         <div className="dashboard-section">
-          <h2 className="section-title">🏆 Achievements</h2>
+          <h2 className="section-title">🏆 {t("achievements")}</h2>
           <div className="achievements-grid">
             {achievements.map((achievement) => (
               <div key={achievement.id} className="achievement-card">

@@ -11,10 +11,12 @@ import {
   FiX,
   FiAlertCircle,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { authAPI, usersAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 export const ProfilePage = () => {
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -62,7 +64,6 @@ export const ProfilePage = () => {
           dateOfBirth: freshUser.dateOfBirth || "",
         });
 
-        // If user is a student, fetch parent info using parentPhoneNumber
         if (
           freshUser.role?.toLowerCase() === "student" &&
           freshUser.parentPhoneNumber
@@ -75,7 +76,7 @@ export const ProfilePage = () => {
             setParentInfo({
               name:
                 `${parentData.firstName || ""} ${parentData.lastName || ""}`.trim() ||
-                "Parent",
+                t("parent"),
               phone: parentData.phoneNumber,
             });
           } catch (parentErr) {
@@ -83,9 +84,8 @@ export const ProfilePage = () => {
               "Could not fetch parent details (403 likely):",
               parentErr,
             );
-            // Fallback: display only the phone number (which we already have)
             setParentInfo({
-              name: "Name not available", // Backend needs to allow access or include name in student object
+              name: t("name_not_available"),
               phone: freshUser.parentPhoneNumber,
             });
           }
@@ -95,7 +95,7 @@ export const ProfilePage = () => {
       }
     } catch (error) {
       console.error("Error loading profile:", error);
-      toast.error("Failed to load profile");
+      toast.error(t("failed_load_profile"));
     } finally {
       setLoading(false);
     }
@@ -124,14 +124,14 @@ export const ProfilePage = () => {
       localStorage.setItem("user", JSON.stringify(mergedUser));
       setUser(mergedUser);
 
-      toast.success("Profile updated successfully!");
+      toast.success(t("profile_updated_success"));
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        "Failed to update profile";
+        t("failed_update_profile");
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -142,7 +142,7 @@ export const ProfilePage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
-        <p>Loading profile...</p>
+        <p>{t("loading_profile")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -167,12 +167,12 @@ export const ProfilePage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Profile Settings</h1>
-          <p style={styles.subtitle}>Manage your personal information</p>
+          <h1 style={styles.title}>{t("profile_settings")}</h1>
+          <p style={styles.subtitle}>{t("manage_personal_info")}</p>
         </div>
         {!isEditing ? (
           <button onClick={() => setIsEditing(true)} style={styles.editBtn}>
-            <FiEdit2 size={16} /> Edit Profile
+            <FiEdit2 size={16} /> {t("edit_profile")}
           </button>
         ) : (
           <div style={styles.editActions}>
@@ -180,10 +180,10 @@ export const ProfilePage = () => {
               onClick={() => setIsEditing(false)}
               style={styles.cancelBtn}
             >
-              <FiX size={16} /> Cancel
+              <FiX size={16} /> {t("cancel")}
             </button>
             <button onClick={handleSave} style={styles.saveBtn}>
-              <FiSave size={16} /> Save Changes
+              <FiSave size={16} /> {t("save_changes")}
             </button>
           </div>
         )}
@@ -206,7 +206,7 @@ export const ProfilePage = () => {
         {/* Profile Form */}
         <div style={styles.formGrid}>
           <div style={styles.formField}>
-            <label style={styles.label}>First Name</label>
+            <label style={styles.label}>{t("first_name")}</label>
             {isEditing ? (
               <input
                 type="text"
@@ -214,15 +214,15 @@ export const ProfilePage = () => {
                 value={formData.firstName}
                 onChange={handleChange}
                 style={styles.input}
-                placeholder="Enter your first name"
+                placeholder={t("enter_first_name")}
               />
             ) : (
-              <p style={styles.value}>{user?.firstName || "Not set"}</p>
+              <p style={styles.value}>{user?.firstName || t("not_set")}</p>
             )}
           </div>
 
           <div style={styles.formField}>
-            <label style={styles.label}>Last Name</label>
+            <label style={styles.label}>{t("last_name")}</label>
             {isEditing ? (
               <input
                 type="text"
@@ -230,16 +230,16 @@ export const ProfilePage = () => {
                 value={formData.lastName}
                 onChange={handleChange}
                 style={styles.input}
-                placeholder="Enter your last name"
+                placeholder={t("enter_last_name")}
               />
             ) : (
-              <p style={styles.value}>{user?.lastName || "Not set"}</p>
+              <p style={styles.value}>{user?.lastName || t("not_set")}</p>
             )}
           </div>
 
           <div style={styles.formField}>
             <label style={styles.label}>
-              <FiMail size={14} /> Email Address
+              <FiMail size={14} /> {t("email_address")}
             </label>
             {isEditing ? (
               <input
@@ -248,25 +248,25 @@ export const ProfilePage = () => {
                 value={formData.email}
                 onChange={handleChange}
                 style={styles.input}
-                placeholder="Enter your email"
+                placeholder={t("enter_email")}
               />
             ) : (
-              <p style={styles.value}>{user?.email || "Not set"}</p>
+              <p style={styles.value}>{user?.email || t("not_set")}</p>
             )}
           </div>
 
           <div style={styles.formField}>
             <label style={styles.label}>
-              <FiPhone size={14} /> Phone Number
+              <FiPhone size={14} /> {t("phone_number")}
             </label>
             <p style={{ ...styles.value, ...styles.readOnlyValue }}>
-              {user?.phoneNumber || user?.phone || "Not set"}
+              {user?.phoneNumber || user?.phone || t("not_set")}
             </p>
           </div>
 
           <div style={styles.formField}>
             <label style={styles.label}>
-              <FiMapPin size={14} /> Address
+              <FiMapPin size={14} /> {t("address")}
             </label>
             {isEditing ? (
               <textarea
@@ -274,20 +274,20 @@ export const ProfilePage = () => {
                 value={formData.address}
                 onChange={handleChange}
                 style={styles.textarea}
-                placeholder="Enter your address"
+                placeholder={t("enter_address")}
                 rows={2}
               />
             ) : (
-              <p style={styles.value}>{user?.address || "Not set"}</p>
+              <p style={styles.value}>{user?.address || t("not_set")}</p>
             )}
           </div>
 
           <div style={styles.formField}>
             <label style={styles.label}>
-              <FiCalendar size={14} /> Date of Birth
+              <FiCalendar size={14} /> {t("date_of_birth")}
             </label>
             <p style={{ ...styles.value, ...styles.readOnlyValue }}>
-              {user?.dateOfBirth || "Not set"}
+              {user?.dateOfBirth || t("not_set")}
             </p>
           </div>
 
@@ -296,24 +296,24 @@ export const ProfilePage = () => {
             <>
               <div style={styles.formField}>
                 <label style={styles.label}>
-                  <FiUser size={14} /> Parent/Guardian Name
+                  <FiUser size={14} /> {t("parent_guardian_name")}
                 </label>
                 <p style={{ ...styles.value, ...styles.readOnlyValue }}>
                   {parentInfo.name ||
                     (user?.parentPhoneNumber
-                      ? "Name not available"
-                      : "Not linked")}
+                      ? t("name_not_available")
+                      : t("not_linked"))}
                 </p>
               </div>
 
               <div style={styles.formField}>
                 <label style={styles.label}>
-                  <FiPhone size={14} /> Parent/Guardian Phone
+                  <FiPhone size={14} /> {t("parent_guardian_phone")}
                 </label>
                 <p style={{ ...styles.value, ...styles.readOnlyValue }}>
                   {parentInfo.phone ||
                     user?.parentPhoneNumber ||
-                    "Not available"}
+                    t("not_available")}
                 </p>
               </div>
             </>

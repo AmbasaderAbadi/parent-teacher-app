@@ -8,10 +8,12 @@ import {
   FiCalendar,
   FiMessageSquare,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import "../../../assets/styles/dashboard.css";
 import { adminAPI } from "../../../services/api";
 
 const AdminDashboard = () => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalParents: 0,
@@ -43,16 +45,13 @@ const AdminDashboard = () => {
       const storedUser = localStorage.getItem("user");
       if (storedUser) setAdminUser(JSON.parse(storedUser));
 
-      // Fetch statistics – response is { success: true, data: {...} }
       const statsResponse = await adminAPI.getStats();
       const statsData = statsResponse.data?.data || statsResponse.data || {};
 
-      // Fetch all users to get accurate role counts and recent activities
       const usersResponse = await adminAPI.getAllUsers();
       const usersData = usersResponse.data?.data || usersResponse.data || [];
       const usersList = Array.isArray(usersData) ? usersData : [];
 
-      // Calculate role counts from the users list
       const roleCounts = { parent: 0, teacher: 0, student: 0 };
       usersList.forEach((user) => {
         if (user.role === "parent") roleCounts.parent++;
@@ -60,7 +59,6 @@ const AdminDashboard = () => {
         else if (user.role === "student") roleCounts.student++;
       });
 
-      // Use stats from API if available, otherwise fallback to calculated counts
       setStats({
         totalUsers: statsData.totalUsers ?? usersList.length,
         totalParents: statsData.totalParents ?? roleCounts.parent,
@@ -71,11 +69,10 @@ const AdminDashboard = () => {
         totalMessages: statsData.totalMessages ?? 0,
       });
 
-      // Recent activities from the most recent users
       const recentUsers = usersList.slice(0, 5);
       const activities = recentUsers.map((user, idx) => ({
         id: idx + 1,
-        action: `New ${user.role || "user"} registered`,
+        action: t("new_user_registered", { role: user.role || "user" }),
         user:
           `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
           user.email ||
@@ -88,7 +85,6 @@ const AdminDashboard = () => {
       setRecentActivities(activities);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      // Keep zeros on error
     } finally {
       setLoading(false);
     }
@@ -96,49 +92,49 @@ const AdminDashboard = () => {
 
   const statsCards = [
     {
-      title: "Total Users",
+      title: t("total_users"),
       value: stats.totalUsers,
       icon: FiUsers,
       color: "#3b82f6",
       link: "/admin/users",
     },
     {
-      title: "Parents",
+      title: t("parents"),
       value: stats.totalParents,
       icon: FiUserCheck,
       color: "#10b981",
       link: "/admin/users",
     },
     {
-      title: "Teachers",
+      title: t("teachers"),
       value: stats.totalTeachers,
       icon: FiUserCheck,
       color: "#f59e0b",
       link: "/admin/users",
     },
     {
-      title: "Students",
+      title: t("students"),
       value: stats.totalStudents,
       icon: FiUserCheck,
       color: "#8b5cf6",
       link: "/admin/users",
     },
     {
-      title: "Announcements",
+      title: t("announcements"),
       value: stats.totalAnnouncements,
       icon: FiBell,
       color: "#ef4444",
       link: "/announcements",
     },
     {
-      title: "Events",
+      title: t("events"),
       value: stats.totalEvents,
       icon: FiCalendar,
       color: "#06b6d4",
       link: "/calendar",
     },
     {
-      title: "Messages",
+      title: t("messages"),
       value: stats.totalMessages,
       icon: FiMessageSquare,
       color: "#ec4899",
@@ -150,7 +146,7 @@ const AdminDashboard = () => {
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
+        <p>{t("loading_dashboard")}</p>
       </div>
     );
   }
@@ -159,10 +155,10 @@ const AdminDashboard = () => {
     <div className="dashboard-container">
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">Admin Dashboard</h1>
+          <h1 className="dashboard-title">{t("admin_dashboard")}</h1>
           <p className="dashboard-subtitle">
-            Welcome back, {adminUser?.firstName || adminUser?.name || "Admin"}!
-            👑
+            {t("welcome_back")}{" "}
+            {adminUser?.firstName || adminUser?.name || "Admin"}! 👑
           </p>
         </div>
       </div>
@@ -195,11 +191,11 @@ const AdminDashboard = () => {
       </div>
 
       <div className="dashboard-section">
-        <h2 className="section-title">📋 Recent Activities</h2>
+        <h2 className="section-title">📋 {t("recent_activities")}</h2>
         <div className="activity-list">
           {recentActivities.length === 0 ? (
             <div className="empty-activities">
-              <p>No recent activities</p>
+              <p>{t("no_recent_activities")}</p>
             </div>
           ) : (
             recentActivities.map((activity) => (
@@ -221,19 +217,19 @@ const AdminDashboard = () => {
       </div>
 
       <div className="dashboard-section">
-        <h2 className="section-title">⚡ Quick Actions</h2>
+        <h2 className="section-title">⚡ {t("quick_actions")}</h2>
         <div className="actions-grid">
           <Link to="/admin/users">
-            <button className="action-btn">👥 Manage Users</button>
+            <button className="action-btn">{t("manage_users")}</button>
           </Link>
           <Link to="/announcements">
-            <button className="action-btn">📢 Create Announcement</button>
+            <button className="action-btn">{t("create_announcement")}</button>
           </Link>
           <Link to="/calendar">
-            <button className="action-btn">📅 Add Event</button>
+            <button className="action-btn">{t("add_event")}</button>
           </Link>
           <Link to="/admin/stats">
-            <button className="action-btn">📊 View Reports</button>
+            <button className="action-btn">{t("view_reports")}</button>
           </Link>
         </div>
       </div>

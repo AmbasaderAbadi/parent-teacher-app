@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-
 import {
   FiUsers,
   FiBookOpen,
@@ -15,8 +14,8 @@ import {
 } from "react-icons/fi";
 import { FaChild } from "react-icons/fa";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import "../../../assets/styles/dashboard.css";
-
 import {
   usersAPI,
   gradesAPI,
@@ -27,6 +26,7 @@ import {
 } from "../../../services/api";
 
 const ParentDashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [selectedChild, setSelectedChild] = useState(null);
   const [children, setChildren] = useState([]);
@@ -59,7 +59,6 @@ const ParentDashboard = () => {
         setParentUser(userData);
       }
 
-      // Fetch children with teachers using the new endpoint
       const response = await messagingAPI.getParentChildren();
       const childrenData = response.data?.data || response.data || [];
       const formattedChildren = childrenData.map((child) => ({
@@ -77,7 +76,7 @@ const ParentDashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching parent data:", error);
-      toast.error("Failed to load children data");
+      toast.error(t("failed_load_children_data"));
       setChildren([]);
     } finally {
       setLoading(false);
@@ -98,7 +97,6 @@ const ParentDashboard = () => {
         const result = await gradesAPI.getStudentGrades(child.studentId);
         let allGrades = result.data?.data || result.data || [];
         if (!Array.isArray(allGrades)) allGrades = [];
-        // Transform grades to include teacher name from teachers array?
         gradesData = allGrades.map((grade) => ({
           id: grade.id || grade._id,
           subject: grade.subject,
@@ -158,7 +156,7 @@ const ParentDashboard = () => {
       setHomeworks(homeworksData);
     } catch (error) {
       console.error("Error fetching child data:", error);
-      toast.error("Failed to load child data");
+      toast.error(t("failed_load_child_data"));
     }
   };
 
@@ -181,11 +179,11 @@ const ParentDashboard = () => {
 
   const handleExportGrades = () => {
     if (!grades.length) {
-      toast.error("No grades available to export");
+      toast.error(t("no_grades_to_export"));
       return;
     }
     const csvContent = [
-      ["Subject", "Score", "Grade", "Term", "Teacher"],
+      [t("subject"), t("score"), t("grade_letter"), t("term"), t("teacher")],
       ...grades.map((grade) => [
         grade.subject,
         grade.score,
@@ -199,12 +197,12 @@ const ParentDashboard = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${selectedChild?.name}_grades_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `${selectedChild?.name}_${t("grades")}_${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    toast.success("Grades exported successfully!");
+    toast.success(t("grades_exported_success"));
   };
 
   const getGradeColor = (score) => {
@@ -229,25 +227,25 @@ const ParentDashboard = () => {
   const stats = [
     {
       icon: <FiUsers size={isMobile ? 20 : 24} />,
-      label: "Total Children",
+      label: t("total_children"),
       value: children.length,
       color: "#3b82f6",
     },
     {
       icon: <FiBookOpen size={isMobile ? 20 : 24} />,
-      label: "Average Grade",
+      label: t("average_grade"),
       value: selectedChild ? `${calculateAverageGrade()}%` : "--",
       color: "#10b981",
     },
     {
       icon: <FiCalendar size={isMobile ? 20 : 24} />,
-      label: "Attendance",
+      label: t("attendance"),
       value: selectedChild ? `${calculateAttendanceRate()}%` : "--",
       color: "#8b5cf6",
     },
     {
       icon: <FiMessageSquare size={isMobile ? 20 : 24} />,
-      label: "Messages",
+      label: t("messages"),
       value: "0",
       color: "#f59e0b",
       link: "/messages",
@@ -258,7 +256,7 @@ const ParentDashboard = () => {
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
+        <p>{t("loading_dashboard")}</p>
       </div>
     );
   }
@@ -267,9 +265,9 @@ const ParentDashboard = () => {
     <div className="dashboard-container">
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">Parent Dashboard</h1>
+          <h1 className="dashboard-title">{t("parent_dashboard")}</h1>
           <p className="dashboard-subtitle">
-            Welcome back,{" "}
+            {t("welcome_back")}{" "}
             {parentUser?.firstName || parentUser?.name || "Parent"}! 👋
           </p>
         </div>
@@ -311,13 +309,12 @@ const ParentDashboard = () => {
       </div>
 
       <div className="dashboard-section">
-        <h2 className="section-title">My Children</h2>
+        <h2 className="section-title">{t("my_children")}</h2>
         {children.length === 0 ? (
           <div className="empty-state">
-            <p>No children added yet.</p>
+            <p>{t("no_children_added")}</p>
             <p className="text-sm text-gray-400 mt-2">
-              Children will appear here when they register with your phone
-              number.
+              {t("children_will_appear")}
             </p>
           </div>
         ) : (
@@ -351,28 +348,28 @@ const ParentDashboard = () => {
               className={`tab-btn ${activeTab === "grades" ? "active" : ""}`}
               style={activeTab === "grades" ? styles.activeTab : styles.tab}
             >
-              📊 Grades
+              📊 {t("grades")}
             </button>
             <button
               onClick={() => setActiveTab("attendance")}
               className={`tab-btn ${activeTab === "attendance" ? "active" : ""}`}
               style={activeTab === "attendance" ? styles.activeTab : styles.tab}
             >
-              📅 Attendance
+              📅 {t("attendance")}
             </button>
             <button
               onClick={() => setActiveTab("materials")}
               className={`tab-btn ${activeTab === "materials" ? "active" : ""}`}
               style={activeTab === "materials" ? styles.activeTab : styles.tab}
             >
-              📁 Materials
+              📁 {t("materials")}
             </button>
             <button
               onClick={() => setActiveTab("homework")}
               className={`tab-btn ${activeTab === "homework" ? "active" : ""}`}
               style={activeTab === "homework" ? styles.activeTab : styles.tab}
             >
-              📝 Homework
+              📝 {t("homework")}
             </button>
           </div>
 
@@ -380,17 +377,19 @@ const ParentDashboard = () => {
             <div className="dashboard-section">
               <div className="section-header">
                 <h2 className="section-title">
-                  📚 {selectedChild.name}'s Grades
+                  📚 {selectedChild.name} {t("grades")}
                 </h2>
                 {grades.length > 0 && (
                   <button onClick={handleExportGrades} className="export-btn">
-                    <FiDownload size={16} /> Export
+                    <FiDownload size={16} /> {t("export")}
                   </button>
                 )}
               </div>
               {grades.length === 0 ? (
                 <div className="empty-state">
-                  <p>No grades available for {selectedChild.name}.</p>
+                  <p>
+                    {t("no_grades_available", { name: selectedChild.name })}
+                  </p>
                 </div>
               ) : (
                 <>
@@ -430,7 +429,7 @@ const ParentDashboard = () => {
                           }
                           className="chat-btn"
                         >
-                          <FiMessageCircle size={16} /> Chat with Teacher
+                          <FiMessageCircle size={16} /> {t("chat_with_teacher")}
                         </button>
                       </motion.div>
                     ))}
@@ -439,7 +438,9 @@ const ParentDashboard = () => {
                     className="chart-container"
                     style={{ marginTop: "24px" }}
                   >
-                    <h3 className="section-title">Performance Overview</h3>
+                    <h3 className="section-title">
+                      {t("performance_overview")}
+                    </h3>
                     {grades.map((grade, idx) => (
                       <div key={idx} className="chart-bar">
                         <div className="chart-label">{grade.subject}</div>
@@ -461,24 +462,24 @@ const ParentDashboard = () => {
             </div>
           )}
 
-          {/* Attendance, Materials, Homework tabs remain unchanged – they already work */}
-
           {activeTab === "attendance" && (
             <div className="dashboard-section">
-              <h2 className="section-title">📅 Attendance Record</h2>
+              <h2 className="section-title">{t("attendance_record")}</h2>
               {attendance.length === 0 ? (
                 <div className="empty-state">
-                  <p>No attendance records for {selectedChild.name}.</p>
+                  <p>
+                    {t("no_attendance_records", { name: selectedChild.name })}
+                  </p>
                 </div>
               ) : (
                 <div className="attendance-table-wrapper">
                   <table className="attendance-table">
                     <thead>
                       <tr>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Check In</th>
-                        <th>Check Out</th>
+                        <th>{t("date")}</th>
+                        <th>{t("status")}</th>
+                        <th>{t("check_in")}</th>
+                        <th>{t("check_out")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -514,10 +515,12 @@ const ParentDashboard = () => {
 
           {activeTab === "materials" && (
             <div className="dashboard-section">
-              <h2 className="section-title">📁 Learning Materials</h2>
+              <h2 className="section-title">{t("learning_materials")}</h2>
               {materials.length === 0 ? (
                 <div className="empty-state">
-                  <p>No materials available for {selectedChild.name}.</p>
+                  <p>
+                    {t("no_materials_available", { name: selectedChild.name })}
+                  </p>
                 </div>
               ) : (
                 <div className="materials-list">
@@ -534,7 +537,7 @@ const ParentDashboard = () => {
                         <h3>{material.title}</h3>
                         <p>{material.description}</p>
                         <p style={styles.materialMeta}>
-                          Subject: {material.subject} • Uploaded:{" "}
+                          {t("subject")}: {material.subject} • {t("uploaded")}:{" "}
                           {material.date}
                         </p>
                       </div>
@@ -542,7 +545,7 @@ const ParentDashboard = () => {
                         onClick={() => window.open(material.fileUrl, "_blank")}
                         style={styles.viewBtn}
                       >
-                        View
+                        {t("view")}
                       </button>
                     </div>
                   ))}
@@ -553,10 +556,12 @@ const ParentDashboard = () => {
 
           {activeTab === "homework" && (
             <div className="dashboard-section">
-              <h2 className="section-title">📝 Homework Assignments</h2>
+              <h2 className="section-title">{t("homework_assignments")}</h2>
               {homeworks.length === 0 ? (
                 <div className="empty-state">
-                  <p>No homework assigned for {selectedChild.name}.</p>
+                  <p>
+                    {t("no_homework_assigned", { name: selectedChild.name })}
+                  </p>
                 </div>
               ) : (
                 <div className="homework-list">
@@ -569,13 +574,15 @@ const ParentDashboard = () => {
                       <div>
                         <h3>{hw.title}</h3>
                         <p>{hw.description}</p>
-                        <p style={styles.meta}>Due: {hw.dueDate}</p>
+                        <p style={styles.meta}>
+                          {t("due")}: {hw.dueDate}
+                        </p>
                       </div>
                       <button
                         onClick={() => navigate(`/homework/${hw.id}`)}
                         style={styles.viewBtn}
                       >
-                        View Details
+                        {t("view_details")}
                       </button>
                     </div>
                   ))}

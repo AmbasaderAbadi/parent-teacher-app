@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiHome, FiUserCheck, FiMail, FiCompass } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 const AboutUs = () => {
+  const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -16,9 +18,9 @@ const AboutUs = () => {
 
   // Navigation links (same as homepage)
   const navItems = [
-    { to: "/", label: "Home", icon: FiHome },
-    { to: "/about", label: "About", icon: FiUserCheck },
-    { to: "/contact", label: "Contact", icon: FiMail },
+    { to: "/", label: t("home"), icon: FiHome },
+    { to: "/about", label: t("about"), icon: FiUserCheck },
+    { to: "/contact", label: t("contact"), icon: FiMail },
   ];
 
   return (
@@ -40,7 +42,7 @@ const AboutUs = () => {
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              ParentTeacher Portal
+              {t("app_name")}
             </motion.span>
           </motion.div>
           <div style={styles.navLinks}>
@@ -76,14 +78,11 @@ const AboutUs = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <div style={styles.badge}>🌟 Our Story</div>
+                <div style={styles.badge}>🌟 {t("about_badge")}</div>
                 <h1 style={styles.lightTitle}>
-                  <span style={styles.gradientText}>About Us</span>
+                  <span style={styles.gradientText}>{t("about_title")}</span>
                 </h1>
-                <p style={styles.lightSubtitle}>
-                  Our mission is to foster strong, meaningful communication
-                  between parents and teachers.
-                </p>
+                <p style={styles.lightSubtitle}>{t("about_hero_text")}</p>
               </motion.div>
             </div>
           </div>
@@ -99,30 +98,18 @@ const AboutUs = () => {
               <div style={styles.missionGrid}>
                 <div style={styles.missionCard}>
                   <div style={styles.missionIcon}>🎯</div>
-                  <h3 style={styles.missionTitle}>Our Mission</h3>
-                  <p style={styles.missionText}>
-                    To create a collaborative digital space that bridges the gap
-                    between home and school, ensuring every child receives the
-                    support they need through unified efforts of teachers and
-                    parents.
-                  </p>
+                  <h3 style={styles.missionTitle}>{t("mission_title")}</h3>
+                  <p style={styles.missionText}>{t("mission_text")}</p>
                 </div>
                 <div style={styles.missionCard}>
                   <div style={styles.missionIcon}>👁️</div>
-                  <h3 style={styles.missionTitle}>Our Vision</h3>
-                  <p style={styles.missionText}>
-                    To be the leading digital bridge between home and school,
-                    transforming educational communication and student outcomes
-                    worldwide.
-                  </p>
+                  <h3 style={styles.missionTitle}>{t("vision_title")}</h3>
+                  <p style={styles.missionText}>{t("vision_text")}</p>
                 </div>
                 <div style={styles.missionCard}>
                   <div style={styles.missionIcon}>💎</div>
-                  <h3 style={styles.missionTitle}>Our Values</h3>
-                  <p style={styles.missionText}>
-                    Transparency, Collaboration, Innovation, and
-                    Student-Centered Approach in everything we do.
-                  </p>
+                  <h3 style={styles.missionTitle}>{t("values_title")}</h3>
+                  <p style={styles.missionText}>{t("values_text")}</p>
                 </div>
               </div>
             </motion.div>
@@ -136,52 +123,44 @@ const AboutUs = () => {
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h2 style={styles.lightTitle}>Meet Our Team</h2>
-              <p style={styles.lightSubtitle}>
-                Passionate educators and technologists working together
-              </p>
+              <h2 style={styles.lightTitle}>{t("team_title")}</h2>
+              <p style={styles.lightSubtitle}>{t("team_subtitle")}</p>
               <div style={styles.teamGrid}>
                 <div style={styles.teamCard}>
                   <div style={styles.teamAvatar}>👩‍🏫</div>
                   <h5 style={styles.teamName}>Ambasador Abadi</h5>
-                  <p style={styles.teamRole}>Founder & CEO</p>
-                  <p style={styles.teamBio}>
-                    Former educator with 15+ years of experience
-                  </p>
+                  <p style={styles.teamRole}>{t("team_role_founder")}</p>
+                  <p style={styles.teamBio}>{t("team_bio_founder")}</p>
                 </div>
                 <div style={styles.teamCard}>
                   <div style={styles.teamAvatar}>👨‍💻</div>
                   <h5 style={styles.teamName}>Hayelom Hailay</h5>
-                  <p style={styles.teamRole}>Frontend Development</p>
-                  <p style={styles.teamBio}>
-                    EdTech specialist and full-stack developer
-                  </p>
+                  <p style={styles.teamRole}>{t("team_role_frontend")}</p>
+                  <p style={styles.teamBio}>{t("team_bio_frontend")}</p>
                 </div>
                 <div style={styles.teamCard}>
                   <div style={styles.teamAvatar}>👩‍🎨</div>
                   <h5 style={styles.teamName}>Tedros Welu</h5>
-                  <p style={styles.teamRole}>Backend Developer</p>
-                  <p style={styles.teamBio}>
-                    Passionate about user experience design
-                  </p>
+                  <p style={styles.teamRole}>{t("team_role_backend")}</p>
+                  <p style={styles.teamBio}>{t("team_bio_backend")}</p>
                 </div>
                 <div style={styles.teamCard}>
                   <div style={styles.teamAvatar}>👨‍🏫</div>
                   <h5 style={styles.teamName}>Chrwel G/hiwet</h5>
-                  <p style={styles.teamRole}>Backend Developer</p>
-                  <p style={styles.teamBio}>Curriculum development expert</p>
+                  <p style={styles.teamRole}>{t("team_role_backend2")}</p>
+                  <p style={styles.teamBio}>{t("team_bio_backend2")}</p>
                 </div>
                 <div style={styles.teamCard}>
                   <div style={styles.teamAvatar}>👨‍🏫</div>
                   <h5 style={styles.teamName}>Biniam Amene</h5>
-                  <p style={styles.teamRole}>Education Advisor</p>
-                  <p style={styles.teamBio}>Curriculum development expert</p>
+                  <p style={styles.teamRole}>{t("team_role_advisor")}</p>
+                  <p style={styles.teamBio}>{t("team_bio_advisor")}</p>
                 </div>
                 <div style={styles.teamCard}>
                   <div style={styles.teamAvatar}>👨‍🏫</div>
                   <h5 style={styles.teamName}>Sirak Kibrom</h5>
-                  <p style={styles.teamRole}>Team Coordinator</p>
-                  <p style={styles.teamBio}>Curriculum development expert</p>
+                  <p style={styles.teamRole}>{t("team_role_coordinator")}</p>
+                  <p style={styles.teamBio}>{t("team_bio_coordinator")}</p>
                 </div>
               </div>
             </motion.div>
@@ -196,13 +175,10 @@ const AboutUs = () => {
               viewport={{ once: true }}
               style={styles.ctaInner}
             >
-              <h2 style={styles.ctaTitle}>Ready to Get Started?</h2>
-              <p style={styles.ctaText}>
-                Join thousands of parents and teachers already using our
-                platform
-              </p>
+              <h2 style={styles.ctaTitle}>{t("cta_title")}</h2>
+              <p style={styles.ctaText}>{t("cta_text")}</p>
               <Link to="/register">
-                <button style={styles.ctaButton}>Sign Up Now →</button>
+                <button style={styles.ctaButton}>{t("cta_button")}</button>
               </Link>
             </motion.div>
           </div>
@@ -213,43 +189,38 @@ const AboutUs = () => {
       <footer style={styles.footer}>
         <div style={styles.footerContent}>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>ParentTeacher Portal</h4>
-            <p style={styles.footerText}>
-              Bridging the gap between parents and teachers for better
-              education.
-            </p>
+            <h4 style={styles.footerTitle}>{t("app_name")}</h4>
+            <p style={styles.footerText}>{t("footer_desc")}</p>
           </div>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>Quick Links</h4>
+            <h4 style={styles.footerTitle}>{t("quick_links")}</h4>
             <Link to="/" style={styles.footerLink}>
-              Home
+              {t("home")}
             </Link>
             <Link to="/about" style={styles.footerLink}>
-              About Us
+              {t("about_us")}
             </Link>
             <Link to="/contact" style={styles.footerLink}>
-              Contact Us
+              {t("contact_us")}
             </Link>
           </div>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>Legal</h4>
+            <h4 style={styles.footerTitle}>{t("legal")}</h4>
             <a href="/privacy-policy" style={styles.footerLink}>
-              Privacy Policy
+              {t("privacy_policy")}
             </a>
             <a href="/terms-of-service" style={styles.footerLink}>
-              Terms of Service
+              {t("terms_of_service")}
             </a>
           </div>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>Contact</h4>
+            <h4 style={styles.footerTitle}>{t("contact")}</h4>
             <p style={styles.footerText}>📧 support@parentteacher.com</p>
             <p style={styles.footerText}>📞 +1 (555) 123-4567</p>
           </div>
         </div>
         <div style={styles.footerBottom}>
-          <p>
-            &copy; 2026 Parent-Teacher Relationship Portal. All rights reserved.
-          </p>
+          <p>{t("copyright")}</p>
         </div>
       </footer>
 
@@ -281,21 +252,19 @@ const AboutUs = () => {
 
 const styles = {
   container: { fontFamily: "'Inter', sans-serif" },
-
-  // Navigation - Dark background
   nav: {
     position: "fixed",
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    backgroundColor: "rgba(0,0,0,0.75)",
     backdropFilter: "blur(12px)",
     borderBottom: "1px solid rgba(255,255,255,0.1)",
     zIndex: 1000,
     transition: "all 0.3s ease",
   },
   navScrolled: {
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backgroundColor: "rgba(0,0,0,0.9)",
     backdropFilter: "blur(12px)",
     boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
     borderBottom: "1px solid rgba(255,255,255,0.15)",
@@ -322,7 +291,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
+    boxShadow: "0 4px 15px rgba(102,126,234,0.3)",
   },
   logoName: {
     fontSize: "20px",
@@ -346,8 +315,6 @@ const styles = {
     transition: "all 0.2s ease",
   },
   navIcon: { transition: "transform 0.2s ease" },
-
-  // Background and overlay
   backgroundWrapper: {
     position: "relative",
     backgroundImage: "url('/images/event2.jpg')",
@@ -362,11 +329,10 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0,0,0,0.7)",
     zIndex: 1,
   },
   contentWrapper: { position: "relative", zIndex: 2 },
-
   section: { padding: "80px 24px" },
   heroContent: { maxWidth: "800px", margin: "0 auto", textAlign: "center" },
   badge: {
@@ -400,8 +366,6 @@ const styles = {
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
   },
-
-  // Mission Cards
   missionGrid: {
     maxWidth: "1200px",
     margin: "0 auto",
@@ -411,10 +375,10 @@ const styles = {
   },
   missionCard: {
     padding: "32px",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255,255,255,0.2)",
     transition: "transform 0.3s ease, box-shadow 0.3s ease",
     textAlign: "center",
   },
@@ -426,8 +390,6 @@ const styles = {
     color: "#ffffff",
   },
   missionText: { fontSize: "16px", color: "#e0e0e0", lineHeight: "1.6" },
-
-  // Team Cards
   teamGrid: {
     maxWidth: "1200px",
     margin: "0 auto",
@@ -437,10 +399,10 @@ const styles = {
   },
   teamCard: {
     padding: "24px",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255,255,255,0.2)",
     transition: "transform 0.3s ease, box-shadow 0.3s ease",
     textAlign: "center",
   },
@@ -453,8 +415,6 @@ const styles = {
   },
   teamRole: { fontSize: "14px", color: "#c084fc", marginBottom: "8px" },
   teamBio: { fontSize: "13px", color: "#e0e0e0" },
-
-  // CTA
   ctaInner: {
     maxWidth: "800px",
     margin: "0 auto",
@@ -483,8 +443,6 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.3s ease",
   },
-
-  // Footer
   footer: {
     backgroundColor: "#1a1a2e",
     color: "white",

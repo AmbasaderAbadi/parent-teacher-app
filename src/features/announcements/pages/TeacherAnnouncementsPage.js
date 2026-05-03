@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiPlus, FiTrash2, FiUsers } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { announcementsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const TeacherAnnouncementsPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +20,7 @@ const TeacherAnnouncementsPage = () => {
     targetAllStudents: false,
   });
 
-  const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const grades = [t("grade_9"), t("grade_10"), t("grade_11"), t("grade_12")];
   const sections = ["A", "B", "C", "D"];
 
   useEffect(() => {
@@ -34,9 +36,7 @@ const TeacherAnnouncementsPage = () => {
 
       // Show: admin global announcements + teacher's own announcements
       const filtered = announcementsList.filter((ann) => {
-        // Admin global announcements (targetAudience = "all")
         if (ann.targetAudience === "all") return true;
-        // Teacher's own announcements
         if (ann.postedById === user?.id) return true;
         return false;
       });
@@ -59,7 +59,7 @@ const TeacherAnnouncementsPage = () => {
       setAnnouncements(formatted);
     } catch (error) {
       console.error("Error fetching announcements:", error);
-      toast.error("Failed to load announcements");
+      toast.error(t("failed_load_announcements"));
       setAnnouncements([]);
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ const TeacherAnnouncementsPage = () => {
 
   const handlePost = async () => {
     if (!newAnnouncement.title || !newAnnouncement.content) {
-      toast.error("Please fill title and content");
+      toast.error(t("fill_title_content"));
       return;
     }
 
@@ -80,21 +80,16 @@ const TeacherAnnouncementsPage = () => {
     };
 
     if (newAnnouncement.targetAllStudents) {
-      // Send to all students (global announcement)
       payload.targetAudience = "students";
     } else if (newAnnouncement.targetGrade && newAnnouncement.targetSection) {
-      // Send to a specific section
       payload.targetType = "section";
       payload.targetGrade = newAnnouncement.targetGrade;
       payload.targetSection = newAnnouncement.targetSection;
     } else if (newAnnouncement.targetGrade) {
-      // Send to a whole grade
       payload.targetType = "grade";
       payload.targetGrade = newAnnouncement.targetGrade;
     } else {
-      toast.error(
-        "Please select a target (All Students, Grade, or Grade+Section)",
-      );
+      toast.error(t("select_target_announcement"));
       return;
     }
 
@@ -118,30 +113,31 @@ const TeacherAnnouncementsPage = () => {
       setAnnouncements([formattedAnn, ...announcements]);
       setShowForm(false);
       resetForm();
-      toast.success("Announcement posted!");
+      toast.success(t("announcement_posted_success"));
     } catch (error) {
       console.error("Error creating announcement:", error);
       toast.error(
-        error.response?.data?.message || "Failed to post announcement",
+        error.response?.data?.message || t("announcement_create_failed"),
       );
     }
   };
 
   const handleDelete = async (id) => {
-    // Only allow deletion of own announcements
     const ann = announcements.find((a) => a.id === id);
     if (ann?.postedById !== user?.id) {
-      toast.error("You can only delete your own announcements");
+      toast.error(t("cannot_delete_others"));
       return;
     }
-    if (window.confirm("Are you sure you want to delete this announcement?")) {
+    if (window.confirm(t("confirm_delete_announcement"))) {
       try {
         await announcementsAPI.deleteAnnouncement(id);
         setAnnouncements(announcements.filter((a) => a.id !== id));
-        toast.success("Announcement deleted!");
+        toast.success(t("announcement_deleted_success"));
       } catch (error) {
         console.error("Error deleting announcement:", error);
-        toast.error(error.response?.data?.message || "Failed to delete");
+        toast.error(
+          error.response?.data?.message || t("announcement_delete_failed"),
+        );
       }
     }
   };
@@ -157,19 +153,23 @@ const TeacherAnnouncementsPage = () => {
   };
 
   const getTargetText = (ann) => {
-    if (ann.targetAudience === "all") return "📢 Global (Admin)";
-    if (ann.targetAudience === "students") return "📢 All Students";
-    if (ann.targetType === "grade") return `📚 Grade: ${ann.targetGrade}`;
+    if (ann.targetAudience === "all") return t("global_admin");
+    if (ann.targetAudience === "students") return t("all_students");
+    if (ann.targetType === "grade")
+      return t("grade_target", { grade: ann.targetGrade });
     if (ann.targetType === "section")
-      return `🏫 ${ann.targetGrade} - Section ${ann.targetSection}`;
-    return "🎯 Specific students";
+      return t("section_target", {
+        grade: ann.targetGrade,
+        section: ann.targetSection,
+      });
+    return t("specific_students");
   };
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner" />
-        <p>Loading announcements...</p>
+        <p>{t("loading_announcements")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -192,11 +192,11 @@ const TeacherAnnouncementsPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📢 Teacher Announcements</h1>
-          <p style={styles.subtitle}>Post updates for your classes</p>
+          <h1 style={styles.title}>{t("teacher_announcements")}</h1>
+          <p style={styles.subtitle}>{t("post_class_updates")}</p>
         </div>
         <button onClick={() => setShowForm(true)} style={styles.addBtn}>
-          <FiPlus size={16} /> New Announcement
+          <FiPlus size={16} /> {t("new_announcement")}
         </button>
       </div>
 
@@ -206,10 +206,10 @@ const TeacherAnnouncementsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           style={styles.formCard}
         >
-          <h3>Create Announcement</h3>
+          <h3>{t("create_announcement")}</h3>
           <input
             type="text"
-            placeholder="Title *"
+            placeholder={t("title_required")}
             value={newAnnouncement.title}
             onChange={(e) =>
               setNewAnnouncement({ ...newAnnouncement, title: e.target.value })
@@ -217,7 +217,7 @@ const TeacherAnnouncementsPage = () => {
             style={styles.input}
           />
           <textarea
-            placeholder="Content *"
+            placeholder={t("content_required")}
             rows={4}
             value={newAnnouncement.content}
             onChange={(e) =>
@@ -229,7 +229,7 @@ const TeacherAnnouncementsPage = () => {
             style={styles.textarea}
           />
 
-          <label style={styles.label}>Target Audience:</label>
+          <label style={styles.label}>{t("target_audience")}</label>
           <div style={styles.audienceOptions}>
             <button
               onClick={() =>
@@ -247,7 +247,7 @@ const TeacherAnnouncementsPage = () => {
                   : {}),
               }}
             >
-              <FiUsers size={16} /> All Students
+              <FiUsers size={16} /> {t("all_students")}
             </button>
             <button
               onClick={() =>
@@ -264,7 +264,7 @@ const TeacherAnnouncementsPage = () => {
                   : {}),
               }}
             >
-              Specific Grade / Section
+              {t("specific_grade_section")}
             </button>
           </div>
 
@@ -280,7 +280,7 @@ const TeacherAnnouncementsPage = () => {
                 }
                 style={styles.select}
               >
-                <option value="">Select Grade (optional)</option>
+                <option value="">{t("select_grade_optional")}</option>
                 {grades.map((g) => (
                   <option key={g}>{g}</option>
                 ))}
@@ -295,9 +295,11 @@ const TeacherAnnouncementsPage = () => {
                 }
                 style={styles.select}
               >
-                <option value="">Select Section (optional)</option>
+                <option value="">{t("select_section_optional")}</option>
                 {sections.map((s) => (
-                  <option key={s}>Section {s}</option>
+                  <option key={s}>
+                    {t("section")} {s}
+                  </option>
                 ))}
               </select>
             </div>
@@ -311,10 +313,10 @@ const TeacherAnnouncementsPage = () => {
               }}
               style={styles.cancelBtn}
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button onClick={handlePost} style={styles.submitBtn}>
-              Post Announcement
+              {t("post_announcement")}
             </button>
           </div>
         </motion.div>
@@ -323,10 +325,8 @@ const TeacherAnnouncementsPage = () => {
       <div style={styles.announcementsList}>
         {announcements.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No announcements yet.</p>
-            <p style={styles.emptySubtext}>
-              Click "New Announcement" to create one.
-            </p>
+            <p>{t("no_announcements")}</p>
+            <p style={styles.emptySubtext}>{t("click_new_announcement")}</p>
           </div>
         ) : (
           announcements.map((ann) => (
@@ -334,13 +334,15 @@ const TeacherAnnouncementsPage = () => {
               <div style={styles.announcementHeader}>
                 <div>
                   <h3>{ann.title}</h3>
-                  <span style={styles.postedBy}>Posted by: {ann.postedBy}</span>
+                  <span style={styles.postedBy}>
+                    {t("posted_by")} {ann.postedBy}
+                  </span>
                 </div>
                 {ann.postedById === user?.id && (
                   <button
                     onClick={() => handleDelete(ann.id)}
                     style={styles.deleteBtn}
-                    title="Delete"
+                    title={t("delete")}
                   >
                     <FiTrash2 size={16} />
                   </button>

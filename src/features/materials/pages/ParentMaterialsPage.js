@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { FiFile, FiDownload, FiEye } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { materialsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const ParentMaterialsPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ const ParentMaterialsPage = () => {
       setLoading(false);
     } catch (error) {
       console.error("Error fetching children:", error);
-      toast.error("Failed to load children data");
+      toast.error(t("failed_load_children_data"));
       setLoading(false);
     }
   };
@@ -66,7 +68,7 @@ const ParentMaterialsPage = () => {
       setMaterials(formattedMaterials);
     } catch (error) {
       console.error("Error fetching materials:", error);
-      toast.error("Failed to load materials");
+      toast.error(t("failed_load_materials"));
       setMaterials([]);
     } finally {
       setLoading(false);
@@ -75,17 +77,16 @@ const ParentMaterialsPage = () => {
 
   const handleDownload = async (material) => {
     try {
-      toast.loading(`Downloading ${material.title}...`, { id: "download" });
-
-      // TODO: Implement actual download when API endpoint is ready
-      // const response = await materialsAPI.downloadMaterial(material.id);
-
-      toast.success(`${material.title} downloaded successfully!`, {
+      toast.loading(t("downloading", { title: material.title }), {
+        id: "download",
+      });
+      // TODO: Implement actual download endpoint
+      toast.success(t("download_success", { title: material.title }), {
         id: "download",
       });
     } catch (error) {
       console.error("Error downloading material:", error);
-      toast.error("Failed to download material", { id: "download" });
+      toast.error(t("download_failed"), { id: "download" });
     }
   };
 
@@ -93,7 +94,7 @@ const ParentMaterialsPage = () => {
     if (material.fileUrl && material.fileUrl !== "#") {
       window.open(material.fileUrl, "_blank");
     } else {
-      toast.info("Preview not available. Please download the file to view it.");
+      toast.info(t("preview_not_available"));
     }
   };
 
@@ -101,7 +102,7 @@ const ParentMaterialsPage = () => {
     return (
       <div style={styles.loading}>
         <div className="loading-spinner"></div>
-        <p>Loading materials...</p>
+        <p>{t("loading_materials")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -123,14 +124,14 @@ const ParentMaterialsPage = () => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>📁 Learning Materials</h1>
-        <p style={styles.subtitle}>Access study materials for your children</p>
+        <h1 style={styles.title}>{t("learning_materials")}</h1>
+        <p style={styles.subtitle}>{t("access_child_materials")}</p>
       </div>
 
       {/* Child Selector */}
       {children.length > 1 && (
         <div style={styles.childSelector}>
-          <label style={styles.childLabel}>Select Child:</label>
+          <label style={styles.childLabel}>{t("select_child")}:</label>
           <select
             value={selectedChild?.id}
             onChange={(e) => {
@@ -143,7 +144,7 @@ const ParentMaterialsPage = () => {
           >
             {children.map((child) => (
               <option key={child.id} value={child.id}>
-                {child.name} - {child.grade} Section {child.section}
+                {child.name} - {child.grade} {t("section")} {child.section}
               </option>
             ))}
           </select>
@@ -153,8 +154,8 @@ const ParentMaterialsPage = () => {
       {selectedChild && (
         <div style={styles.childInfo}>
           <p>
-            Showing materials for: <strong>{selectedChild.name}</strong> (
-            {selectedChild.grade} - Section {selectedChild.section})
+            {t("showing_materials_for")} <strong>{selectedChild.name}</strong> (
+            {selectedChild.grade} - {t("section")} {selectedChild.section})
           </p>
         </div>
       )}
@@ -162,7 +163,7 @@ const ParentMaterialsPage = () => {
       <div style={styles.materialsList}>
         {materials.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No materials available for this class.</p>
+            <p>{t("no_materials_class")}</p>
           </div>
         ) : (
           materials.map((material) => (
@@ -173,7 +174,7 @@ const ParentMaterialsPage = () => {
               <div style={styles.materialInfo}>
                 <h3>{material.title}</h3>
                 <p>
-                  {material.subject} • {material.grade} - Section{" "}
+                  {material.subject} • {material.grade} - {t("section")}{" "}
                   {material.section}
                 </p>
                 {material.description && (
@@ -182,14 +183,14 @@ const ParentMaterialsPage = () => {
                   </p>
                 )}
                 <p style={styles.materialMeta}>
-                  Uploaded by: {material.uploadedBy} • {material.date}
+                  {t("uploaded_by")} {material.uploadedBy} • {material.date}
                 </p>
               </div>
               <div style={styles.buttonGroup}>
                 <button
                   onClick={() => handleView(material)}
                   style={styles.viewBtn}
-                  title="Preview"
+                  title={t("preview")}
                 >
                   <FiEye size={16} />
                 </button>
@@ -197,7 +198,7 @@ const ParentMaterialsPage = () => {
                   onClick={() => handleDownload(material)}
                   style={styles.downloadBtn}
                 >
-                  <FiDownload size={16} /> Download
+                  <FiDownload size={16} /> {t("download")}
                 </button>
               </div>
             </div>

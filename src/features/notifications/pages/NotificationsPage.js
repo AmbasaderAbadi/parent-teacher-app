@@ -11,9 +11,11 @@ import {
   FiCheck,
 } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
+import { useTranslation } from "react-i18next";
 import { useNotifications } from "../../../contexts/NotificationContext";
 
 const NotificationsPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     notifications,
@@ -85,7 +87,7 @@ const NotificationsPage = () => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch {
-      return "recently";
+      return t("recently");
     }
   };
 
@@ -93,7 +95,7 @@ const NotificationsPage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
-        <p>Loading notifications...</p>
+        <p>{t("loading_notifications")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -116,16 +118,16 @@ const NotificationsPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Notifications</h1>
-          <p style={styles.subtitle}>Stay updated with important updates</p>
+          <h1 style={styles.title}>{t("notifications")}</h1>
+          <p style={styles.subtitle}>{t("notifications_subtitle")}</p>
         </div>
         {notifications.length > 0 && (
           <div style={styles.headerActions}>
             <button onClick={markAllAsRead} style={styles.markAllBtn}>
-              <FiCheck size={16} /> Mark all as read
+              <FiCheck size={16} /> {t("mark_all_read")}
             </button>
             <button onClick={deleteAllNotifications} style={styles.clearAllBtn}>
-              <FiTrash2 size={16} /> Clear all
+              <FiTrash2 size={16} /> {t("clear_all")}
             </button>
           </div>
         )}
@@ -139,7 +141,7 @@ const NotificationsPage = () => {
             ...(selectedFilter === "all" ? styles.filterBtnActive : {}),
           }}
         >
-          All ({notifications.length})
+          {t("all_notifications")} ({notifications.length})
         </button>
         <button
           onClick={() => setSelectedFilter("unread")}
@@ -148,7 +150,7 @@ const NotificationsPage = () => {
             ...(selectedFilter === "unread" ? styles.filterBtnActive : {}),
           }}
         >
-          Unread ({unreadCount})
+          {t("unread")} ({unreadCount})
         </button>
         <button
           onClick={() => setSelectedFilter("read")}
@@ -157,15 +159,15 @@ const NotificationsPage = () => {
             ...(selectedFilter === "read" ? styles.filterBtnActive : {}),
           }}
         >
-          Read ({notifications.length - unreadCount})
+          {t("read")} ({notifications.length - unreadCount})
         </button>
       </div>
 
       {filteredNotifications.length === 0 ? (
         <div style={styles.empty}>
           <FiBell size={64} style={styles.emptyIcon} />
-          <p>No notifications</p>
-          <p style={styles.emptySubtext}>You're all caught up!</p>
+          <p>{t("no_notifications")}</p>
+          <p style={styles.emptySubtext}>{t("all_caught_up")}</p>
         </div>
       ) : (
         <div style={styles.list}>
@@ -196,7 +198,7 @@ const NotificationsPage = () => {
                       {formatTime(notification.createdAt)}
                     </span>
                     {!notification.read && (
-                      <span style={styles.unreadBadge}>New</span>
+                      <span style={styles.unreadBadge}>{t("new_badge")}</span>
                     )}
                   </div>
                 </div>
@@ -208,7 +210,7 @@ const NotificationsPage = () => {
                         markAsRead(notifId);
                       }}
                       style={styles.readBtn}
-                      title="Mark as read"
+                      title={t("mark_as_read")}
                     >
                       <FiCheck size={16} />
                     </button>
@@ -219,7 +221,7 @@ const NotificationsPage = () => {
                       deleteNotification(notifId);
                     }}
                     style={styles.deleteBtn}
-                    title="Delete"
+                    title={t("delete")}
                   >
                     <FiTrash2 size={16} />
                   </button>

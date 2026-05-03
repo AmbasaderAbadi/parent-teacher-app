@@ -8,10 +8,12 @@ import {
   FiAlertCircle,
   FiCheckCircle,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { authAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 export const ChangePasswordPage = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -19,7 +21,7 @@ export const ChangePasswordPage = () => {
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: "", // UI field – will map to confirmNewPassword for backend
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
 
@@ -36,16 +38,15 @@ export const ChangePasswordPage = () => {
     const newPwd = formData.newPassword.trim();
     const confirm = formData.confirmPassword.trim();
 
-    if (!current) newErrors.currentPassword = "Current password is required";
-    if (!newPwd) newErrors.newPassword = "New password is required";
+    if (!current) newErrors.currentPassword = t("current_password_required");
+    if (!newPwd) newErrors.newPassword = t("new_password_required");
     else if (newPwd.length < 6)
-      newErrors.newPassword = "Password must be at least 6 characters";
-    if (!confirm) newErrors.confirmPassword = "Please confirm your password";
+      newErrors.newPassword = t("password_min_length");
+    if (!confirm) newErrors.confirmPassword = t("confirm_password_required");
     else if (newPwd !== confirm)
-      newErrors.confirmPassword = "Passwords do not match";
+      newErrors.confirmPassword = t("password_mismatch");
     if (current && newPwd && current === newPwd) {
-      newErrors.newPassword =
-        "New password must be different from current password";
+      newErrors.newPassword = t("password_must_differ");
     }
 
     setErrors(newErrors);
@@ -58,20 +59,18 @@ export const ChangePasswordPage = () => {
 
     const currentPassword = formData.currentPassword.trim();
     const newPassword = formData.newPassword.trim();
-    const confirmNewPassword = formData.confirmPassword.trim(); // map UI confirm to backend confirmNewPassword
+    const confirmNewPassword = formData.confirmPassword.trim();
 
     const payload = {
       currentPassword,
       newPassword,
-      confirmNewPassword, // ✅ exact field name expected by backend
+      confirmNewPassword,
     };
-
-    console.log("📤 Sending payload:", payload);
 
     setLoading(true);
     try {
       await authAPI.changePassword(payload);
-      toast.success("Password changed successfully!");
+      toast.success(t("password_changed_success"));
       setFormData({
         currentPassword: "",
         newPassword: "",
@@ -82,7 +81,7 @@ export const ChangePasswordPage = () => {
       const message =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        "Failed to change password";
+        t("password_change_failed");
       toast.error(message);
     } finally {
       setLoading(false);
@@ -95,10 +94,10 @@ export const ChangePasswordPage = () => {
     if (/[A-Z]/.test(password)) strength++;
     if (/[0-9]/.test(password)) strength++;
     if (/[^A-Za-z0-9]/.test(password)) strength++;
-    const levels = ["Weak", "Fair", "Good", "Strong"];
+    const levels = [t("weak"), t("fair"), t("good"), t("strong")];
     const colors = ["#ef4444", "#f59e0b", "#3b82f6", "#10b981"];
     return {
-      text: levels[strength - 1] || "Very Weak",
+      text: levels[strength - 1] || t("very_weak"),
       color: colors[strength - 1] || "#ef4444",
       strength,
     };
@@ -112,10 +111,8 @@ export const ChangePasswordPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Change Password</h1>
-          <p style={styles.subtitle}>
-            Update your password to keep your account secure
-          </p>
+          <h1 style={styles.title}>{t("change_password")}</h1>
+          <p style={styles.subtitle}>{t("change_password_desc")}</p>
         </div>
       </div>
 
@@ -128,7 +125,7 @@ export const ChangePasswordPage = () => {
           {/* Current Password */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              <FiLock size={14} /> Current Password
+              <FiLock size={14} /> {t("current_password")}
             </label>
             <div style={styles.inputWrapper}>
               <input
@@ -136,7 +133,7 @@ export const ChangePasswordPage = () => {
                 name="currentPassword"
                 value={formData.currentPassword}
                 onChange={handleChange}
-                placeholder="Enter your current password"
+                placeholder={t("current_password_placeholder")}
                 autoComplete="current-password"
                 style={{
                   ...styles.input,
@@ -165,7 +162,7 @@ export const ChangePasswordPage = () => {
           {/* New Password */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              <FiLock size={14} /> New Password
+              <FiLock size={14} /> {t("new_password")}
             </label>
             <div style={styles.inputWrapper}>
               <input
@@ -173,7 +170,7 @@ export const ChangePasswordPage = () => {
                 name="newPassword"
                 value={formData.newPassword}
                 onChange={handleChange}
-                placeholder="Enter new password (min. 6 characters)"
+                placeholder={t("new_password_placeholder")}
                 autoComplete="new-password"
                 style={{
                   ...styles.input,
@@ -210,7 +207,7 @@ export const ChangePasswordPage = () => {
                     color: passwordStrength.color,
                   }}
                 >
-                  Password Strength: {passwordStrength.text}
+                  {t("password_strength")}: {passwordStrength.text}
                 </p>
               </div>
             )}
@@ -219,7 +216,7 @@ export const ChangePasswordPage = () => {
           {/* Confirm Password */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              <FiLock size={14} /> Confirm New Password
+              <FiLock size={14} /> {t("confirm_new_password")}
             </label>
             <div style={styles.inputWrapper}>
               <input
@@ -227,7 +224,7 @@ export const ChangePasswordPage = () => {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Confirm your new password"
+                placeholder={t("confirm_password_placeholder")}
                 autoComplete="off"
                 style={{
                   ...styles.input,
@@ -256,21 +253,23 @@ export const ChangePasswordPage = () => {
               formData.newPassword.trim() ===
                 formData.confirmPassword.trim() && (
                 <p style={styles.successText}>
-                  <FiCheckCircle size={12} /> Passwords match
+                  <FiCheckCircle size={12} /> {t("passwords_match")}
                 </p>
               )}
           </div>
 
           {/* Password Requirements */}
           <div style={styles.requirements}>
-            <p style={styles.requirementsTitle}>Password Requirements:</p>
+            <p style={styles.requirementsTitle}>
+              {t("password_requirements")}:
+            </p>
             <ul style={styles.requirementsList}>
               <li
                 style={
                   formData.newPassword.length >= 6 ? styles.requirementMet : {}
                 }
               >
-                ✓ At least 6 characters
+                ✓ {t("req_min_chars")}
               </li>
               <li
                 style={
@@ -279,7 +278,7 @@ export const ChangePasswordPage = () => {
                     : {}
                 }
               >
-                ✓ At least one uppercase letter
+                ✓ {t("req_uppercase")}
               </li>
               <li
                 style={
@@ -288,7 +287,7 @@ export const ChangePasswordPage = () => {
                     : {}
                 }
               >
-                ✓ At least one number
+                ✓ {t("req_number")}
               </li>
               <li
                 style={
@@ -297,7 +296,7 @@ export const ChangePasswordPage = () => {
                     : {}
                 }
               >
-                ✓ At least one special character
+                ✓ {t("req_special")}
               </li>
             </ul>
           </div>
@@ -315,7 +314,7 @@ export const ChangePasswordPage = () => {
                 <span className="loading-spinner-small"></span>
               ) : (
                 <>
-                  <FiSave size={16} /> Change Password
+                  <FiSave size={16} /> {t("change_password")}
                 </>
               )}
             </button>

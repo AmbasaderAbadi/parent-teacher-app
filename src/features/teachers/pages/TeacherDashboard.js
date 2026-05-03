@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import "../../../assets/styles/dashboard.css";
 import QuizGenerator from "../components/QuizGenerator";
 import {
@@ -23,6 +24,7 @@ import {
 } from "../../../services/api";
 
 const TeacherDashboard = () => {
+  const { t } = useTranslation();
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [gradeData, setGradeData] = useState({
@@ -71,7 +73,6 @@ const TeacherDashboard = () => {
         setTeacherUser(userData);
       }
 
-      // Fetch students with parent info using messaging endpoint
       const response = await messagingAPI.getTeacherStudents();
       const studentsData =
         response.data?.data?.students ||
@@ -80,10 +81,8 @@ const TeacherDashboard = () => {
         [];
       const studentsList = Array.isArray(studentsData) ? studentsData : [];
 
-      // Map to the format expected by the component
       const formattedStudents = await Promise.all(
         studentsList.map(async (item) => {
-          // Fetch average grade for this student
           const avg = await fetchStudentAverage(item.studentId);
           return {
             id: item.studentId,
@@ -96,7 +95,7 @@ const TeacherDashboard = () => {
             averageGrade: avg,
             parentName: item.parent?.parentName || "Parent",
             parentId: item.parent?.parentId,
-            studentId: item.studentId, // ensure this is set
+            studentId: item.studentId,
             lastMessage: item.lastMessage,
             unreadCount: item.unreadCount,
             conversationId: item.conversationId,
@@ -108,7 +107,7 @@ const TeacherDashboard = () => {
       await fetchTodayAttendance(formattedStudents);
     } catch (error) {
       console.error("Error fetching teacher data:", error);
-      toast.error("Failed to load data");
+      toast.error(t("failed_load_data"));
       setStudents([]);
     } finally {
       setLoading(false);
@@ -144,7 +143,7 @@ const TeacherDashboard = () => {
 
   const handleAddGrade = async () => {
     if (!selectedStudent || !gradeData.subject || !gradeData.score) {
-      toast.error("Please fill all required fields");
+      toast.error(t("required_field"));
       return;
     }
 
@@ -164,9 +163,7 @@ const TeacherDashboard = () => {
       };
 
       await gradesAPI.createGrade(payload);
-      toast.success(
-        `Grade added for ${selectedStudent.name}: ${gradeData.subject} - ${gradeData.score}%`,
-      );
+      toast.success(t("grade_added_success"));
       await updateStudentAverage(selectedStudent.id);
       setSelectedStudent(null);
       setGradeData({
@@ -184,7 +181,7 @@ const TeacherDashboard = () => {
       });
     } catch (error) {
       console.error("Error adding grade:", error);
-      toast.error(error.response?.data?.message || "Failed to add grade");
+      toast.error(error.response?.data?.message || t("grade_update_failed"));
     }
   };
 
@@ -231,6 +228,7 @@ const TeacherDashboard = () => {
       console.error("Error fetching attendance:", error);
     }
   };
+
   const openAttendanceModal = (student) => {
     setSelectedStudentForAttendance({
       ...student,
@@ -253,14 +251,14 @@ const TeacherDashboard = () => {
       };
       await attendanceAPI.markAttendance(payload);
       await fetchTodayAttendance([selectedStudentForAttendance]);
-      toast.success(
-        `Attendance marked as ${attendanceStatus.toUpperCase()} for ${selectedStudentForAttendance.name}`,
-      );
+      toast.success(t("attendance_marked_success"));
       setShowAttendanceModal(false);
       setSelectedStudentForAttendance(null);
     } catch (error) {
       console.error("Error marking attendance:", error);
-      toast.error(error.response?.data?.message || "Failed to mark attendance");
+      toast.error(
+        error.response?.data?.message || t("attendance_marked_failed"),
+      );
     }
   };
 
@@ -277,7 +275,7 @@ const TeacherDashboard = () => {
   ) => {
     if (!studentId) {
       console.error("studentId is missing in handleChatWithParent");
-      toast.error("Cannot start chat: missing student ID.");
+      toast.error(t("something_wrong"));
       return;
     }
     const chatData = {
@@ -288,7 +286,7 @@ const TeacherDashboard = () => {
       subject: `Parent of ${studentName}`,
     };
     localStorage.setItem("directChat", JSON.stringify(chatData));
-    navigate("/messages"); // ✅ changed from window.location.href
+    navigate("/messages");
   };
 
   const calculateAverageClassGrade = () => {
@@ -309,26 +307,26 @@ const TeacherDashboard = () => {
   const stats = [
     {
       icon: <FiUsers size={isMobile ? 20 : 24} />,
-      label: "Total Students",
+      label: t("total_students"),
       value: students.length,
       color: "#3b82f6",
       link: "/students",
     },
     {
       icon: <FiBookOpen size={isMobile ? 20 : 24} />,
-      label: "Average Class Grade",
+      label: t("average_class_grade"),
       value: calculateAverageClassGrade(),
       color: "#10b981",
     },
     {
       icon: <FiCalendar size={isMobile ? 20 : 24} />,
-      label: "Today's Attendance",
+      label: t("todays_attendance"),
       value: calculateTodayAttendanceRate(),
       color: "#8b5cf6",
     },
     {
       icon: <FiMessageSquare size={isMobile ? 20 : 24} />,
-      label: "Pending Messages",
+      label: t("pending_messages"),
       value: "0",
       color: "#f59e0b",
       link: "/messages",
@@ -339,7 +337,7 @@ const TeacherDashboard = () => {
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
+        <p>{t("loading_dashboard")}</p>
       </div>
     );
   }
@@ -348,20 +346,22 @@ const TeacherDashboard = () => {
     <div className="dashboard-container">
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">Teacher Dashboard</h1>
+          <h1 className="dashboard-title">{t("teacher_dashboard")}</h1>
           <p className="dashboard-subtitle">
-            Welcome back,{" "}
+            {t("welcome_back")}{" "}
             {teacherUser?.firstName || teacherUser?.name || "Teacher"}! 👨‍🏫
           </p>
         </div>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <div className="date-display">
             <FiCalendar size={isMobile ? 14 : 16} />
-            <span>Today: {todayDate}</span>
+            <span>
+              {t("today")}: {todayDate}
+            </span>
           </div>
           <Link to="/teacher/profile">
             <button className="profile-btn">
-              <FiUser size={16} /> My Profile
+              <FiUser size={16} /> {t("my_profile")}
             </button>
           </Link>
         </div>
@@ -395,22 +395,22 @@ const TeacherDashboard = () => {
       </div>
 
       <div className="dashboard-section">
-        <h2 className="section-title">📋 My Students</h2>
+        <h2 className="section-title">{t("my_students")}</h2>
         {students.length === 0 ? (
           <div className="empty-state">
-            <p>No students assigned yet.</p>
+            <p>{t("no_students_assigned")}</p>
           </div>
         ) : (
           <div className="students-table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Student Name</th>
-                  <th>Grade/Class</th>
-                  <th>Parent</th>
-                  <th>Attendance</th>
-                  <th>Avg Grade</th>
-                  <th>Actions</th>
+                  <th>{t("student_name")}</th>
+                  <th>{t("grade_class")}</th>
+                  <th>{t("parent")}</th>
+                  <th>{t("attendance")}</th>
+                  <th>{t("avg_grade")}</th>
+                  <th>{t("actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -436,24 +436,24 @@ const TeacherDashboard = () => {
                                 student.parentName,
                                 student.parentId,
                                 student.name,
-                                student.studentId, // ✅ pass studentId
+                                student.studentId,
                               )
                             }
                             className="chat-parent-btn"
                           >
-                            <FiMessageSquare size={14} /> Message
+                            <FiMessageSquare size={14} /> {t("message")}
                           </button>
                         </div>
                       </td>
                       <td>
                         <span className="badge badge-attendance">
-                          Overall: {student.attendance}%
+                          {t("overall")}: {student.attendance}%
                         </span>
                         {todayStatus && (
                           <span
                             className={`badge badge-today status-${todayStatus}`}
                           >
-                            Today: {todayStatus.toUpperCase()}
+                            {t("today")}: {todayStatus.toUpperCase()}
                           </span>
                         )}
                       </td>
@@ -467,14 +467,14 @@ const TeacherDashboard = () => {
                           <button
                             onClick={() => handleSelectStudent(student)}
                             className="action-btn"
-                            title="Add Grade"
+                            title={t("add_grade")}
                           >
                             <FiPlus size={16} />
                           </button>
                           <button
                             onClick={() => openAttendanceModal(student)}
                             className="action-btn"
-                            title="Mark Attendance"
+                            title={t("mark_attendance")}
                           >
                             <FiCalendar size={16} />
                           </button>
@@ -489,12 +489,14 @@ const TeacherDashboard = () => {
         )}
       </div>
 
-      {/* Attendance Modal (unchanged) */}
+      {/* Attendance Modal */}
       {showAttendanceModal && selectedStudentForAttendance && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h3>Mark Attendance for {selectedStudentForAttendance.name}</h3>
+              <h3>
+                {t("mark_attendance")} {selectedStudentForAttendance.name}
+              </h3>
               <button
                 onClick={() => setShowAttendanceModal(false)}
                 className="modal-close"
@@ -534,7 +536,7 @@ const TeacherDashboard = () => {
                 ))}
               </div>
               <textarea
-                placeholder="Remarks (optional)"
+                placeholder={t("remarks_optional")}
                 rows="3"
                 value={attendanceRemarks}
                 onChange={(e) => setAttendanceRemarks(e.target.value)}
@@ -546,22 +548,24 @@ const TeacherDashboard = () => {
                 onClick={() => setShowAttendanceModal(false)}
                 className="btn-secondary"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button onClick={handleMarkAttendance} className="btn-primary">
-                Save Attendance
+                {t("save_attendance")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Grade Modal (unchanged) */}
+      {/* Grade Modal */}
       {selectedStudent && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h3>Add Grade for {selectedStudent.name}</h3>
+              <h3>
+                {t("add_grade")} {selectedStudent.name}
+              </h3>
               <button
                 onClick={() => setSelectedStudent(null)}
                 className="modal-close"
@@ -572,7 +576,7 @@ const TeacherDashboard = () => {
             <div className="modal-body">
               <input
                 type="text"
-                placeholder="Subject *"
+                placeholder={t("subject")}
                 value={gradeData.subject}
                 onChange={(e) =>
                   setGradeData({ ...gradeData, subject: e.target.value })
@@ -589,7 +593,7 @@ const TeacherDashboard = () => {
               >
                 <input
                   type="number"
-                  placeholder="Score (%) *"
+                  placeholder={t("score_percent")}
                   value={gradeData.score}
                   onChange={(e) =>
                     setGradeData({ ...gradeData, score: e.target.value })
@@ -598,7 +602,7 @@ const TeacherDashboard = () => {
                 />
                 <input
                   type="number"
-                  placeholder="Max Score"
+                  placeholder={t("max_score")}
                   value={gradeData.maxScore}
                   onChange={(e) =>
                     setGradeData({
@@ -611,7 +615,7 @@ const TeacherDashboard = () => {
               </div>
               <input
                 type="text"
-                placeholder="Assessment Name (e.g., Midterm Exam)"
+                placeholder={t("assessment_name")}
                 value={gradeData.assessmentName}
                 onChange={(e) =>
                   setGradeData({ ...gradeData, assessmentName: e.target.value })
@@ -635,11 +639,11 @@ const TeacherDashboard = () => {
                   }
                   className="select-field"
                 >
-                  <option value="midterm">Midterm</option>
-                  <option value="final">Final</option>
-                  <option value="quiz">Quiz</option>
-                  <option value="assignment">Assignment</option>
-                  <option value="other">Other</option>
+                  <option value="midterm">{t("midterm")}</option>
+                  <option value="final">{t("final")}</option>
+                  <option value="quiz">{t("quiz")}</option>
+                  <option value="assignment">{t("assignment")}</option>
+                  <option value="other">{t("other")}</option>
                 </select>
                 <select
                   value={gradeData.term}
@@ -662,7 +666,7 @@ const TeacherDashboard = () => {
               >
                 <input
                   type="text"
-                  placeholder="Academic Year"
+                  placeholder={t("academic_year")}
                   value={gradeData.academicYear}
                   onChange={(e) =>
                     setGradeData({ ...gradeData, academicYear: e.target.value })
@@ -671,7 +675,7 @@ const TeacherDashboard = () => {
                 />
                 <input
                   type="date"
-                  placeholder="Assessment Date"
+                  placeholder={t("assessment_date")}
                   value={gradeData.assessmentDate}
                   onChange={(e) =>
                     setGradeData({
@@ -683,7 +687,7 @@ const TeacherDashboard = () => {
                 />
               </div>
               <textarea
-                placeholder="Remarks (optional)"
+                placeholder={t("remarks_optional")}
                 rows="2"
                 value={gradeData.remarks}
                 onChange={(e) =>
@@ -692,7 +696,7 @@ const TeacherDashboard = () => {
                 className="textarea-field"
               />
               <textarea
-                placeholder="Feedback (optional)"
+                placeholder={t("feedback_optional")}
                 rows="2"
                 value={gradeData.feedback}
                 onChange={(e) =>
@@ -706,10 +710,10 @@ const TeacherDashboard = () => {
                 onClick={() => setSelectedStudent(null)}
                 className="btn-secondary"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button onClick={handleAddGrade} className="btn-primary">
-                Add Grade
+                {t("save_grade")}
               </button>
             </div>
           </div>

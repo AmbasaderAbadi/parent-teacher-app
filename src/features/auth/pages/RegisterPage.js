@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { authAPI } from "../../../services/api";
 import "../../../assets/styles/auth-pages.css";
 import {
@@ -27,6 +28,7 @@ import {
 import toast from "react-hot-toast";
 
 const RegisterPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("parent");
@@ -61,7 +63,12 @@ const RegisterPage = () => {
   // Dynamic arrays for teacher grades and sections
   const [newGrade, setNewGrade] = useState("");
   const [newSection, setNewSection] = useState("");
-  const availableGrades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const availableGrades = [
+    t("grade_9"),
+    t("grade_10"),
+    t("grade_11"),
+    t("grade_12"),
+  ];
   const availableSections = ["A", "B", "C", "D"];
 
   useEffect(() => {
@@ -124,42 +131,40 @@ const RegisterPage = () => {
       !formData.phone ||
       !formData.password
     ) {
-      toast.error(
-        "Please fill in all required fields (First Name, Last Name, Phone Number, Password)",
-      );
+      toast.error(t("required_fields_register"));
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("password_mismatch"));
       return;
     }
     if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t("password_min_length"));
       return;
     }
 
     // Role-specific validation
     if (selectedRole === "teacher" && !formData.primarySubject) {
-      toast.error("Please fill in primary subject");
+      toast.error(t("primary_subject_required"));
       return;
     }
     if (selectedRole === "teacher" && formData.grades.length === 0) {
-      toast.error("Please add at least one grade");
+      toast.error(t("at_least_one_grade"));
       return;
     }
     if (selectedRole === "teacher" && formData.sections.length === 0) {
-      toast.error("Please add at least one section");
+      toast.error(t("at_least_one_section"));
       return;
     }
     if (
       selectedRole === "student" &&
       (!formData.grade || !formData.className || !formData.parentPhone)
     ) {
-      toast.error("Please fill in grade, class, and parent's phone number");
+      toast.error(t("student_fields_required"));
       return;
     }
     if (selectedRole === "parent" && !formData.childrenCount) {
-      toast.error("Please enter number of children");
+      toast.error(t("children_count_required"));
       return;
     }
 
@@ -217,9 +222,7 @@ const RegisterPage = () => {
         response = await authAPI.registerParent(parentData);
       }
 
-      toast.success(
-        response.data?.message || "Account created successfully! Please login.",
-      );
+      toast.success(response.data?.message || t("registration_success"));
       setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
       console.error("Registration error:", error);
@@ -228,7 +231,7 @@ const RegisterPage = () => {
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        "Registration failed. Please try again.";
+        t("registration_failed");
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -242,15 +245,15 @@ const RegisterPage = () => {
   };
 
   const roleTitles = {
-    teacher: "Join as Teacher",
-    parent: "Join as Parent",
-    student: "Join as Student",
+    teacher: t("join_as_teacher"),
+    parent: t("join_as_parent"),
+    student: t("join_as_student"),
   };
 
   const roleDescriptions = {
-    teacher: "Manage classes, grade students, and communicate with parents",
-    parent: "Monitor your child's progress and stay connected with teachers",
-    student: "Track your grades, attendance, and learning materials",
+    teacher: t("teacher_description"),
+    parent: t("parent_description"),
+    student: t("student_description"),
   };
 
   return (
@@ -260,7 +263,11 @@ const RegisterPage = () => {
         <div className="bg-circle bg-circle-2"></div>
         <div className="bg-circle bg-circle-3"></div>
       </div>
-      <button onClick={handleClose} className="close-button" aria-label="Close">
+      <button
+        onClick={handleClose}
+        className="close-button"
+        aria-label={t("close")}
+      >
         <FiX size={24} />
       </button>
 
@@ -273,28 +280,28 @@ const RegisterPage = () => {
         >
           <div className="logo">
             <span className="logo-icon">PT</span>
-            <span className="logo-text">ParentTeacher Portal</span>
+            <span className="logo-text">{t("app_name")}</span>
           </div>
           <h2 className="info-title">{roleTitles[selectedRole]}</h2>
           <p className="info-desc">{roleDescriptions[selectedRole]}</p>
           <div className="info-features">
             <div className="info-feature">
               <FiCheckCircle className="info-icon" />
-              <span>Real-time communication</span>
+              <span>{t("feature_realtime")}</span>
             </div>
             <div className="info-feature">
               <FiCheckCircle className="info-icon" />
-              <span>Track student progress</span>
+              <span>{t("feature_progress")}</span>
             </div>
             <div className="info-feature">
               <FiCheckCircle className="info-icon" />
-              <span>Get instant notifications</span>
+              <span>{t("feature_notifications")}</span>
             </div>
           </div>
           <div className="already-account">
-            <p>Already have an account?</p>
+            <p>{t("already_have_account")}</p>
             <Link to="/login">
-              <button className="sign-in-btn">Sign In →</button>
+              <button className="sign-in-btn">{t("sign_in")} →</button>
             </Link>
           </div>
         </motion.div>
@@ -306,8 +313,8 @@ const RegisterPage = () => {
           className="form-panel"
         >
           <div className="form-header">
-            <h2 className="form-title">Create Account</h2>
-            <p className="form-subtitle">Fill in your details to get started</p>
+            <h2 className="form-title">{t("create_account")}</h2>
+            <p className="form-subtitle">{t("fill_details")}</p>
           </div>
 
           <div className="role-container">
@@ -320,7 +327,13 @@ const RegisterPage = () => {
                 onClick={() => handleRoleChange(role)}
               >
                 <span className="role-icon">{roleIcons[role]}</span>
-                <span>{role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                <span>
+                  {role === "parent"
+                    ? t("parent")
+                    : role === "teacher"
+                      ? t("teacher")
+                      : t("student")}
+                </span>
               </motion.button>
             ))}
           </div>
@@ -328,51 +341,51 @@ const RegisterPage = () => {
           <form onSubmit={handleSubmit} className="form">
             <div className="form-row">
               <Input
-                label="First Name"
+                label={t("first_name")}
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
-                placeholder="First name"
+                placeholder={t("first_name_placeholder")}
                 icon={<FiUser />}
                 required
               />
               <Input
-                label="Last Name"
+                label={t("last_name")}
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
-                placeholder="Last name"
+                placeholder={t("last_name_placeholder")}
                 icon={<FiUserCheck />}
                 required
               />
             </div>
             <div className="form-row">
               <Input
-                label="Email Address (Optional)"
+                label={t("email_optional")}
                 name="email"
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="your@email.com"
+                placeholder={t("email_placeholder")}
                 icon={<FiMail />}
               />
               <Input
-                label="Phone Number"
+                label={t("phone_number")}
                 name="phone"
                 type="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="Phone number"
+                placeholder={t("phone_placeholder")}
                 icon={<FiPhone />}
                 required
               />
             </div>
             <Input
-              label="Address"
+              label={t("address")}
               name="address"
               value={formData.address}
               onChange={handleChange}
-              placeholder="Your address"
+              placeholder={t("address_placeholder")}
               icon={<FiMapPin />}
             />
 
@@ -384,53 +397,52 @@ const RegisterPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="section-title">Teacher Information</div>
+                  <div className="section-title">{t("teacher_info")}</div>
                   <Input
-                    label="Primary Subject"
+                    label={t("primary_subject")}
                     name="primarySubject"
                     value={formData.primarySubject}
                     onChange={handleChange}
-                    placeholder="e.g., Mathematics"
+                    placeholder={t("primary_subject_placeholder")}
                     icon={<FiBookOpen />}
                     required
                   />
                   <div className="form-row">
                     <Input
-                      label="Qualification"
+                      label={t("qualification")}
                       name="qualification"
                       value={formData.qualification}
                       onChange={handleChange}
-                      placeholder="e.g., Master's Degree"
+                      placeholder={t("qualification_placeholder")}
                       icon={<FiBookOpen />}
                     />
                     <Input
-                      label="Years of Experience"
+                      label={t("years_experience")}
                       name="yearsOfExperience"
                       type="number"
                       value={formData.yearsOfExperience}
                       onChange={handleChange}
-                      placeholder="Years"
+                      placeholder={t("years_placeholder")}
                       icon={<FiBriefcase />}
                     />
                   </div>
                   <Input
-                    label="Department"
+                    label={t("department")}
                     name="department"
                     value={formData.department}
                     onChange={handleChange}
-                    placeholder="e.g., Science Department"
+                    placeholder={t("department_placeholder")}
                     icon={<FaSchool />}
                   />
 
-                  {/* Grades Selection */}
-                  <div className="section-title">Grades Taught</div>
+                  <div className="section-title">{t("grades_taught")}</div>
                   <div style={styles.arrayInputContainer}>
                     <select
                       value={newGrade}
                       onChange={(e) => setNewGrade(e.target.value)}
                       style={styles.select}
                     >
-                      <option value="">Select Grade</option>
+                      <option value="">{t("select_grade")}</option>
                       {availableGrades.map((grade) => (
                         <option key={grade} value={grade}>
                           {grade}
@@ -442,7 +454,7 @@ const RegisterPage = () => {
                       onClick={addGrade}
                       style={styles.addBtn}
                     >
-                      <FiPlus size={16} /> Add
+                      <FiPlus size={16} /> {t("add")}
                     </button>
                   </div>
                   <div style={styles.chipContainer}>
@@ -460,18 +472,17 @@ const RegisterPage = () => {
                     ))}
                   </div>
 
-                  {/* Sections Selection */}
-                  <div className="section-title">Sections Taught</div>
+                  <div className="section-title">{t("sections_taught")}</div>
                   <div style={styles.arrayInputContainer}>
                     <select
                       value={newSection}
                       onChange={(e) => setNewSection(e.target.value)}
                       style={styles.select}
                     >
-                      <option value="">Select Section</option>
+                      <option value="">{t("select_section")}</option>
                       {availableSections.map((section) => (
                         <option key={section} value={section}>
-                          Section {section}
+                          {t("section")} {section}
                         </option>
                       ))}
                     </select>
@@ -480,13 +491,15 @@ const RegisterPage = () => {
                       onClick={addSection}
                       style={styles.addBtn}
                     >
-                      <FiPlus size={16} /> Add
+                      <FiPlus size={16} /> {t("add")}
                     </button>
                   </div>
                   <div style={styles.chipContainer}>
                     {formData.sections.map((section) => (
                       <div key={section} style={styles.chip}>
-                        <span>Section {section}</span>
+                        <span>
+                          {t("section")} {section}
+                        </span>
                         <button
                           type="button"
                           onClick={() => removeSection(section)}
@@ -507,10 +520,10 @@ const RegisterPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="section-title">Student Information</div>
+                  <div className="section-title">{t("student_info")}</div>
                   <div className="form-row">
                     <Input
-                      label="Date of Birth"
+                      label={t("date_of_birth")}
                       name="dateOfBirth"
                       type="date"
                       value={formData.dateOfBirth}
@@ -520,31 +533,31 @@ const RegisterPage = () => {
                   </div>
                   <div className="form-row">
                     <Input
-                      label="Grade/Year"
+                      label={t("grade")}
                       name="grade"
                       value={formData.grade}
                       onChange={handleChange}
-                      placeholder="e.g., 10th Grade"
+                      placeholder={t("grade_placeholder")}
                       icon={<FiBookOpen />}
                       required
                     />
                     <Input
-                      label="Class/Section"
+                      label={t("class_section")}
                       name="className"
                       value={formData.className}
                       onChange={handleChange}
-                      placeholder="e.g., Section A"
+                      placeholder={t("class_placeholder")}
                       icon={<FaSchool />}
                       required
                     />
                   </div>
                   <Input
-                    label="Parent's Phone Number"
+                    label={t("parent_phone_number")}
                     name="parentPhone"
                     type="tel"
                     value={formData.parentPhone}
                     onChange={handleChange}
-                    placeholder="Parent's phone number"
+                    placeholder={t("parent_phone_placeholder")}
                     icon={<FiPhone />}
                     required
                   />
@@ -558,31 +571,31 @@ const RegisterPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="section-title">Parent Information</div>
+                  <div className="section-title">{t("parent_info")}</div>
                   <div className="form-row">
                     <Input
-                      label="Number of Children"
+                      label={t("children_count")}
                       name="childrenCount"
                       type="number"
                       value={formData.childrenCount}
                       onChange={handleChange}
-                      placeholder="Number of children"
+                      placeholder={t("children_placeholder")}
                       icon={<FaUsers />}
                       required
                       min="1"
                     />
                     <Input
-                      label="Occupation"
+                      label={t("occupation")}
                       name="occupation"
                       value={formData.occupation}
                       onChange={handleChange}
-                      placeholder="Your occupation"
+                      placeholder={t("occupation_placeholder")}
                       icon={<FiBriefcase />}
                     />
                   </div>
                   <div className="input-wrapper">
                     <label className="input-label">
-                      Relationship to Student{" "}
+                      {t("relationship_to_student")}{" "}
                       <span className="required">*</span>
                     </label>
                     <select
@@ -592,35 +605,35 @@ const RegisterPage = () => {
                       className="select-field"
                       required
                     >
-                      <option value="Parent">Parent</option>
-                      <option value="Guardian">Guardian</option>
-                      <option value="Grandparent">Grandparent</option>
-                      <option value="Other">Other</option>
+                      <option value="Parent">{t("parent")}</option>
+                      <option value="Guardian">{t("guardian")}</option>
+                      <option value="Grandparent">{t("grandparent")}</option>
+                      <option value="Other">{t("other")}</option>
                     </select>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="section-title">Security</div>
+            <div className="section-title">{t("security")}</div>
             <div className="form-row">
               <Input
-                label="Password"
+                label={t("password")}
                 name="password"
                 type="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Min. 6 characters"
+                placeholder={t("password_min_length_placeholder")}
                 icon={<FiLock />}
                 required
               />
               <Input
-                label="Confirm Password"
+                label={t("confirm_password")}
                 name="confirmPassword"
                 type="password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Confirm password"
+                placeholder={t("confirm_password_placeholder")}
                 icon={<FiLock />}
                 required
               />
@@ -637,16 +650,16 @@ const RegisterPage = () => {
                 <span className="loading-spinner"></span>
               ) : (
                 <>
-                  Create Account <FiArrowRight className="button-icon" />
+                  {t("create_account")} <FiArrowRight className="button-icon" />
                 </>
               )}
             </motion.button>
 
             <div className="toggle-container">
               <p className="toggle-text">
-                Already have an account?{" "}
+                {t("already_have_account")}{" "}
                 <Link to="/login" className="toggle-link">
-                  Sign In
+                  {t("sign_in")}
                 </Link>
               </p>
             </div>

@@ -8,11 +8,13 @@ import {
   FiUserCheck,
   FiBookOpen,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { announcementsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const AdminAnnouncementsPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ const AdminAnnouncementsPage = () => {
   const [targetGrade, setTargetGrade] = useState("");
   const [targetSection, setTargetSection] = useState("");
 
-  const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const grades = [t("grade_9"), t("grade_10"), t("grade_11"), t("grade_12")];
   const sections = ["A", "B", "C", "D"];
   const roles = ["parent", "teacher", "student"];
 
@@ -50,13 +52,11 @@ const AdminAnnouncementsPage = () => {
     setLoading(true);
     try {
       const response = await announcementsAPI.getAllAnnouncements();
-      // ✅ Extract nested data array
       const announcementsData = response.data?.data || response.data || [];
       const announcementsList = Array.isArray(announcementsData)
         ? announcementsData
         : [];
 
-      // For teachers, only show announcements they created
       let filteredData = announcementsList;
       if (currentUser?.role === "teacher") {
         filteredData = announcementsList.filter(
@@ -79,7 +79,7 @@ const AdminAnnouncementsPage = () => {
       setAnnouncements(formattedAnnouncements);
     } catch (error) {
       console.error("Error fetching announcements:", error);
-      toast.error("Failed to load announcements");
+      toast.error(t("failed_load_announcements"));
       setAnnouncements([]);
     } finally {
       setLoading(false);
@@ -88,11 +88,10 @@ const AdminAnnouncementsPage = () => {
 
   const handlePost = async () => {
     if (!newAnnouncement.title || !newAnnouncement.content) {
-      toast.error("Please fill title and content");
+      toast.error(t("fill_title_content"));
       return;
     }
 
-    // ✅ Only send these fields – no postedById or postedBy
     const payload = {
       title: newAnnouncement.title,
       content: newAnnouncement.content,
@@ -109,32 +108,32 @@ const AdminAnnouncementsPage = () => {
         content: newAnnouncement.content,
         targetAudience: newAnnouncement.targetAudience,
         date: new Date().toISOString().split("T")[0],
-        postedBy: currentUser?.name || "Admin", // for display only
-        postedById: currentUser?.id, // for display only
+        postedBy: currentUser?.name || "Admin",
+        postedById: currentUser?.id,
       };
 
       setAnnouncements([formattedAnnouncement, ...announcements]);
       setShowForm(false);
       resetForm();
-      toast.success("Announcement posted!");
+      toast.success(t("announcement_posted_success"));
     } catch (error) {
       console.error("Error creating announcement:", error);
       toast.error(
-        error.response?.data?.message || "Failed to post announcement",
+        error.response?.data?.message || t("announcement_create_failed"),
       );
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this announcement?")) {
+    if (window.confirm(t("confirm_delete_announcement"))) {
       try {
         await announcementsAPI.deleteAnnouncement(id);
         setAnnouncements(announcements.filter((ann) => ann.id !== id));
-        toast.success("Announcement deleted successfully!");
+        toast.success(t("announcement_deleted_success"));
       } catch (error) {
         console.error("Error deleting announcement:", error);
         toast.error(
-          error.response?.data?.message || "Failed to delete announcement",
+          error.response?.data?.message || t("announcement_delete_failed"),
         );
       }
     }
@@ -154,17 +153,17 @@ const AdminAnnouncementsPage = () => {
   const getTargetText = (announcement) => {
     switch (announcement.targetAudience) {
       case "all":
-        return "📢 Everyone";
+        return `${t("everyone")}`;
       case "teachers":
-        return "👥 Teachers only";
+        return `${t("teachers_only")}`;
       case "parents":
-        return "👥 Parents only";
+        return `${t("parents_only")}`;
       case "students":
-        return "👥 Students only";
+        return `${t("students_only")}`;
       case "specific":
-        return "🎯 Specific audience";
+        return `${t("specific_audience")}`;
       default:
-        return "📢 Everyone";
+        return `${t("everyone")}`;
     }
   };
 
@@ -172,7 +171,7 @@ const AdminAnnouncementsPage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
-        <p>Loading announcements...</p>
+        <p>{t("loading_announcements")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -198,17 +197,17 @@ const AdminAnnouncementsPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📢 Announcements</h1>
+          <h1 style={styles.title}>{t("announcements")}</h1>
           <p style={styles.subtitle}>
             {isAdmin
-              ? "Create announcements for specific audiences"
+              ? t("create_audience_announcements")
               : isTeacher
-                ? "Send announcements to your students"
-                : "Manage announcements"}
+                ? t("send_announcements_to_students")
+                : t("manage_announcements")}
           </p>
         </div>
         <button onClick={() => setShowForm(true)} style={styles.addBtn}>
-          <FiPlus size={16} /> New Announcement
+          <FiPlus size={16} /> {t("new_announcement")}
         </button>
       </div>
 
@@ -218,10 +217,10 @@ const AdminAnnouncementsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           style={styles.formCard}
         >
-          <h3>Create Announcement</h3>
+          <h3>{t("create_announcement")}</h3>
           <input
             type="text"
-            placeholder="Title *"
+            placeholder={t("title_required")}
             value={newAnnouncement.title}
             onChange={(e) =>
               setNewAnnouncement({ ...newAnnouncement, title: e.target.value })
@@ -229,7 +228,7 @@ const AdminAnnouncementsPage = () => {
             style={styles.input}
           />
           <textarea
-            placeholder="Content *"
+            placeholder={t("content_required")}
             rows={4}
             value={newAnnouncement.content}
             onChange={(e) =>
@@ -241,7 +240,7 @@ const AdminAnnouncementsPage = () => {
             style={styles.textarea}
           />
 
-          <label style={styles.label}>Target Audience:</label>
+          <label style={styles.label}>{t("target_audience")}</label>
           <div style={styles.audienceOptions}>
             <button
               onClick={() =>
@@ -257,7 +256,7 @@ const AdminAnnouncementsPage = () => {
                   : {}),
               }}
             >
-              <FiUsers size={16} /> All Users
+              <FiUsers size={16} /> {t("all_users")}
             </button>
             {isAdmin && (
               <button
@@ -274,7 +273,7 @@ const AdminAnnouncementsPage = () => {
                     : {}),
                 }}
               >
-                <FiUserCheck size={16} /> Teachers
+                <FiUserCheck size={16} /> {t("teachers")}
               </button>
             )}
             {isAdmin && (
@@ -292,7 +291,7 @@ const AdminAnnouncementsPage = () => {
                     : {}),
                 }}
               >
-                <FiUserCheck size={16} /> Parents
+                <FiUserCheck size={16} /> {t("parents")}
               </button>
             )}
             {isAdmin && (
@@ -310,10 +309,9 @@ const AdminAnnouncementsPage = () => {
                     : {}),
                 }}
               >
-                <FiUserCheck size={16} /> Students
+                <FiUserCheck size={16} /> {t("students")}
               </button>
             )}
-            {/* Only show "specific" if backend supports more detailed targeting later */}
           </div>
 
           <div style={styles.formActions}>
@@ -324,10 +322,10 @@ const AdminAnnouncementsPage = () => {
               }}
               style={styles.cancelBtn}
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button onClick={handlePost} style={styles.submitBtn}>
-              Post Announcement
+              {t("post_announcement")}
             </button>
           </div>
         </motion.div>
@@ -337,10 +335,8 @@ const AdminAnnouncementsPage = () => {
         {announcements.length === 0 ? (
           <div style={styles.emptyState}>
             <FiBell size={48} style={styles.emptyIcon} />
-            <p>No announcements yet.</p>
-            <p style={styles.emptySubtext}>
-              Click "New Announcement" to create one.
-            </p>
+            <p>{t("no_announcements")}</p>
+            <p style={styles.emptySubtext}>{t("click_new_announcement")}</p>
           </div>
         ) : (
           announcements.map((ann) => (
@@ -348,13 +344,15 @@ const AdminAnnouncementsPage = () => {
               <div style={styles.announcementHeader}>
                 <div>
                   <h3>{ann.title}</h3>
-                  <span style={styles.postedBy}>Posted by: {ann.postedBy}</span>
+                  <span style={styles.postedBy}>
+                    {t("posted_by")} {ann.postedBy}
+                  </span>
                 </div>
                 <div style={styles.announcementActions}>
                   <button
                     onClick={() => handleDelete(ann.id)}
                     style={styles.deleteBtn}
-                    title="Delete Announcement"
+                    title={t("delete_announcement")}
                   >
                     <FiTrash2 size={16} />
                   </button>

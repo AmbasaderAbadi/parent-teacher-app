@@ -8,11 +8,13 @@ import {
   FiDownload,
   FiAlertCircle,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { homeworkAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const StudentHomeworkPage = () => {
+  const { t } = useTranslation();
   const { user: storeUser } = useAuthStore();
   const [homeworks, setHomeworks] = useState([]);
   const [submissions, setSubmissions] = useState({});
@@ -91,7 +93,7 @@ const StudentHomeworkPage = () => {
       setHomeworks(formatted);
     } catch (error) {
       console.error("Error fetching homeworks:", error);
-      toast.error("Failed to load homework");
+      toast.error(t("failed_load_homework"));
       setHomeworks([]);
     } finally {
       setLoading(false);
@@ -126,7 +128,7 @@ const StudentHomeworkPage = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 20 * 1024 * 1024) {
-        toast.error("File size must be less than 20MB");
+        toast.error(t("file_too_large"));
         return;
       }
       setSubmissionFile(file);
@@ -142,7 +144,7 @@ const StudentHomeworkPage = () => {
 
   const handleSubmitHomework = async () => {
     if (!submissionFile && !submissionText) {
-      toast.error("Please upload a file or enter text submission");
+      toast.error(t("submit_file_or_text"));
       return;
     }
 
@@ -174,10 +176,10 @@ const StudentHomeworkPage = () => {
       setSubmissionText("");
       setPreviewUrl(null);
       setSelectedHomework(null);
-      toast.success("Homework submitted successfully!");
+      toast.success(t("homework_submitted_success"));
     } catch (error) {
       console.error("Error submitting homework:", error);
-      toast.error(error.response?.data?.message || "Failed to submit homework");
+      toast.error(error.response?.data?.message || t("homework_submit_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -186,9 +188,9 @@ const StudentHomeworkPage = () => {
   const handleDownloadAttachment = async (homework) => {
     if (homework.fileUrl) {
       window.open(homework.fileUrl, "_blank");
-      toast.success(`Opening ${homework.fileName}`);
+      toast.success(t("opening", { name: homework.fileName }));
     } else {
-      toast.error("No file available");
+      toast.error(t("no_file_available"));
     }
   };
 
@@ -206,21 +208,21 @@ const StudentHomeworkPage = () => {
     if (submission) {
       if (submission.marks) {
         return {
-          text: `Graded: ${submission.marks}%`,
+          text: t("graded_status", { marks: submission.marks }),
           color: "#10b981",
           bg: "#d1fae5",
         };
       }
-      return { text: "Submitted", color: "#2563eb", bg: "#dbeafe" };
+      return { text: t("submitted_status"), color: "#2563eb", bg: "#dbeafe" };
     }
-    return { text: "Pending", color: "#92400e", bg: "#fed7aa" };
+    return { text: t("pending_status"), color: "#92400e", bg: "#fed7aa" };
   };
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
-        <p>Loading homework...</p>
+        <p>{t("loading_homework")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -242,15 +244,18 @@ const StudentHomeworkPage = () => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>📝 My Homework</h1>
-        <p style={styles.subtitle}>View and submit your assignments</p>
+        <h1 style={styles.title}>{t("my_homework")}</h1>
+        <p style={styles.subtitle}>{t("view_submit_assignments")}</p>
       </div>
 
       {studentInfo && (
         <div style={styles.studentInfo}>
           <p>
-            Welcome, <strong>{studentInfo.name}</strong>! ({studentInfo.grade} -
-            Section {studentInfo.section})
+            {t("welcome_student_homework", {
+              name: studentInfo.name,
+              grade: studentInfo.grade,
+              section: studentInfo.section,
+            })}
           </p>
         </div>
       )}
@@ -258,7 +263,7 @@ const StudentHomeworkPage = () => {
       <div style={styles.homeworkList}>
         {homeworks.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No homework assignments found.</p>
+            <p>{t("no_homework_assignments")}</p>
           </div>
         ) : (
           homeworks.map((hw) => {
@@ -274,11 +279,12 @@ const StudentHomeworkPage = () => {
                     <div style={styles.homeworkMeta}>
                       <span style={styles.subjectBadge}>{hw.subject}</span>
                       <span>
-                        <FiClock size={12} /> Due: {hw.dueDate} by {hw.dueTime}
+                        <FiClock size={12} /> {t("due")}: {hw.dueDate} {t("by")}{" "}
+                        {hw.dueTime}
                       </span>
                       {overdue && (
                         <span style={styles.overdueBadge}>
-                          <FiAlertCircle size={12} /> Overdue!
+                          <FiAlertCircle size={12} /> {t("overdue")}
                         </span>
                       )}
                     </div>
@@ -297,19 +303,25 @@ const StudentHomeworkPage = () => {
                 <p style={styles.homeworkDescription}>{hw.description}</p>
 
                 <div style={styles.homeworkMeta}>
-                  <span>Posted by: {hw.postedBy}</span>
-                  <span>Posted on: {hw.postedDate}</span>
+                  <span>
+                    {t("posted_by")} {hw.postedBy}
+                  </span>
+                  <span>
+                    {t("posted_on")} {hw.postedDate}
+                  </span>
                 </div>
 
                 {hw.fileName && (
                   <div style={styles.teacherAttachment}>
                     {getFileIcon(hw.fileType)}
-                    <span>Teacher's attachment: {hw.fileName}</span>
+                    <span>
+                      {t("teacher_attachment")} {hw.fileName}
+                    </span>
                     <button
                       onClick={() => handleDownloadAttachment(hw)}
                       style={styles.downloadBtn}
                     >
-                      <FiDownload size={12} /> Download
+                      <FiDownload size={12} /> {t("download")}
                     </button>
                   </div>
                 )}
@@ -319,27 +331,27 @@ const StudentHomeworkPage = () => {
                     <FiCheckCircle size={20} style={{ color: "#10b981" }} />
                     <div>
                       <p style={styles.submittedText}>
-                        Submitted on{" "}
+                        {t("submitted_on")}{" "}
                         {new Date(submitted.submittedAt).toLocaleString()}
                       </p>
                       {submitted.file && (
                         <p style={styles.submittedFile}>
-                          File: {submitted.file.name}
+                          {t("file")}: {submitted.file.name}
                         </p>
                       )}
                       {submitted.text && (
                         <p style={styles.submittedText}>
-                          Message: {submitted.text}
+                          {t("message")}: {submitted.text}
                         </p>
                       )}
                       {submitted.marks && (
                         <p style={styles.gradeText}>
-                          Grade: {submitted.marks}%
+                          {t("grade")}: {submitted.marks}%
                         </p>
                       )}
                       {submitted.feedback && (
                         <p style={styles.feedbackText}>
-                          Feedback: {submitted.feedback}
+                          {t("feedback")}: {submitted.feedback}
                         </p>
                       )}
                     </div>
@@ -352,7 +364,7 @@ const StudentHomeworkPage = () => {
                     }}
                     style={styles.submitBtn}
                   >
-                    Submit Homework
+                    {t("submit_homework")}
                   </button>
                 )}
               </div>
@@ -366,7 +378,9 @@ const StudentHomeworkPage = () => {
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <h3>Submit Homework: {selectedHomework.title}</h3>
+              <h3>
+                {t("submit_homework_title", { title: selectedHomework.title })}
+              </h3>
               <button
                 onClick={() => setShowSubmitModal(false)}
                 style={styles.modalClose}
@@ -376,7 +390,7 @@ const StudentHomeworkPage = () => {
             </div>
             <div style={styles.modalBody}>
               <textarea
-                placeholder="Add any comments or text submission..."
+                placeholder={t("add_comments_placeholder")}
                 rows={4}
                 value={submissionText}
                 onChange={(e) => setSubmissionText(e.target.value)}
@@ -384,7 +398,9 @@ const StudentHomeworkPage = () => {
                 disabled={submitting}
               />
               <div style={styles.fileUploadSection}>
-                <label style={styles.fileLabel}>Upload File (Optional)</label>
+                <label style={styles.fileLabel}>
+                  {t("upload_file_optional")}
+                </label>
                 <div style={styles.fileUploadArea}>
                   <input
                     type="file"
@@ -395,7 +411,7 @@ const StudentHomeworkPage = () => {
                     disabled={submitting}
                   />
                   <label htmlFor="submission-file" style={styles.fileUploadBtn}>
-                    <FiUpload size={16} /> Choose File
+                    <FiUpload size={16} /> {t("choose_file")}
                   </label>
                   {submissionFile && (
                     <div style={styles.fileInfo}>
@@ -411,13 +427,11 @@ const StudentHomeworkPage = () => {
                     </div>
                   )}
                 </div>
-                <p style={styles.fileHint}>
-                  Supported: Images, PDF, DOC, DOCX, TXT (Max 20MB)
-                </p>
+                <p style={styles.fileHint}>{t("supported_files")}</p>
               </div>
               {previewUrl && (
                 <div style={styles.previewContainer}>
-                  <p>Image Preview:</p>
+                  <p>{t("image_preview")}</p>
                   <img
                     src={previewUrl}
                     alt="Preview"
@@ -432,14 +446,14 @@ const StudentHomeworkPage = () => {
                 style={styles.cancelBtn}
                 disabled={submitting}
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleSubmitHomework}
                 style={styles.submitModalBtn}
                 disabled={submitting}
               >
-                {submitting ? "Submitting..." : "Submit Assignment"}
+                {submitting ? t("submitting") : t("submit_assignment")}
               </button>
             </div>
           </div>

@@ -13,9 +13,9 @@ import {
 } from "react-icons/fi";
 import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { messagingAPI } from "../../../services/api";
-import MessageSummarizer from "../components/MessageSummarizer";
 
 const normalizeId = (id) => {
   if (!id) return null;
@@ -82,6 +82,7 @@ const extractRecipient = (data, userRole) => {
 };
 
 const MessagesPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user: storeUser } = useAuthStore();
 
@@ -159,10 +160,11 @@ const MessagesPage = () => {
         id: `temp_${recipientId || Date.now()}`,
         name: recipientName,
         avatar: getInitials(recipientName),
-        lastMessage: "No messages yet",
+        lastMessage: t("no_messages_yet"),
         lastMessageTime: new Date(),
         unreadCount: 0,
-        subject: subject || (user.role === "teacher" ? "Parent" : "Teacher"),
+        subject:
+          subject || (user.role === "teacher" ? t("parent") : t("teacher")),
         role: user.role === "parent" ? "teacher" : "parent",
         online: false,
         temp: true,
@@ -175,7 +177,7 @@ const MessagesPage = () => {
     } catch (e) {
       console.error("Failed to parse directChat", e);
     }
-  }, [user, loading, isMobileView]);
+  }, [user, loading, isMobileView, t]);
 
   useEffect(() => {
     if (!selectedConversation || !user) return;
@@ -213,11 +215,11 @@ const MessagesPage = () => {
 
   const safeFormatDistance = (date) => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime()))
-      return "recently";
+      return t("recently");
     try {
       return formatDistanceToNow(date, { addSuffix: true });
     } catch {
-      return "recently";
+      return t("recently");
     }
   };
 
@@ -254,7 +256,7 @@ const MessagesPage = () => {
                 id: teacher.conversationId,
                 name: teacher.teacherName,
                 avatar: getInitials(teacher.teacherName),
-                lastMessage: teacher.lastMessage || "No messages yet",
+                lastMessage: teacher.lastMessage || t("no_messages_yet"),
                 lastMessageTime: teacher.lastMessageTime
                   ? new Date(teacher.lastMessageTime)
                   : new Date(),
@@ -288,7 +290,7 @@ const MessagesPage = () => {
               id: student.conversationId,
               name: parent.parentName,
               avatar: getInitials(parent.parentName),
-              lastMessage: student.lastMessage || "No messages yet",
+              lastMessage: student.lastMessage || t("no_messages_yet"),
               lastMessageTime: student.lastMessageTime
                 ? new Date(student.lastMessageTime)
                 : new Date(),
@@ -315,7 +317,7 @@ const MessagesPage = () => {
           id: conv.id,
           name: conv.name,
           avatar: conv.avatar || getInitials(conv.name),
-          lastMessage: conv.lastMessage || "No messages yet",
+          lastMessage: conv.lastMessage || t("no_messages_yet"),
           lastMessageTime: conv.lastMessageTime
             ? new Date(conv.lastMessageTime)
             : new Date(),
@@ -326,7 +328,6 @@ const MessagesPage = () => {
         }));
       }
 
-      // Remove any conversation with null/undefined id to prevent key warning
       const validConversations = conversationsArray.filter(
         (conv) => conv.id != null,
       );
@@ -334,7 +335,7 @@ const MessagesPage = () => {
       setConversations(validConversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
-      toast.error("Failed to load conversations");
+      toast.error(t("failed_load_conversations"));
       setConversations([]);
     } finally {
       setLoading(false);
@@ -385,7 +386,7 @@ const MessagesPage = () => {
             read: msg.read || false,
           };
         })
-        .filter((msg) => msg !== null && msg.id != null); // ensure id exists
+        .filter((msg) => msg !== null && msg.id != null);
 
       setMessages(formatted);
 
@@ -446,51 +447,37 @@ const MessagesPage = () => {
           });
         }
 
-        // Wait for backend to persist
         await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Reload conversations
         await fetchConversations();
 
-        // Try to find the new conversation using multiple strategies
         let foundConv = null;
         const currentConvs = conversationsRef.current;
-        // Strategy 1: by recipientId (stored in temp)
         foundConv = currentConvs.find((c) => c.id === recipientId);
-        // Strategy 2: by name
         if (!foundConv)
           foundConv = currentConvs.find(
             (c) => c.name === selectedConversation.name,
           );
-        // Strategy 3: by studentId (for teachers/parents)
         if (!foundConv && studentId)
           foundConv = currentConvs.find((c) => c.studentId === studentId);
-        // Strategy 4: take the most recent conversation if only one exists
         if (!foundConv && currentConvs.length === 1)
           foundConv = currentConvs[0];
 
         if (foundConv) {
           setSelectedConversation(foundConv);
           await fetchMessages(foundConv.id);
-          toast.success("Message sent and conversation saved!");
+          toast.success(t("message_sent_saved"));
         } else {
-          // Last resort: select the first conversation after reload (if any)
           if (currentConvs.length > 0) {
             setSelectedConversation(currentConvs[0]);
             await fetchMessages(currentConvs[0].id);
-            toast.success(
-              "Message sent! Conversation may appear in your list.",
-            );
+            toast.success(t("message_sent_but_not_loaded"));
           } else {
-            toast.error(
-              "Message sent but conversation could not be loaded. Please refresh the page.",
-            );
+            toast.error(t("message_sent_load_failed"));
             setSelectedConversation(null);
             setMessages([]);
           }
         }
       } else {
-        // Normal send to existing conversation
         const response = await messagingAPI.sendMessage({
           conversationId: selectedConversation.id,
           content: messageContent,
@@ -536,7 +523,7 @@ const MessagesPage = () => {
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Failed to send message");
+      toast.error(t("failed_send_message"));
       setNewMessage(messageContent);
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
     } finally {
@@ -555,7 +542,7 @@ const MessagesPage = () => {
   const handleSelectConversation = (conv) => {
     if (!conv || !conv.id) return;
     if (conv.id.toString().startsWith("temp_")) {
-      toast.info("Start a conversation by sending a message first.");
+      toast.info(t("send_first_message"));
       return;
     }
     if (conv.unreadCount > 0) markConversationAsRead(conv.id);
@@ -579,7 +566,7 @@ const MessagesPage = () => {
     return (
       <div style={Styles.loadingFull}>
         <div style={Styles.spinner} />
-        <p style={Styles.loadingText}>Loading…</p>
+        <p style={Styles.loadingText}>{t("loading")}</p>
       </div>
     );
   }
@@ -590,13 +577,13 @@ const MessagesPage = () => {
     <div style={Styles.page}>
       <div style={Styles.pageHeader}>
         <div>
-          <h1 style={Styles.pageTitle}>Messages</h1>
+          <h1 style={Styles.pageTitle}>{t("messages")}</h1>
           <p style={Styles.pageSubtitle}>
             {user.role === "parent"
-              ? "Chat with your child's teachers"
+              ? t("chat_with_teachers")
               : user.role === "teacher"
-                ? "Chat with parents"
-                : "Your conversations"}
+                ? t("chat_with_parents")
+                : t("your_conversations")}
           </p>
         </div>
       </div>
@@ -612,7 +599,7 @@ const MessagesPage = () => {
             <FiSearch size={15} style={Styles.searchIcon} />
             <input
               type="text"
-              placeholder="Search conversations…"
+              placeholder={t("search_conversations")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={Styles.searchInput}
@@ -622,7 +609,7 @@ const MessagesPage = () => {
             {loading ? (
               <div style={Styles.centerState}>
                 <div style={Styles.spinner} />
-                <p style={Styles.loadingText}>Loading…</p>
+                <p style={Styles.loadingText}>{t("loading")}</p>
               </div>
             ) : filteredConversations.length === 0 ? (
               <div style={Styles.centerState}>
@@ -631,12 +618,11 @@ const MessagesPage = () => {
                   style={{ color: "#c4c9d4", marginBottom: 12 }}
                 />
                 <p style={{ ...Styles.loadingText, marginBottom: 12 }}>
-                  No conversations
+                  {t("no_conversations")}
                 </p>
               </div>
             ) : (
               filteredConversations.map((conv) => {
-                // Ensure we have a valid key – conv.id is never null here because we filtered
                 const isActive =
                   selectedConversation?.id === conv.id && !isMobileView;
                 return (
@@ -703,9 +689,11 @@ const MessagesPage = () => {
                   <div>
                     <h3 style={Styles.chatName}>{selectedConversation.name}</h3>
                     <p style={Styles.chatMeta}>
-                      {[selectedConversation.role, selectedConversation.subject]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {selectedConversation.role === "teacher"
+                        ? t("teacher")
+                        : t("parent")}
+                      {selectedConversation.subject &&
+                        ` · ${selectedConversation.subject}`}
                     </p>
                   </div>
                 </div>
@@ -724,12 +712,11 @@ const MessagesPage = () => {
                       style={{ color: "#c4c9d4", marginBottom: 8 }}
                     />
                     <p style={{ color: "#9ca3af", fontSize: 14 }}>
-                      No messages yet. Say hello!
+                      {t("no_messages_yet")}
                     </p>
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    // msg.id is guaranteed to be non‑null because we filtered
                     const isOwn = msg.senderId === ownUserId;
                     return (
                       <div
@@ -793,17 +780,17 @@ const MessagesPage = () => {
               </div>
 
               <div style={Styles.inputBar}>
-                <button style={Styles.inputIconBtn} title="Attach file">
+                <button style={Styles.inputIconBtn} title={t("attach_file")}>
                   <FiPaperclip size={18} color="#9ca3af" />
                 </button>
-                <button style={Styles.inputIconBtn} title="Emoji">
+                <button style={Styles.inputIconBtn} title={t("emoji")}>
                   <FiSmile size={18} color="#9ca3af" />
                 </button>
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type a message…"
+                  placeholder={t("type_message")}
                   style={Styles.textarea}
                   rows={1}
                   disabled={sendingMessage}
@@ -838,11 +825,8 @@ const MessagesPage = () => {
                 size={56}
                 style={{ color: "#c4c9d4", marginBottom: 16 }}
               />
-              <h3 style={Styles.noSelTitle}>Select a conversation</h3>
-              <p style={Styles.noSelSub}>
-                Choose from the list or start a new conversation from your
-                dashboard.
-              </p>
+              <h3 style={Styles.noSelTitle}>{t("select_conversation")}</h3>
+              <p style={Styles.noSelSub}>{t("select_instruction")}</p>
             </div>
           )}
         </div>

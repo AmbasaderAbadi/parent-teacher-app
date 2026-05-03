@@ -10,24 +10,30 @@ import {
   FiSave,
   FiRefreshCw,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 
+const defaultNotifications = {
+  email: true,
+  push: true,
+  sms: false,
+  gradeAlerts: true,
+  attendanceAlerts: true,
+  messageAlerts: true,
+  announcementAlerts: true,
+};
+
+const defaultPreferences = {
+  theme: "light",
+  language: "en",
+  notifications: defaultNotifications,
+  emailFrequency: "instant",
+};
+
 export const PreferencesPage = () => {
+  const { i18n } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [preferences, setPreferences] = useState({
-    theme: "light",
-    language: "en",
-    notifications: {
-      email: true,
-      push: true,
-      sms: false,
-      gradeAlerts: true,
-      attendanceAlerts: true,
-      messageAlerts: true,
-      announcementAlerts: true,
-    },
-    emailFrequency: "instant",
-  });
+  const [preferences, setPreferences] = useState(defaultPreferences);
 
   useEffect(() => {
     loadPreferences();
@@ -37,10 +43,29 @@ export const PreferencesPage = () => {
     try {
       const saved = localStorage.getItem("userPreferences");
       if (saved) {
-        setPreferences(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Merge with defaults to ensure all fields exist
+        const notifications = {
+          ...defaultNotifications,
+          ...parsed.notifications,
+        };
+        setPreferences({
+          ...defaultPreferences,
+          ...parsed,
+          notifications,
+        });
+        // Sync language with i18n
+        const lang = parsed.language || "en";
+        if (lang !== i18n.language) {
+          i18n.changeLanguage(lang);
+        }
+      } else {
+        setPreferences(defaultPreferences);
+        i18n.changeLanguage("en");
       }
     } catch (error) {
       console.error("Error loading preferences:", error);
+      setPreferences(defaultPreferences);
     }
   };
 
@@ -56,19 +81,20 @@ export const PreferencesPage = () => {
 
   const handleChange = (key, value) => {
     setPreferences({ ...preferences, [key]: value });
+    if (key === "language") {
+      i18n.changeLanguage(value);
+    }
   };
 
   const handleSave = async () => {
     setLoading(true);
     try {
       localStorage.setItem("userPreferences", JSON.stringify(preferences));
-
       if (preferences.theme === "dark") {
         document.body.classList.add("dark-mode");
       } else {
         document.body.classList.remove("dark-mode");
       }
-
       toast.success("Preferences saved successfully!");
     } catch (error) {
       console.error("Error saving preferences:", error);
@@ -79,22 +105,13 @@ export const PreferencesPage = () => {
   };
 
   const handleReset = () => {
-    setPreferences({
-      theme: "light",
-      language: "en",
-      notifications: {
-        email: true,
-        push: true,
-        sms: false,
-        gradeAlerts: true,
-        attendanceAlerts: true,
-        messageAlerts: true,
-        announcementAlerts: true,
-      },
-      emailFrequency: "instant",
-    });
+    setPreferences(defaultPreferences);
+    i18n.changeLanguage("en");
     toast.info("Preferences reset to default");
   };
+
+  // Ensure notifications exists before rendering
+  const notifications = preferences.notifications || defaultNotifications;
 
   return (
     <div style={styles.container}>
@@ -148,8 +165,8 @@ export const PreferencesPage = () => {
             style={styles.select}
           >
             <option value="en">English</option>
-            <option value="am">Amharic</option>
-            <option value="ti">Tigrinya</option>
+            <option value="am">አማርኛ (Amharic)</option>
+            <option value="ti">ትግርኛ (Tigrinya)</option>
           </select>
         </div>
 
@@ -168,7 +185,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.email}
+                  checked={notifications.email}
                   onChange={() => handleNotificationToggle("email")}
                 />
                 <span style={styles.slider}></span>
@@ -185,7 +202,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.push}
+                  checked={notifications.push}
                   onChange={() => handleNotificationToggle("push")}
                 />
                 <span style={styles.slider}></span>
@@ -202,7 +219,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.sms}
+                  checked={notifications.sms}
                   onChange={() => handleNotificationToggle("sms")}
                 />
                 <span style={styles.slider}></span>
@@ -223,7 +240,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.gradeAlerts}
+                  checked={notifications.gradeAlerts}
                   onChange={() => handleNotificationToggle("gradeAlerts")}
                 />
                 <span style={styles.slider}></span>
@@ -235,7 +252,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.attendanceAlerts}
+                  checked={notifications.attendanceAlerts}
                   onChange={() => handleNotificationToggle("attendanceAlerts")}
                 />
                 <span style={styles.slider}></span>
@@ -247,7 +264,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.messageAlerts}
+                  checked={notifications.messageAlerts}
                   onChange={() => handleNotificationToggle("messageAlerts")}
                 />
                 <span style={styles.slider}></span>
@@ -259,7 +276,7 @@ export const PreferencesPage = () => {
               <label style={styles.switch}>
                 <input
                   type="checkbox"
-                  checked={preferences.notifications.announcementAlerts}
+                  checked={notifications.announcementAlerts}
                   onChange={() =>
                     handleNotificationToggle("announcementAlerts")
                   }

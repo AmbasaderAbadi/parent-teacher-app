@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../shared/components/UI/Card";
 import { Table } from "../../../shared/components/UI/Table";
+import { useTranslation } from "react-i18next";
 import { gradesAPI, studentsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 export const GradesPage = () => {
+  const { t } = useTranslation();
   const [selectedTerm, setSelectedTerm] = useState("All");
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,14 +21,14 @@ export const GradesPage = () => {
   const [children, setChildren] = useState([]);
 
   const columns = [
-    { header: "Subject", accessor: "subject" },
-    { header: "Score", accessor: "score" },
-    { header: "Grade", accessor: "grade" },
-    { header: "Term", accessor: "term" },
-    { header: "Teacher", accessor: "teacher" },
+    { header: t("subject_header"), accessor: "subject" },
+    { header: t("score_header"), accessor: "score" },
+    { header: t("grade_header"), accessor: "grade" },
+    { header: t("term_header"), accessor: "term" },
+    { header: t("teacher_header"), accessor: "teacher" },
   ];
 
-  const terms = ["All", "Term 1", "Term 2", "Term 3"];
+  const terms = [t("all_terms"), t("term_1"), t("term_2"), t("term_3")];
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -60,7 +62,6 @@ export const GradesPage = () => {
     try {
       let gradesData = [];
       if (userRole === "parent" && childId) {
-        // Parent: fetch grades for a specific child
         const response = await gradesAPI.getStudentGrades(childId);
         gradesData = response.data?.data || response.data || [];
       } else if (userRole === "student") {
@@ -79,7 +80,7 @@ export const GradesPage = () => {
         subject: grade.subject,
         score: `${grade.score}%`,
         grade: grade.grade || calculateGradeLetter(grade.score),
-        term: grade.term || "Term 1",
+        term: grade.term || t("term_1"),
         teacher: grade.teacherName || grade.teacher,
         rawScore: grade.score,
         date: grade.date || grade.assessmentDate,
@@ -89,7 +90,7 @@ export const GradesPage = () => {
       calculateSummary(formatted);
     } catch (error) {
       console.error("Error fetching grades:", error);
-      toast.error("Failed to load grades");
+      toast.error(t("failed_load_grades"));
       setGrades([]);
     } finally {
       setLoading(false);
@@ -135,7 +136,7 @@ export const GradesPage = () => {
   };
 
   const filteredGrades =
-    selectedTerm === "All"
+    selectedTerm === t("all_terms")
       ? grades
       : grades.filter((g) => g.term === selectedTerm);
 
@@ -143,16 +144,28 @@ export const GradesPage = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Grades</h1>
-          <p className="text-gray-600">View academic performance</p>
+          <h1 className="text-2xl font-bold text-gray-800">{t("grades")}</h1>
+          <p className="text-gray-600">{t("view_academic_performance")}</p>
         </div>
         <div className="flex justify-center items-center h-64">
           <div className="text-center">
             <div className="loading-spinner mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading grades...</p>
+            <p className="mt-4 text-gray-600">{t("loading_grades")}</p>
           </div>
         </div>
-        <style>{`.loading-spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -160,15 +173,17 @@ export const GradesPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Grades</h1>
-        <p className="text-gray-600">View academic performance</p>
+        <h1 className="text-2xl font-bold text-gray-800">{t("grades")}</h1>
+        <p className="text-gray-600">{t("view_academic_performance")}</p>
       </div>
 
       {/* Child selector for parents */}
       {userRole === "parent" && children.length > 1 && (
         <Card>
           <div className="flex items-center gap-4">
-            <label className="font-medium text-gray-700">Select Child:</label>
+            <label className="font-medium text-gray-700">
+              {t("select_child")}:
+            </label>
             <select
               value={selectedChildId}
               onChange={(e) => setSelectedChildId(e.target.value)}
@@ -188,7 +203,7 @@ export const GradesPage = () => {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Overall Average</p>
+            <p className="text-sm text-gray-600">{t("overall_average")}</p>
             <p className="text-2xl font-bold text-blue-600 mt-2">
               {summary.average}
             </p>
@@ -196,7 +211,7 @@ export const GradesPage = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Highest Score</p>
+            <p className="text-sm text-gray-600">{t("highest_score")}</p>
             <p className="text-2xl font-bold text-green-600 mt-2">
               {summary.highest}
             </p>
@@ -204,7 +219,7 @@ export const GradesPage = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Lowest Score</p>
+            <p className="text-sm text-gray-600">{t("lowest_score")}</p>
             <p className="text-2xl font-bold text-orange-600 mt-2">
               {summary.lowest}
             </p>
@@ -212,7 +227,7 @@ export const GradesPage = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Subjects Taken</p>
+            <p className="text-sm text-gray-600">{t("subjects_taken")}</p>
             <p className="text-2xl font-bold text-purple-600 mt-2">
               {summary.subjectsCount}
             </p>
@@ -227,7 +242,11 @@ export const GradesPage = () => {
             <button
               key={term}
               onClick={() => setSelectedTerm(term)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedTerm === term ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedTerm === term
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
             >
               {term}
             </button>
@@ -239,7 +258,7 @@ export const GradesPage = () => {
       {filteredGrades.length === 0 ? (
         <Card>
           <div className="text-center py-8 text-gray-500">
-            <p>No grades available for {selectedTerm}.</p>
+            <p>{t("no_grades_for_term", { term: selectedTerm })}</p>
           </div>
         </Card>
       ) : (
@@ -250,7 +269,7 @@ export const GradesPage = () => {
       {filteredGrades.length > 0 && (
         <Card>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Performance Distribution
+            {t("performance_distribution")}
           </h3>
           <div className="space-y-3">
             {filteredGrades.map((grade, idx) => {

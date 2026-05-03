@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "../../../shared/components/UI/Card";
+import { useTranslation } from "react-i18next";
 import { attendanceAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 export const AttendancePage = () => {
+  const { t } = useTranslation();
   const [currentMonth] = useState(new Date());
   const [attendanceStats, setAttendanceStats] = useState({
     present: 0,
@@ -18,7 +20,15 @@ export const AttendancePage = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [students, setStudents] = useState([]);
 
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = [
+    t("sun"),
+    t("mon"),
+    t("tue"),
+    t("wed"),
+    t("thu"),
+    t("fri"),
+    t("sat"),
+  ];
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -32,6 +42,10 @@ export const AttendancePage = () => {
     }
     fetchAttendance();
   }, []);
+
+  useEffect(() => {
+    if (userRole) fetchAttendance();
+  }, [userRole]);
 
   const fetchAttendance = async () => {
     setLoading(true);
@@ -62,7 +76,7 @@ export const AttendancePage = () => {
       calculateStats(formattedRecords);
     } catch (error) {
       console.error("Error fetching attendance:", error);
-      toast.error("Failed to load attendance data");
+      toast.error(t("failed_load_attendance"));
       setAttendanceRecords([]);
       calculateStats([]);
     } finally {
@@ -91,7 +105,6 @@ export const AttendancePage = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
     const record = attendanceRecords.find((r) => r.date === dateStr);
     return record;
   };
@@ -112,11 +125,11 @@ export const AttendancePage = () => {
   const getStatusLabel = (status) => {
     switch (status) {
       case "present":
-        return "P";
+        return t("present_short");
       case "absent":
-        return "A";
+        return t("absent_short");
       case "late":
-        return "L";
+        return t("late_short");
       default:
         return "";
     }
@@ -126,13 +139,15 @@ export const AttendancePage = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Attendance</h1>
-          <p className="text-gray-600">Track attendance records</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {t("attendance")}
+          </h1>
+          <p className="text-gray-600">{t("track_attendance")}</p>
         </div>
         <div className="flex justify-center items-center h-64">
           <div className="text-center">
             <div className="loading-spinner mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading attendance data...</p>
+            <p className="mt-4 text-gray-600">{t("loading_attendance")}</p>
           </div>
         </div>
         <style>{`
@@ -155,15 +170,15 @@ export const AttendancePage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Attendance</h1>
-        <p className="text-gray-600">Track attendance records</p>
+        <h1 className="text-2xl font-bold text-gray-800">{t("attendance")}</h1>
+        <p className="text-gray-600">{t("track_attendance")}</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Present</p>
+            <p className="text-sm text-gray-600">{t("present")}</p>
             <p className="text-2xl font-bold text-green-600">
               {attendanceStats.present}
             </p>
@@ -171,7 +186,7 @@ export const AttendancePage = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Absent</p>
+            <p className="text-sm text-gray-600">{t("absent")}</p>
             <p className="text-2xl font-bold text-red-600">
               {attendanceStats.absent}
             </p>
@@ -179,7 +194,7 @@ export const AttendancePage = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Late</p>
+            <p className="text-sm text-gray-600">{t("late")}</p>
             <p className="text-2xl font-bold text-yellow-600">
               {attendanceStats.late}
             </p>
@@ -187,7 +202,7 @@ export const AttendancePage = () => {
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Attendance Rate</p>
+            <p className="text-sm text-gray-600">{t("attendance_rate")}</p>
             <p className="text-2xl font-bold text-blue-600">
               {attendanceStats.rate}%
             </p>
@@ -199,7 +214,7 @@ export const AttendancePage = () => {
       <Card>
         <div className="text-center mb-4">
           <h3 className="text-lg font-semibold">
-            {currentMonth.toLocaleString("default", {
+            {currentMonth.toLocaleString(t("locale"), {
               month: "long",
               year: "numeric",
             })}
@@ -240,25 +255,25 @@ export const AttendancePage = () => {
         <div className="mt-6 pt-4 border-t border-gray-200 flex flex-wrap justify-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-xs text-gray-600">Present</span>
+            <span className="text-xs text-gray-600">{t("present")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <span className="text-xs text-gray-600">Absent</span>
+            <span className="text-xs text-gray-600">{t("absent")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <span className="text-xs text-gray-600">Late</span>
+            <span className="text-xs text-gray-600">{t("late")}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-            <span className="text-xs text-gray-600">No Data</span>
+            <span className="text-xs text-gray-600">{t("no_data")}</span>
           </div>
         </div>
 
         {attendanceRecords.length === 0 && !loading && (
           <div className="mt-4 text-center text-gray-500">
-            <p>No attendance records found for this month.</p>
+            <p>{t("no_records_month")}</p>
           </div>
         )}
       </Card>

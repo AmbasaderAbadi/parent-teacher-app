@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "../../../shared/components/UI/Card";
 import { Input } from "../../../shared/components/UI/Input";
 import { Button } from "../../../shared/components/UI/Button";
@@ -8,6 +9,7 @@ import { adminAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 export const StudentsPage = () => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,13 +17,13 @@ export const StudentsPage = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   const columns = [
-    { header: "Student Name", accessor: "name" },
-    { header: "Student ID", accessor: "studentId" },
-    { header: "Grade", accessor: "grade" },
-    { header: "Class", accessor: "className" },
-    { header: "Parent", accessor: "parent" },
-    { header: "Attendance", accessor: "attendance" },
-    { header: "Actions", accessor: "actions" },
+    { header: t("student_name"), accessor: "name" },
+    { header: t("student_id"), accessor: "studentId" },
+    { header: t("grade"), accessor: "grade" },
+    { header: t("class"), accessor: "className" },
+    { header: t("parent"), accessor: "parent" },
+    { header: t("attendance"), accessor: "attendance" },
+    { header: t("actions"), accessor: "actions" },
   ];
 
   useEffect(() => {
@@ -31,30 +33,26 @@ export const StudentsPage = () => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      // Fetch users with role "student"
       const response = await adminAPI.getUsersByRole("student");
       const studentsData = response.data;
-
-      // Transform API data to match component structure
       const formattedStudents = studentsData.map((student) => ({
         id: student.id || student._id,
         name: `${student.firstName || ""} ${student.lastName || ""}`.trim(),
         studentId: student.studentId || student.id,
-        grade: student.grade || "Not assigned",
-        className: student.className || "Not assigned",
-        parent: student.parentName || student.parentEmail || "Not assigned",
+        grade: student.grade || t("not_assigned"),
+        className: student.className || t("not_assigned"),
+        parent: student.parentName || student.parentEmail || t("not_assigned"),
         attendance: `${student.attendanceRate || 0}%`,
         email: student.email,
         phone: student.phone,
         status: student.isActive ? "active" : "inactive",
       }));
-
       setStudents(formattedStudents);
     } catch (error) {
       console.error("Error fetching students:", error);
-      toast.error("Failed to load students. Using demo data.");
+      toast.error(t("failed_load_students_fallback"));
 
-      // Fallback to demo data
+      // fallback demo data (only if needed)
       setStudents([
         {
           id: 1,
@@ -100,22 +98,21 @@ export const StudentsPage = () => {
       try {
         await adminAPI.deleteUser(selectedStudent.id);
         toast.success(
-          `${selectedStudent.name} has been removed from the system`,
+          t("student_deleted_success", { name: selectedStudent.name }),
         );
         setShowDeleteModal(false);
         setSelectedStudent(null);
-        fetchStudents(); // Refresh the list
+        fetchStudents();
       } catch (error) {
         console.error("Error deleting student:", error);
         toast.error(
-          error.response?.data?.message || "Failed to delete student",
+          error.response?.data?.message || t("failed_delete_student"),
         );
       }
     }
   };
 
   const handleEditStudent = (student) => {
-    // Navigate to student profile page for editing
     window.location.href = `/student-profile/${student.id}`;
   };
 
@@ -132,7 +129,7 @@ export const StudentsPage = () => {
       <div className="flex justify-center items-center h-64">
         <div className="text-center">
           <div className="loading-spinner mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading students...</p>
+          <p className="mt-4 text-gray-600">{t("loading_students")}</p>
         </div>
       </div>
     );
@@ -142,21 +139,21 @@ export const StudentsPage = () => {
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Students</h1>
-          <p className="text-gray-600">Manage student records</p>
+          <h1 className="text-2xl font-bold text-gray-800">{t("students")}</h1>
+          <p className="text-gray-600">{t("manage_students")}</p>
         </div>
         <Button
           className="flex items-center gap-2"
           onClick={() => (window.location.href = "/register?role=student")}
         >
-          <FiUserPlus /> Add Student
+          <FiUserPlus /> {t("add_student")}
         </Button>
       </div>
 
       <Card>
         <div className="mb-4">
           <Input
-            placeholder="Search students by name or ID..."
+            placeholder={t("search_students")}
             icon={<FiSearch />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -183,7 +180,7 @@ export const StudentsPage = () => {
                     colSpan={columns.length}
                     className="px-4 py-8 text-center text-gray-500"
                   >
-                    No students found
+                    {t("no_students_found")}
                   </td>
                 </tr>
               ) : (
@@ -222,7 +219,7 @@ export const StudentsPage = () => {
                         <button
                           onClick={() => handleEditStudent(student)}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Edit Student"
+                          title={t("edit_student")}
                         >
                           <FiEdit2 size={16} />
                         </button>
@@ -232,7 +229,7 @@ export const StudentsPage = () => {
                             setShowDeleteModal(true);
                           }}
                           className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Delete Student"
+                          title={t("delete_student")}
                         >
                           <FiTrash2 size={16} />
                         </button>
@@ -245,29 +242,29 @@ export const StudentsPage = () => {
           </table>
         </div>
 
-        {/* Summary Section */}
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex justify-between items-center text-sm text-gray-600">
-            <span>Total Students: {filteredStudents.length}</span>
             <span>
-              Active:{" "}
-              {filteredStudents.filter((s) => s.status !== "inactive").length}
+              {t("total_students_count", { count: filteredStudents.length })}
+            </span>
+            <span>
+              {t("active_count", {
+                count: filteredStudents.filter((s) => s.status !== "inactive")
+                  .length,
+              })}
             </span>
           </div>
         </div>
       </Card>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Confirm Deletion
+              {t("confirm_deletion")}
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete{" "}
-              <strong>{selectedStudent.name}</strong>? This action cannot be
-              undone.
+              {t("delete_confirmation_message", { name: selectedStudent.name })}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -277,13 +274,13 @@ export const StudentsPage = () => {
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleDeleteStudent}
                 className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
               >
-                Delete Student
+                {t("delete_student")}
               </button>
             </div>
           </div>
@@ -299,7 +296,6 @@ export const StudentsPage = () => {
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
-        
         @keyframes spin {
           to { transform: rotate(360deg); }
         }

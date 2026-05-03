@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FiHome,
   FiBook,
@@ -18,15 +18,31 @@ import {
 } from "react-icons/fi";
 import { useAuthStore } from "../../../store/authStore";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 
 export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
+  const { t } = useTranslation();
   const { user: storeUser } = useAuthStore();
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Modal animation variants
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+  };
+
+  const backdropVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 },
+  };
 
   // Detect mobile view
   useEffect(() => {
@@ -61,12 +77,17 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     getUser();
   }, [storeUser]);
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
     logout();
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    toast.success("Logged out successfully");
+    toast.success(t("logged_out_success"));
     navigate("/login");
+    setShowConfirmModal(false);
+  };
+
+  const handleLogoutClick = () => {
+    setShowConfirmModal(true);
   };
 
   const toggleMobileMenu = () => {
@@ -75,58 +96,48 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
 
   const getMenuItems = () => {
     const role = user?.role;
-
-    // ============ PARENT MENU ============
     if (role === "parent") {
       return [
-        { path: "/dashboard", icon: FiHome, label: "Dashboard" },
-        { path: "/announcements", icon: FiBell, label: "Announcements" },
-        { path: "/messages", icon: FiMessageSquare, label: "Messages" },
-        { path: "/calendar", icon: FiCalendar, label: "Calendar" },
-        { path: "/homework", icon: FiClipboard, label: "Homework" },
-        { path: "/materials", icon: FiFolder, label: "Materials" },
+        { path: "/dashboard", icon: FiHome, label: t("dashboard") },
+        { path: "/announcements", icon: FiBell, label: t("announcements") },
+        { path: "/messages", icon: FiMessageSquare, label: t("messages") },
+        { path: "/calendar", icon: FiCalendar, label: t("calendar") },
+        { path: "/homework", icon: FiClipboard, label: t("homework") },
+        { path: "/materials", icon: FiFolder, label: t("materials") },
       ];
     }
-
-    // ============ TEACHER MENU ============
     if (role === "teacher") {
       return [
-        { path: "/dashboard", icon: FiHome, label: "Dashboard" },
-        { path: "/announcements", icon: FiBell, label: "Announcements" },
-        { path: "/messages", icon: FiMessageSquare, label: "Messages" },
-        { path: "/calendar", icon: FiCalendar, label: "Calendar" },
-        { path: "/materials", icon: FiFolder, label: "Materials" },
-        { path: "/homework", icon: FiClipboard, label: "Homework" },
-        { path: "/my-students", icon: FiUsers, label: "My Students" },
+        { path: "/dashboard", icon: FiHome, label: t("dashboard") },
+        { path: "/announcements", icon: FiBell, label: t("announcements") },
+        { path: "/messages", icon: FiMessageSquare, label: t("messages") },
+        { path: "/calendar", icon: FiCalendar, label: t("calendar") },
+        { path: "/materials", icon: FiFolder, label: t("materials") },
+        { path: "/homework", icon: FiClipboard, label: t("homework") },
+        { path: "/my-students", icon: FiUsers, label: t("my_students") },
       ];
     }
-
-    // ============ STUDENT MENU ============
     if (role === "student") {
       return [
-        { path: "/dashboard", icon: FiHome, label: "Dashboard" },
-        { path: "/announcements", icon: FiBell, label: "Announcements" },
-        { path: "/calendar", icon: FiCalendar, label: "Calendar" },
-        { path: "/homework", icon: FiClipboard, label: "Homework" },
-        { path: "/materials", icon: FiFolder, label: "Materials" },
+        { path: "/dashboard", icon: FiHome, label: t("dashboard") },
+        { path: "/announcements", icon: FiBell, label: t("announcements") },
+        { path: "/calendar", icon: FiCalendar, label: t("calendar") },
+        { path: "/homework", icon: FiClipboard, label: t("homework") },
+        { path: "/materials", icon: FiFolder, label: t("materials") },
       ];
     }
-
-    // ============ ADMIN MENU (UPDATED) ============
     if (role === "admin") {
       return [
-        { path: "/dashboard", icon: FiHome, label: "Dashboard" },
-        { path: "/announcements", icon: FiBell, label: "Announcements" },
-        { path: "/calendar", icon: FiCalendar, label: "Calendar" },
-        { path: "/admin/users", icon: FiUsers, label: "Manage Users" },
-        { path: "/admin/stats", icon: FiClipboard, label: "Reports" },
+        { path: "/dashboard", icon: FiHome, label: t("dashboard") },
+        { path: "/announcements", icon: FiBell, label: t("announcements") },
+        { path: "/calendar", icon: FiCalendar, label: t("calendar") },
+        { path: "/admin/users", icon: FiUsers, label: t("manage_users") },
+        { path: "/admin/stats", icon: FiClipboard, label: t("reports") },
       ];
     }
-
-    // Default fallback
     return [
-      { path: "/dashboard", icon: FiHome, label: "Dashboard" },
-      { path: "/profile", icon: FiUser, label: "Profile" },
+      { path: "/dashboard", icon: FiHome, label: t("dashboard") },
+      { path: "/profile", icon: FiUser, label: t("profile") },
     ];
   };
 
@@ -161,22 +172,19 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
     </NavLink>
   );
 
-  // Add logout button at the end
   const allItems = [
     ...menuItems,
-    { path: "#", icon: FiLogOut, label: "Logout", isLogout: true },
+    { path: "#", icon: FiLogOut, label: t("logout"), isLogout: true },
   ];
 
   // Mobile sidebar overlay
   if (isMobile) {
     return (
       <>
-        {/* Mobile Menu Button */}
         <button onClick={toggleMobileMenu} style={styles.mobileMenuBtn}>
           <FiMenu size={24} />
         </button>
 
-        {/* Mobile Sidebar Overlay */}
         {mobileMenuOpen && (
           <div style={styles.mobileOverlay} onClick={toggleMobileMenu}>
             <motion.aside
@@ -187,7 +195,6 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
               style={styles.mobileSidebar}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Logo Section */}
               <div style={styles.logoSection}>
                 <motion.div
                   style={styles.logoIcon}
@@ -205,23 +212,16 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
                 </button>
               </div>
 
-              {/* Navigation */}
               <nav style={styles.nav}>
                 {allItems.map((item) =>
                   item.isLogout ? (
                     <button
                       key="logout"
-                      onClick={() => {
-                        handleLogout();
-                        setMobileMenuOpen(false);
-                      }}
-                      style={{
-                        ...styles.navItem,
-                        ...styles.logoutBtn,
-                      }}
+                      onClick={handleLogoutClick}
+                      style={{ ...styles.navItem, ...styles.logoutBtn }}
                     >
                       <FiLogOut size={18} style={styles.navIcon} />
-                      <span style={styles.navLabel}>Logout</span>
+                      <span style={styles.navLabel}>{t("logout")}</span>
                     </button>
                   ) : (
                     <NavItem key={item.path} item={item} />
@@ -231,75 +231,214 @@ export const Sidebar = ({ isCollapsed, onToggleCollapse }) => {
             </motion.aside>
           </div>
         )}
+
+        {/* Confirm Modal */}
+        <AnimatePresence>
+          {showConfirmModal && (
+            <motion.div
+              variants={backdropVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              style={styles.modalBackdrop}
+              onClick={() => setShowConfirmModal(false)}
+            >
+              <motion.div
+                variants={modalVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                style={styles.modal}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 style={styles.modalTitle}>{t("confirm_logout")}</h3>
+                <p style={styles.modalText}>
+                  {t("logout_confirmation_message")}
+                </p>
+                <div style={styles.modalActions}>
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    style={styles.modalCancelBtn}
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    onClick={confirmLogout}
+                    style={styles.modalConfirmBtn}
+                  >
+                    {t("logout")}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </>
     );
   }
 
   // Desktop sidebar
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: isCollapsed ? 80 : 256 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      style={styles.sidebar}
-    >
-      {/* Logo Section */}
-      <div style={styles.logoSection}>
-        <motion.div
-          style={styles.logoIcon}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <span style={styles.logoText}>PT</span>
-        </motion.div>
-        {!isCollapsed && (
-          <motion.span
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            style={styles.logoName}
+    <>
+      <motion.aside
+        initial={false}
+        animate={{ width: isCollapsed ? 80 : 256 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        style={styles.sidebar}
+      >
+        <div style={styles.logoSection}>
+          <motion.div
+            style={styles.logoIcon}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            ParentTeacher
-          </motion.span>
-        )}
-        <button
-          onClick={onToggleCollapse}
-          style={styles.collapseBtn}
-          aria-label="Toggle sidebar"
-        >
-          {isCollapsed ? (
-            <FiChevronRight size={16} />
-          ) : (
-            <FiChevronLeft size={16} />
-          )}
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav style={styles.nav}>
-        {allItems.map((item) =>
-          item.isLogout ? (
-            <button
-              key="logout"
-              onClick={handleLogout}
-              style={{
-                ...styles.navItem,
-                ...(isCollapsed ? styles.navItemCollapsed : {}),
-                ...styles.logoutBtn,
-              }}
+            <span style={styles.logoText}>PT</span>
+          </motion.div>
+          {!isCollapsed && (
+            <motion.span
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              style={styles.logoName}
             >
-              <FiLogOut size={18} style={styles.navIcon} />
-              {!isCollapsed && <span style={styles.navLabel}>Logout</span>}
-            </button>
-          ) : (
-            <NavItem key={item.path} item={item} />
-          ),
+              ParentTeacher
+            </motion.span>
+          )}
+          <button onClick={onToggleCollapse} style={styles.collapseBtn}>
+            {isCollapsed ? (
+              <FiChevronRight size={16} />
+            ) : (
+              <FiChevronLeft size={16} />
+            )}
+          </button>
+        </div>
+
+        <nav style={styles.nav}>
+          {allItems.map((item) =>
+            item.isLogout ? (
+              <button
+                key="logout"
+                onClick={handleLogoutClick}
+                style={{
+                  ...styles.navItem,
+                  ...(isCollapsed ? styles.navItemCollapsed : {}),
+                  ...styles.logoutBtn,
+                }}
+              >
+                <FiLogOut size={18} style={styles.navIcon} />
+                {!isCollapsed && (
+                  <span style={styles.navLabel}>{t("logout")}</span>
+                )}
+              </button>
+            ) : (
+              <NavItem key={item.path} item={item} />
+            ),
+          )}
+        </nav>
+      </motion.aside>
+
+      {/* Confirm Modal */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            style={styles.modalBackdrop}
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              style={styles.modal}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={styles.modalTitle}>{t("confirm_logout")}</h3>
+              <p style={styles.modalText}>{t("logout_confirmation_message")}</p>
+              <div style={styles.modalActions}>
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  style={styles.modalCancelBtn}
+                >
+                  {t("cancel")}
+                </button>
+                <button onClick={confirmLogout} style={styles.modalConfirmBtn}>
+                  {t("logout")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </nav>
-    </motion.aside>
+      </AnimatePresence>
+    </>
   );
 };
 
 const styles = {
+  modalBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backdropFilter: "blur(4px)",
+  },
+  modal: {
+    backgroundColor: "white",
+    borderRadius: "16px",
+    padding: "24px",
+    width: "90%",
+    maxWidth: "400px",
+    boxShadow:
+      "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+    textAlign: "center",
+  },
+  modalTitle: {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#1f2937",
+    marginBottom: "12px",
+  },
+  modalText: {
+    fontSize: "14px",
+    color: "#6b7280",
+    marginBottom: "24px",
+  },
+  modalActions: {
+    display: "flex",
+    gap: "12px",
+    justifyContent: "center",
+  },
+  modalCancelBtn: {
+    padding: "8px 20px",
+    backgroundColor: "#f3f4f6",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#374151",
+    transition: "all 0.2s ease",
+  },
+  modalConfirmBtn: {
+    padding: "8px 20px",
+    backgroundColor: "#ef4444",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "white",
+    transition: "all 0.2s ease",
+  },
+
   sidebar: {
     position: "fixed",
     left: 0,

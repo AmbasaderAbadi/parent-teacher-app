@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { FiFile, FiDownload, FiEye } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { materialsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const StudentMaterialsPage = () => {
+  const { t } = useTranslation();
   const { user: storeUser } = useAuthStore();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,8 +54,7 @@ const StudentMaterialsPage = () => {
       });
 
       const formatted = filtered.map((material) => {
-        // ✅ Extract uploadedBy name safely
-        let uploadedBy = "Unknown";
+        let uploadedBy = t("unknown");
         if (material.uploadedBy) {
           if (typeof material.uploadedBy === "string") {
             uploadedBy = material.uploadedBy;
@@ -63,7 +64,7 @@ const StudentMaterialsPage = () => {
           } else if (material.uploadedBy.name) {
             uploadedBy = material.uploadedBy.name;
           } else {
-            uploadedBy = material.teacherName || "Unknown";
+            uploadedBy = material.teacherName || t("unknown");
           }
         } else if (material.teacherName) {
           uploadedBy = material.teacherName;
@@ -89,7 +90,7 @@ const StudentMaterialsPage = () => {
       setMaterials(formatted);
     } catch (error) {
       console.error("Error fetching materials:", error);
-      toast.error("Failed to load materials");
+      toast.error(t("material_upload_failed"));
       setMaterials([]);
     } finally {
       setLoading(false);
@@ -99,9 +100,9 @@ const StudentMaterialsPage = () => {
   const handleDownload = (material) => {
     if (material.fileUrl) {
       window.open(material.fileUrl, "_blank");
-      toast.success(`Opening ${material.title}`);
+      toast.success(`${t("opening")} ${material.title}`);
     } else {
-      toast.error("No file URL available");
+      toast.error(t("no_file_url"));
     }
   };
 
@@ -109,7 +110,7 @@ const StudentMaterialsPage = () => {
     if (material.fileUrl && material.fileUrl !== "#") {
       window.open(material.fileUrl, "_blank");
     } else {
-      toast.info("Preview not available. Please download the file to view it.");
+      toast.info(t("preview_not_available"));
     }
   };
 
@@ -117,7 +118,7 @@ const StudentMaterialsPage = () => {
     return (
       <div style={styles.loading}>
         <div className="loading-spinner"></div>
-        <p>Loading materials...</p>
+        <p>{t("loading_materials")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -139,16 +140,18 @@ const StudentMaterialsPage = () => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>📁 Study Materials</h1>
-        <p style={styles.subtitle}>Access your learning resources</p>
+        <h1 style={styles.title}>{t("study_materials")}</h1>
+        <p style={styles.subtitle}>{t("access_learning_resources")}</p>
       </div>
 
       {studentInfo && (
         <div style={styles.studentInfo}>
           <p>
-            Welcome, <strong>{studentInfo.name}</strong>! Here are materials for
-            <strong> {studentInfo.grade}</strong> - Section{" "}
-            <strong>{studentInfo.section}</strong>
+            {t("welcome_student_materials", {
+              name: studentInfo.name,
+              grade: studentInfo.grade,
+              section: studentInfo.section,
+            })}
           </p>
         </div>
       )}
@@ -156,10 +159,8 @@ const StudentMaterialsPage = () => {
       <div style={styles.materialsList}>
         {materials.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No materials available for your class yet.</p>
-            <p style={styles.emptyStateSubtext}>
-              Check back later for new learning resources.
-            </p>
+            <p>{t("no_materials_class")}</p>
+            <p style={styles.emptyStateSubtext}>{t("check_back_later")}</p>
           </div>
         ) : (
           materials.map((material) => (
@@ -176,12 +177,13 @@ const StudentMaterialsPage = () => {
                   </p>
                 )}
                 <p style={styles.materialMeta}>
-                  Uploaded by: {material.uploadedBy} • {material.date}
+                  {t("uploaded_by")} {material.uploadedBy} • {material.date}
                 </p>
                 {material.grade && (
                   <p style={styles.materialClass}>
-                    Class: {material.grade}{" "}
-                    {material.section && `- Section ${material.section}`}
+                    {t("class")}: {material.grade}{" "}
+                    {material.section &&
+                      `- ${t("section")} ${material.section}`}
                   </p>
                 )}
               </div>
@@ -189,7 +191,7 @@ const StudentMaterialsPage = () => {
                 <button
                   onClick={() => handleView(material)}
                   style={styles.viewBtn}
-                  title="Preview"
+                  title={t("preview")}
                 >
                   <FiEye size={16} />
                 </button>
@@ -197,7 +199,7 @@ const StudentMaterialsPage = () => {
                   onClick={() => handleDownload(material)}
                   style={styles.downloadBtn}
                 >
-                  <FiDownload size={16} /> Download
+                  <FiDownload size={16} /> {t("download")}
                 </button>
               </div>
             </div>

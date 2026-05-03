@@ -9,20 +9,33 @@ import {
   FiSettings,
   FiLock,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { useAuth } from "../../../contexts/AuthContext";
 import NotificationsDropdown from "../../../components/NotificationsDropdown";
-
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 export const Header = ({ onToggleSidebar }) => {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const dropdownRef = useRef(null);
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+  };
+  const backdropVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 },
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -40,18 +53,22 @@ export const Header = ({ onToggleSidebar }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    setShowDropdown(false);
+  const confirmLogout = () => {
     logout();
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     localStorage.removeItem("userRole");
-    toast.success("Logged out successfully");
+    toast.success(t("logged_out_success"));
     navigate("/login");
+    setShowConfirmModal(false);
   };
 
-  // Get user's full name or first name from localStorage
+  const handleLogoutClick = () => {
+    setShowDropdown(false);
+    setShowConfirmModal(true);
+  };
+
   const getUserData = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -70,32 +87,20 @@ export const Header = ({ onToggleSidebar }) => {
     if (userData.firstName && userData.lastName) {
       return `${userData.firstName} ${userData.lastName}`;
     }
-    if (userData.firstName) {
-      return userData.firstName;
-    }
-    if (userData.name) {
-      return userData.name;
-    }
-    return "User";
+    if (userData.firstName) return userData.firstName;
+    if (userData.name) return userData.name;
+    return t("user");
   };
 
   const getFirstName = () => {
-    if (userData.firstName) {
-      return userData.firstName;
-    }
-    if (userData.name) {
-      return userData.name.split(" ")[0];
-    }
-    return "User";
+    if (userData.firstName) return userData.firstName;
+    if (userData.name) return userData.name.split(" ")[0];
+    return t("user");
   };
 
   const getUserInitial = () => {
-    if (userData.firstName) {
-      return userData.firstName.charAt(0).toUpperCase();
-    }
-    if (userData.name) {
-      return userData.name.charAt(0).toUpperCase();
-    }
+    if (userData.firstName) return userData.firstName.charAt(0).toUpperCase();
+    if (userData.name) return userData.name.charAt(0).toUpperCase();
     return "U";
   };
 
@@ -103,171 +108,256 @@ export const Header = ({ onToggleSidebar }) => {
     if (userData.role) {
       return userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
     }
-    return "User";
+    return t("user");
   };
 
-  const getUserEmail = () => {
-    return userData.email || "";
-  };
+  const getUserEmail = () => userData.email || "";
 
   const getTimeBasedGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+    if (hour < 12) return t("good_morning");
+    if (hour < 18) return t("good_afternoon");
+    return t("good_evening");
   };
 
   const dropdownItems = [
     {
       icon: FiUser,
-      label: "Profile Settings",
+      label: t("profile_settings"),
       action: () => navigate("/profile"),
     },
     {
       icon: FiLock,
-      label: "Change Password",
+      label: t("change_password"),
       action: () => navigate("/settings/password"),
     },
     {
       icon: FiSettings,
-      label: "Preferences",
+      label: t("preferences"),
       action: () => navigate("/settings/preferences"),
     },
   ];
 
   return (
-    <motion.header
-      style={{
-        ...styles.header,
-        ...(scrolled ? styles.headerScrolled : {}),
-      }}
-    >
-      <div style={styles.headerContent}>
-        {/* Left: Toggle + Welcome */}
-        <div style={styles.leftSection}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onToggleSidebar}
-            style={styles.menuToggle}
-            aria-label="Toggle sidebar"
-          >
-            <svg
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </motion.button>
-
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            style={styles.welcomeContainer}
-          >
-            <span style={styles.greeting}>{getTimeBasedGreeting()},</span>
-            <span style={styles.userNameText}>{getFirstName()}</span>
-            <span style={styles.emoji}>👋</span>
-          </motion.div>
-        </div>
-
-        {/* Right: Actions */}
-        <div style={styles.rightSection}>
-          {/* Notifications Dropdown */}
-          <NotificationsDropdown />
-
-          {/* User Dropdown */}
-          <div style={styles.dropdownContainer} ref={dropdownRef}>
+    <>
+      <motion.header
+        style={{ ...styles.header, ...(scrolled ? styles.headerScrolled : {}) }}
+      >
+        <div style={styles.headerContent}>
+          <div style={styles.leftSection}>
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowDropdown(!showDropdown)}
-              style={{
-                ...styles.userBtn,
-                ...(showDropdown ? styles.userBtnActive : {}),
-              }}
-              aria-expanded={showDropdown}
-              aria-haspopup="true"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onToggleSidebar}
+              style={styles.menuToggle}
+              aria-label={t("toggle_sidebar")}
             >
-              <div style={styles.avatar}>
-                {getUserInitial()}
-                <span style={styles.onlineDot} />
-              </div>
-              <div style={styles.userInfo}>
-                <p style={styles.userName}>{getFullName()}</p>
-                <p style={styles.userRole}>{getUserRole()}</p>
-              </div>
-              <FiChevronDown
-                size={14}
-                style={{
-                  ...styles.chevron,
-                  transform: showDropdown ? "rotate(180deg)" : "rotate(0)",
-                }}
-              />
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
             </motion.button>
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              style={styles.welcomeContainer}
+            >
+              <span style={styles.greeting}>{getTimeBasedGreeting()},</span>
+              <span style={styles.userNameText}>{getFirstName()}</span>
+              <span style={styles.emoji}>👋</span>
+            </motion.div>
+          </div>
 
-            <AnimatePresence>
-              {showDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  style={styles.dropdown}
-                >
-                  {/* User Header */}
-                  <div style={styles.dropdownHeader}>
-                    <p style={styles.dropdownName}>{getFullName()}</p>
-                    <p style={styles.dropdownEmail}>{getUserEmail()}</p>
-                  </div>
+          <div style={styles.rightSection}>
+            <NotificationsDropdown />
+            <div style={styles.dropdownContainer} ref={dropdownRef}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowDropdown(!showDropdown)}
+                style={{
+                  ...styles.userBtn,
+                  ...(showDropdown ? styles.userBtnActive : {}),
+                }}
+              >
+                <div style={styles.avatar}>
+                  {getUserInitial()}
+                  <span style={styles.onlineDot} />
+                </div>
+                <div style={styles.userInfo}>
+                  <p style={styles.userName}>{getFullName()}</p>
+                  <p style={styles.userRole}>{getUserRole()}</p>
+                </div>
+                <FiChevronDown
+                  size={14}
+                  style={{
+                    ...styles.chevron,
+                    transform: showDropdown ? "rotate(180deg)" : "rotate(0)",
+                  }}
+                />
+              </motion.button>
 
-                  {/* Menu Items */}
-                  <div style={styles.dropdownItems}>
-                    {dropdownItems.map((item, index) => (
-                      <motion.button
-                        key={index}
-                        whileHover={{ x: 4 }}
-                        onClick={() => {
-                          setShowDropdown(false);
-                          item.action();
-                        }}
-                        style={styles.dropdownItem}
-                      >
-                        <item.icon size={16} style={styles.dropdownIcon} />
-                        {item.label}
-                      </motion.button>
-                    ))}
-                  </div>
-
-                  {/* Logout */}
-                  <div style={styles.dropdownDivider} />
-                  <motion.button
-                    whileHover={{ x: 4 }}
-                    onClick={handleLogout}
-                    style={styles.logoutItem}
+              <AnimatePresence>
+                {showDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    style={styles.dropdown}
                   >
-                    <FiLogOut size={16} style={styles.logoutIcon} />
-                    Logout
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <div style={styles.dropdownHeader}>
+                      <p style={styles.dropdownName}>{getFullName()}</p>
+                      <p style={styles.dropdownEmail}>{getUserEmail()}</p>
+                    </div>
+                    <div style={styles.dropdownItems}>
+                      {dropdownItems.map((item, index) => (
+                        <motion.button
+                          key={index}
+                          whileHover={{ x: 4 }}
+                          onClick={() => {
+                            setShowDropdown(false);
+                            item.action();
+                          }}
+                          style={styles.dropdownItem}
+                        >
+                          <item.icon size={16} style={styles.dropdownIcon} />
+                          {item.label}
+                        </motion.button>
+                      ))}
+                    </div>
+                    <div style={styles.dropdownDivider} />
+                    <motion.button
+                      whileHover={{ x: 4 }}
+                      onClick={handleLogoutClick}
+                      style={styles.logoutItem}
+                    >
+                      <FiLogOut size={16} style={styles.logoutIcon} />
+                      {t("logout")}
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
-      </div>
-    </motion.header>
+      </motion.header>
+
+      {/* Confirm Logout Modal */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            style={styles.modalBackdrop}
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              style={styles.modal}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={styles.modalTitle}>{t("confirm_logout")}</h3>
+              <p style={styles.modalText}>{t("logout_confirmation_message")}</p>
+              <div style={styles.modalActions}>
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  style={styles.modalCancelBtn}
+                >
+                  {t("cancel")}
+                </button>
+                <button onClick={confirmLogout} style={styles.modalConfirmBtn}>
+                  {t("logout")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
 const styles = {
+  // Keep all existing styles EXACTLY as in your original Header.jsx,
+  // plus add these new modal styles:
+  modalBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backdropFilter: "blur(4px)",
+  },
+  modal: {
+    backgroundColor: "white",
+    borderRadius: "16px",
+    padding: "24px",
+    width: "90%",
+    maxWidth: "400px",
+    boxShadow:
+      "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+    textAlign: "center",
+  },
+  modalTitle: {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#1f2937",
+    marginBottom: "12px",
+  },
+  modalText: {
+    fontSize: "14px",
+    color: "#6b7280",
+    marginBottom: "24px",
+  },
+  modalActions: {
+    display: "flex",
+    gap: "12px",
+    justifyContent: "center",
+  },
+  modalCancelBtn: {
+    padding: "8px 20px",
+    backgroundColor: "#f3f4f6",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#374151",
+    transition: "all 0.2s ease",
+  },
+  modalConfirmBtn: {
+    padding: "8px 20px",
+    backgroundColor: "#ef4444",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "white",
+    transition: "all 0.2s ease",
+  },
+
   header: {
     position: "sticky",
     top: 0,

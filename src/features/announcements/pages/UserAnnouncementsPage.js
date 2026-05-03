@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { FiBell } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { announcementsAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const UserAnnouncementsPage = () => {
+  const { t } = useTranslation();
   const { user: storeUser } = useAuthStore();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ const UserAnnouncementsPage = () => {
         id: ann.id || ann._id,
         title: ann.title,
         content: ann.content,
-        targetAudience: ann.targetAudience || "all", // ✅ default to "all"
+        targetAudience: ann.targetAudience || "all",
         targetGrade: ann.targetGrade,
         targetSection: ann.targetSection,
         date: ann.createdAt
@@ -66,7 +68,7 @@ const UserAnnouncementsPage = () => {
     } catch (error) {
       console.error("Error fetching announcements:", error);
       if (error.response?.status !== 401) {
-        toast.error("Failed to load announcements");
+        toast.error(t("failed_load_announcements"));
       }
       setAnnouncements([]);
     } finally {
@@ -78,14 +80,13 @@ const UserAnnouncementsPage = () => {
     if (!userData || !Array.isArray(allAnnouncements)) return [];
 
     return allAnnouncements.filter((ann) => {
-      const target = ann.targetAudience || "all"; // ✅ treat missing as global
+      const target = ann.targetAudience || "all";
 
       if (target === "all") return true;
       if (target === "teachers" && userData.role === "teacher") return true;
       if (target === "parents" && userData.role === "parent") return true;
       if (target === "students" && userData.role === "student") return true;
 
-      // Grade/section targeting for students
       if (userData.role === "student" && ann.targetGrade) {
         if (ann.targetGrade === userData.grade) {
           if (ann.targetSection) {
@@ -97,7 +98,6 @@ const UserAnnouncementsPage = () => {
         }
       }
 
-      // Parents: match any child's grade/section
       if (
         userData.role === "parent" &&
         userData.children &&
@@ -120,22 +120,22 @@ const UserAnnouncementsPage = () => {
 
   const getTargetText = (ann) => {
     const target = ann.targetAudience || "all";
-    if (target === "all") return "📢 Everyone";
-    if (target === "teachers") return "👥 Teachers only";
-    if (target === "parents") return "👥 Parents only";
-    if (target === "students") return "👥 Students only";
+    if (target === "all") return `📢 ${t("everyone")}`;
+    if (target === "teachers") return `👥 ${t("teachers_only")}`;
+    if (target === "parents") return `👥 ${t("parents_only")}`;
+    if (target === "students") return `👥 ${t("students_only")}`;
     if (ann.targetGrade && ann.targetSection) {
-      return `🏫 ${ann.targetGrade} - Section ${ann.targetSection}`;
+      return `🏫 ${ann.targetGrade} - ${t("section")} ${ann.targetSection}`;
     }
     if (ann.targetGrade) return `📚 ${ann.targetGrade}`;
-    return "🎯 Specific";
+    return `🎯 ${t("specific_audience")}`;
   };
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner" />
-        <p>Loading announcements...</p>
+        <p>{t("loading_announcements")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -157,21 +157,21 @@ const UserAnnouncementsPage = () => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>📢 Announcements</h1>
-        <p style={styles.subtitle}>Stay updated with important news</p>
+        <h1 style={styles.title}>{t("announcements")}</h1>
+        <p style={styles.subtitle}>{t("stay_updated")}</p>
       </div>
 
       {currentUser && (
         <div style={styles.userInfo}>
           <p>
-            Showing announcements for:{" "}
+            {t("showing_announcements_for")}{" "}
             <strong>{currentUser.role?.toUpperCase()}</strong>
             {currentUser.grade && ` • ${currentUser.grade}`}
             {(currentUser.className || currentUser.section) &&
-              ` • Section ${currentUser.className || currentUser.section}`}
+              ` • ${t("section")} ${currentUser.className || currentUser.section}`}
             {currentUser.role === "parent" &&
               currentUser.children &&
-              ` • Children: ${currentUser.children.map((c) => c.name).join(", ")}`}
+              ` • ${t("children")}: ${currentUser.children.map((c) => c.name).join(", ")}`}
           </p>
         </div>
       )}
@@ -179,8 +179,8 @@ const UserAnnouncementsPage = () => {
       {announcements.length === 0 ? (
         <div style={styles.empty}>
           <FiBell size={48} style={styles.emptyIcon} />
-          <p>No announcements for you at this time</p>
-          <p style={styles.emptySubtext}>Check back later for updates</p>
+          <p>{t("no_announcements_for_you")}</p>
+          <p style={styles.emptySubtext}>{t("check_back_later")}</p>
         </div>
       ) : (
         <div style={styles.announcementsList}>

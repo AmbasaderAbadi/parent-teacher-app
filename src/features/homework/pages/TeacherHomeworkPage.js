@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiPlus, FiEdit2, FiTrash2, FiEye, FiPaperclip } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { homeworkAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const TeacherHomeworkPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [homeworks, setHomeworks] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -22,16 +24,16 @@ const TeacherHomeworkPage = () => {
     dueDate: "",
   });
 
-  const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const grades = [t("grade_9"), t("grade_10"), t("grade_11"), t("grade_12")];
   const classNames = ["A", "B", "C", "D"];
   const subjects = [
-    "Mathematics",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "English",
-    "History",
-    "Geography",
+    t("mathematics"),
+    t("physics"),
+    t("chemistry"),
+    t("biology"),
+    t("english"),
+    t("history"),
+    t("geography"),
   ];
 
   useEffect(() => {
@@ -69,7 +71,7 @@ const TeacherHomeworkPage = () => {
       setHomeworks(formattedHomeworks);
     } catch (error) {
       console.error("Error fetching homeworks:", error);
-      toast.error("Failed to load homework");
+      toast.error(t("failed_load_homework"));
       setHomeworks([]);
     } finally {
       setLoading(false);
@@ -80,7 +82,7 @@ const TeacherHomeworkPage = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 20 * 1024 * 1024) {
-        toast.error("File size must be less than 20MB");
+        toast.error(t("file_too_large"));
         return;
       }
       setSelectedFile(file);
@@ -95,9 +97,7 @@ const TeacherHomeworkPage = () => {
       !newHomework.className ||
       !newHomework.dueDate
     ) {
-      toast.error(
-        "Please fill all required fields (Title, Subject, Grade, Class, Due Date)",
-      );
+      toast.error(t("required_fields_homework"));
       return;
     }
 
@@ -105,7 +105,6 @@ const TeacherHomeworkPage = () => {
     try {
       let response;
       if (selectedFile) {
-        // Use multipart/form-data upload
         const formData = new FormData();
         formData.append("files", selectedFile);
         formData.append("title", newHomework.title);
@@ -125,7 +124,6 @@ const TeacherHomeworkPage = () => {
           },
         });
       } else {
-        // No file – use JSON endpoint
         const payload = {
           title: newHomework.title,
           description: newHomework.description,
@@ -156,10 +154,10 @@ const TeacherHomeworkPage = () => {
       setHomeworks([homework, ...homeworks]);
       setShowForm(false);
       resetForm();
-      toast.success("Homework assigned successfully!");
+      toast.success(t("homework_assigned_success"));
     } catch (error) {
       console.error("Error creating homework:", error);
-      toast.error(error.response?.data?.message || "Failed to assign homework");
+      toast.error(error.response?.data?.message || t("homework_assign_failed"));
     } finally {
       setUploading(false);
     }
@@ -185,25 +183,25 @@ const TeacherHomeworkPage = () => {
       setShowForm(false);
       setEditingHomework(null);
       resetForm();
-      toast.success("Homework updated successfully!");
+      toast.success(t("homework_updated_success"));
     } catch (error) {
       console.error("Error updating homework:", error);
-      toast.error(error.response?.data?.message || "Failed to update homework");
+      toast.error(error.response?.data?.message || t("homework_update_failed"));
     } finally {
       setUploading(false);
     }
   };
 
   const handleDelete = async (homeworkId) => {
-    if (window.confirm("Are you sure you want to delete this homework?")) {
+    if (window.confirm(t("confirm_delete_homework"))) {
       try {
         await homeworkAPI.deleteHomework(homeworkId);
         setHomeworks(homeworks.filter((h) => h.id !== homeworkId));
-        toast.success("Homework deleted successfully!");
+        toast.success(t("homework_deleted_success"));
       } catch (error) {
         console.error("Error deleting homework:", error);
         toast.error(
-          error.response?.data?.message || "Failed to delete homework",
+          error.response?.data?.message || t("homework_delete_failed"),
         );
       }
     }
@@ -227,11 +225,10 @@ const TeacherHomeworkPage = () => {
     try {
       const response = await homeworkAPI.getSubmissions(homeworkId);
       const submissions = response.data?.data || response.data || [];
-      toast.success(`${submissions.length} submissions received`);
-      // Optionally open a modal to display submissions
+      toast.success(t("submissions_received", { count: submissions.length }));
     } catch (error) {
       console.error("Error fetching submissions:", error);
-      toast.error("Failed to load submissions");
+      toast.error(t("failed_load_submissions"));
     }
   };
 
@@ -251,7 +248,7 @@ const TeacherHomeworkPage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner" />
-        <p>Loading homework...</p>
+        <p>{t("loading_homework")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -274,8 +271,8 @@ const TeacherHomeworkPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📝 Homework Management</h1>
-          <p style={styles.subtitle}>Assign homework for your classes</p>
+          <h1 style={styles.title}>{t("homework_management")}</h1>
+          <p style={styles.subtitle}>{t("assign_homework")}</p>
         </div>
         <button
           onClick={() => {
@@ -285,7 +282,7 @@ const TeacherHomeworkPage = () => {
           }}
           style={styles.addBtn}
         >
-          <FiPlus size={16} /> Assign Homework
+          <FiPlus size={16} /> {t("assign_homework")}
         </button>
       </div>
 
@@ -295,10 +292,12 @@ const TeacherHomeworkPage = () => {
           animate={{ opacity: 1, y: 0 }}
           style={styles.formCard}
         >
-          <h3>{editingHomework ? "Edit Homework" : "Assign New Homework"}</h3>
+          <h3>
+            {editingHomework ? t("edit_homework") : t("assign_new_homework")}
+          </h3>
           <input
             type="text"
-            placeholder="Homework Title *"
+            placeholder={t("homework_title_required")}
             value={newHomework.title}
             onChange={(e) =>
               setNewHomework({ ...newHomework, title: e.target.value })
@@ -307,7 +306,7 @@ const TeacherHomeworkPage = () => {
             disabled={uploading}
           />
           <textarea
-            placeholder="Description / Instructions"
+            placeholder={t("description_instructions")}
             rows={3}
             value={newHomework.description}
             onChange={(e) =>
@@ -326,7 +325,7 @@ const TeacherHomeworkPage = () => {
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Subject *</option>
+              <option value="">{t("select_subject")}</option>
               {subjects.map((s) => (
                 <option key={s}>{s}</option>
               ))}
@@ -339,7 +338,7 @@ const TeacherHomeworkPage = () => {
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Grade *</option>
+              <option value="">{t("select_grade")}</option>
               {grades.map((g) => (
                 <option key={g}>{g}</option>
               ))}
@@ -355,9 +354,11 @@ const TeacherHomeworkPage = () => {
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Class *</option>
+              <option value="">{t("select_class")}</option>
               {classNames.map((c) => (
-                <option key={c}>Section {c}</option>
+                <option key={c}>
+                  {t("section")} {c}
+                </option>
               ))}
             </select>
             <input
@@ -372,11 +373,10 @@ const TeacherHomeworkPage = () => {
             />
           </div>
 
-          {/* File Attachment */}
           {!editingHomework && (
             <div style={styles.fileSection}>
               <label style={styles.fileLabel}>
-                <FiPaperclip size={14} /> Attachment (optional)
+                <FiPaperclip size={14} /> {t("attachment_optional")}
               </label>
               <input
                 type="file"
@@ -393,9 +393,7 @@ const TeacherHomeworkPage = () => {
                   </span>
                 </div>
               )}
-              <p style={styles.fileHint}>
-                Max size: 20MB. Supported: PDF, images, Word, TXT
-              </p>
+              <p style={styles.fileHint}>{t("file_hint")}</p>
             </div>
           )}
 
@@ -409,7 +407,7 @@ const TeacherHomeworkPage = () => {
               style={styles.cancelBtn}
               disabled={uploading}
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               onClick={editingHomework ? handleUpdate : handlePost}
@@ -417,23 +415,21 @@ const TeacherHomeworkPage = () => {
               disabled={uploading}
             >
               {uploading
-                ? "Processing..."
+                ? t("processing")
                 : editingHomework
-                  ? "Update Homework"
-                  : "Assign Homework"}
+                  ? t("update_homework")
+                  : t("assign_homework_btn")}
             </button>
           </div>
         </motion.div>
       )}
 
       <div style={styles.homeworkList}>
-        <h3>My Assigned Homework ({homeworks.length})</h3>
+        <h3>{t("my_assigned_homework", { count: homeworks.length })}</h3>
         {homeworks.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No homework assigned yet.</p>
-            <p style={styles.emptyStateSubtext}>
-              Click "Assign Homework" to create your first assignment.
-            </p>
+            <p>{t("no_homework_assigned")}</p>
+            <p style={styles.emptyStateSubtext}>{t("click_assign_homework")}</p>
           </div>
         ) : (
           homeworks.map((hw) => (
@@ -442,8 +438,8 @@ const TeacherHomeworkPage = () => {
                 <div style={styles.homeworkHeader}>
                   <h3 style={styles.homeworkTitle}>{hw.title}</h3>
                   <span style={styles.submissionsCount}>
-                    {hw.submissionsCount} submission
-                    {hw.submissionsCount !== 1 ? "s" : ""}
+                    {hw.submissionsCount} {t("submission")}
+                    {hw.submissionsCount !== 1 ? t("s") : ""}
                   </span>
                 </div>
                 {hw.description && (
@@ -456,29 +452,29 @@ const TeacherHomeworkPage = () => {
                   </div>
                 )}
                 <p style={styles.meta}>
-                  Subject: {hw.subject} • Due: {hw.dueDate} • {hw.grade} -{" "}
-                  {hw.className}
+                  {t("subject_short")}: {hw.subject} • {t("due")}: {hw.dueDate}{" "}
+                  • {hw.grade} - {hw.className}
                 </p>
               </div>
               <div style={styles.actions}>
                 <button
                   onClick={() => handleViewSubmissions(hw.id)}
                   style={styles.viewBtn}
-                  title="View Submissions"
+                  title={t("view_submissions")}
                 >
                   <FiEye size={16} />
                 </button>
                 <button
                   onClick={() => handleEdit(hw)}
                   style={styles.editBtn}
-                  title="Edit Homework"
+                  title={t("edit_homework")}
                 >
                   <FiEdit2 size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(hw.id)}
                   style={styles.deleteBtn}
-                  title="Delete Homework"
+                  title={t("delete_homework")}
                 >
                   <FiTrash2 size={16} />
                 </button>
@@ -602,11 +598,7 @@ const styles = {
     border: "1px solid #e5e7eb",
     color: "#9ca3af",
   },
-  emptyStateSubtext: {
-    fontSize: "12px",
-    marginTop: "8px",
-    color: "#d1d5db",
-  },
+  emptyStateSubtext: { fontSize: "12px", marginTop: "8px", color: "#d1d5db" },
   homeworkCard: {
     display: "flex",
     justifyContent: "space-between",
@@ -640,11 +632,7 @@ const styles = {
     color: "#4f46e5",
     borderRadius: "12px",
   },
-  homeworkDesc: {
-    fontSize: "13px",
-    color: "#6b7280",
-    marginBottom: "8px",
-  },
+  homeworkDesc: { fontSize: "13px", color: "#6b7280", marginBottom: "8px" },
   meta: { fontSize: "12px", color: "#6b7280", margin: "4px 0" },
   actions: { display: "flex", gap: "8px" },
   viewBtn: {
@@ -673,9 +661,7 @@ const styles = {
     color: "#ef4444",
     transition: "all 0.2s ease",
   },
-  fileSection: {
-    marginBottom: "16px",
-  },
+  fileSection: { marginBottom: "16px" },
   fileLabel: {
     display: "flex",
     alignItems: "center",
@@ -700,15 +686,8 @@ const styles = {
     fontSize: "12px",
     color: "#4b5563",
   },
-  fileSize: {
-    fontSize: "11px",
-    color: "#6b7280",
-  },
-  fileHint: {
-    fontSize: "11px",
-    color: "#9ca3af",
-    marginTop: "6px",
-  },
+  fileSize: { fontSize: "11px", color: "#6b7280" },
+  fileHint: { fontSize: "11px", color: "#9ca3af", marginTop: "6px" },
   attachments: {
     display: "flex",
     alignItems: "center",

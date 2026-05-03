@@ -9,11 +9,13 @@ import {
   FiPlus,
   FiX,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { materialsAPI, apiClient } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const TeacherMaterialsPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,16 +35,16 @@ const TeacherMaterialsPage = () => {
   });
   const [tagInput, setTagInput] = useState("");
 
-  const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+  const grades = [t("grade_9"), t("grade_10"), t("grade_11"), t("grade_12")];
   const classNames = ["A", "B", "C", "D"];
   const subjects = [
-    "Mathematics",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "English",
-    "History",
-    "Geography",
+    t("mathematics"),
+    t("physics"),
+    t("chemistry"),
+    t("biology"),
+    t("english"),
+    t("history"),
+    t("geography"),
   ];
   const accessLevels = ["students", "teachers", "parents", "all"];
 
@@ -88,7 +90,7 @@ const TeacherMaterialsPage = () => {
       setMaterials(formattedMaterials);
     } catch (error) {
       console.error("Error fetching materials:", error);
-      toast.error("Failed to load materials");
+      toast.error(t("material_upload_failed"));
       setMaterials([]);
     } finally {
       setLoading(false);
@@ -99,7 +101,7 @@ const TeacherMaterialsPage = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 50 * 1024 * 1024) {
-        toast.error("File size must be less than 50MB");
+        toast.error(t("file_too_large"));
         return;
       }
       setSelectedFile(file);
@@ -130,13 +132,11 @@ const TeacherMaterialsPage = () => {
       !newMaterial.grade ||
       !newMaterial.className
     ) {
-      toast.error(
-        "Please fill all required fields: Title, Subject, Grade, Class",
-      );
+      toast.error(t("required_fields_material"));
       return;
     }
     if (!selectedFile) {
-      toast.error("Please select a file to upload");
+      toast.error(t("select_file_material"));
       return;
     }
 
@@ -184,10 +184,10 @@ const TeacherMaterialsPage = () => {
       setMaterials([material, ...materials]);
       setShowUploadForm(false);
       resetForm();
-      toast.success("Material uploaded successfully!");
+      toast.success(t("material_upload_success"));
     } catch (error) {
       console.error("Upload error:", error.response?.data || error.message);
-      toast.error(error.response?.data?.message || "Failed to upload material");
+      toast.error(error.response?.data?.message || t("material_upload_failed"));
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -195,15 +195,15 @@ const TeacherMaterialsPage = () => {
   };
 
   const handleDelete = async (materialId) => {
-    if (window.confirm("Are you sure you want to delete this material?")) {
+    if (window.confirm(t("confirm_delete_material"))) {
       try {
         await materialsAPI.deleteMaterial(materialId);
         setMaterials(materials.filter((m) => m.id !== materialId));
-        toast.success("Material deleted successfully!");
+        toast.success(t("material_deleted_success"));
       } catch (error) {
         console.error("Error deleting material:", error);
         toast.error(
-          error.response?.data?.message || "Failed to delete material",
+          error.response?.data?.message || t("failed_to_delete_material"),
         );
       }
     }
@@ -212,10 +212,10 @@ const TeacherMaterialsPage = () => {
   const handleDownload = (material) => {
     if (material.fileUrl) {
       window.open(material.fileUrl, "_blank");
-      toast.success(`Opening ${material.title}`);
+      toast.success(t("opening", { title: material.title }));
       materialsAPI.trackDownload(material.id).catch(() => {});
     } else {
-      toast.error("No file URL available");
+      toast.error(t("no_file_url"));
     }
   };
 
@@ -224,7 +224,7 @@ const TeacherMaterialsPage = () => {
       window.open(material.fileUrl, "_blank");
       materialsAPI.trackView(material.id).catch(() => {});
     } else {
-      toast.info("No preview available");
+      toast.info(t("no_preview_available"));
     }
   };
 
@@ -247,7 +247,7 @@ const TeacherMaterialsPage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
-        <p>Loading materials...</p>
+        <p>{t("loading_materials")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -270,16 +270,14 @@ const TeacherMaterialsPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📁 Teaching Materials</h1>
-          <p style={styles.subtitle}>
-            Upload learning resources for your classes
-          </p>
+          <h1 style={styles.title}>{t("teaching_materials")}</h1>
+          <p style={styles.subtitle}>{t("upload_learning_resources")}</p>
         </div>
         <button
           onClick={() => setShowUploadForm(true)}
           style={styles.uploadBtn}
         >
-          <FiUpload size={16} /> Upload Material
+          <FiUpload size={16} /> {t("upload_material")}
         </button>
       </div>
 
@@ -289,10 +287,10 @@ const TeacherMaterialsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           style={styles.formCard}
         >
-          <h3>Upload New Material</h3>
+          <h3>{t("upload_new_material")}</h3>
           <input
             type="text"
-            placeholder="Title *"
+            placeholder={t("title_required")}
             value={newMaterial.title}
             onChange={(e) =>
               setNewMaterial({ ...newMaterial, title: e.target.value })
@@ -301,7 +299,7 @@ const TeacherMaterialsPage = () => {
             disabled={uploading}
           />
           <textarea
-            placeholder="Description (optional)"
+            placeholder={t("description_optional")}
             rows={3}
             value={newMaterial.description}
             onChange={(e) =>
@@ -320,7 +318,7 @@ const TeacherMaterialsPage = () => {
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Subject *</option>
+              <option value="">{t("select_subject")}</option>
               {subjects.map((s) => (
                 <option key={s}>{s}</option>
               ))}
@@ -333,7 +331,7 @@ const TeacherMaterialsPage = () => {
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Grade *</option>
+              <option value="">{t("select_grade")}</option>
               {grades.map((g) => (
                 <option key={g}>{g}</option>
               ))}
@@ -349,10 +347,10 @@ const TeacherMaterialsPage = () => {
               style={styles.select}
               disabled={uploading}
             >
-              <option value="">Select Class *</option>
+              <option value="">{t("select_class")}</option>
               {classNames.map((c) => (
                 <option key={c} value={c}>
-                  Section {c}
+                  {t("section")} {c}
                 </option>
               ))}
             </select>
@@ -366,20 +364,20 @@ const TeacherMaterialsPage = () => {
             >
               {accessLevels.map((level) => (
                 <option key={level} value={level}>
-                  {level}
+                  {t(level)}
                 </option>
               ))}
             </select>
           </div>
 
           <div style={styles.tagsSection}>
-            <label style={styles.label}>Tags (optional)</label>
+            <label style={styles.label}>{t("tags_optional")}</label>
             <div style={styles.tagInputGroup}>
               <input
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                placeholder="Add a tag (e.g., algebra)"
+                placeholder={t("add_tag_placeholder")}
                 style={styles.tagInput}
                 disabled={uploading}
                 onKeyPress={(e) => e.key === "Enter" && handleAddTag()}
@@ -389,7 +387,7 @@ const TeacherMaterialsPage = () => {
                 onClick={handleAddTag}
                 style={styles.addTagBtn}
               >
-                <FiPlus size={14} /> Add
+                <FiPlus size={14} /> {t("add")}
               </button>
             </div>
             <div style={styles.tagsList}>
@@ -420,12 +418,12 @@ const TeacherMaterialsPage = () => {
                 }
                 disabled={uploading}
               />
-              Feature this material (show on homepage)
+              {t("feature_material")}
             </label>
           </div>
 
           <div style={styles.fileUploadSection}>
-            <label style={styles.fileLabel}>File *</label>
+            <label style={styles.fileLabel}>{t("file_required")}</label>
             <input
               type="file"
               onChange={handleFileChange}
@@ -463,27 +461,25 @@ const TeacherMaterialsPage = () => {
               style={styles.cancelBtn}
               disabled={uploading}
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               onClick={handleUpload}
               style={styles.submitBtn}
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? t("uploading") : t("upload")}
             </button>
           </div>
         </motion.div>
       )}
 
       <div style={styles.materialsList}>
-        <h3>My Materials ({materials.length})</h3>
+        <h3>{t("my_materials", { count: materials.length })}</h3>
         {materials.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No materials uploaded yet.</p>
-            <p style={styles.emptyStateSubtext}>
-              Click "Upload Material" to share a file.
-            </p>
+            <p>{t("no_materials_uploaded")}</p>
+            <p style={styles.emptyStateSubtext}>{t("click_upload_material")}</p>
           </div>
         ) : (
           materials.map((material) => (
@@ -495,11 +491,15 @@ const TeacherMaterialsPage = () => {
                 <h3>{material.title}</h3>
                 {material.description && <p>{material.description}</p>}
                 <p style={styles.materialMeta}>
-                  {material.subject} • {material.grade} • {material.className}
+                  {material.subject} • {material.grade} • {t("section")}{" "}
+                  {material.className}
                   {material.tags.length > 0 &&
-                    ` • Tags: ${material.tags.join(", ")}`}
+                    ` • ${t("tags")}: ${material.tags.join(", ")}`}
                   {material.isFeatured && (
-                    <span style={styles.featuredBadge}> ⭐ Featured</span>
+                    <span style={styles.featuredBadge}>
+                      {" "}
+                      ⭐ {t("featured")}
+                    </span>
                   )}
                 </p>
                 <div style={styles.fileInfoDisplay}>{material.fileUrl}</div>
@@ -508,21 +508,21 @@ const TeacherMaterialsPage = () => {
                 <button
                   onClick={() => handleView(material)}
                   style={styles.viewBtn}
-                  title="Open"
+                  title={t("open")}
                 >
                   <FiEye size={16} />
                 </button>
                 <button
                   onClick={() => handleDownload(material)}
                   style={styles.downloadBtn}
-                  title="Download"
+                  title={t("download")}
                 >
                   <FiDownload size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(material.id)}
                   style={styles.deleteBtn}
-                  title="Delete"
+                  title={t("delete")}
                 >
                   <FiTrash2 size={16} />
                 </button>

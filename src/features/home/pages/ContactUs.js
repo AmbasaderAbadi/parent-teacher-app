@@ -10,10 +10,11 @@ import {
   FiPhone,
   FiMail as FiMailIcon,
 } from "react-icons/fi";
-import { contactAPI } from "../../../services/api";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 
 const ContactUs = () => {
+  const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,33 +44,33 @@ const ContactUs = () => {
       !formData.subject ||
       !formData.message
     ) {
-      toast.error("Please fill in all fields");
+      toast.error(t("fill_all_fields"));
       return;
     }
     setLoading(true);
     try {
       // Simulate API call – replace with actual endpoint
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Message sent successfully! We'll get back to you soon.");
+      toast.success(t("message_sent_success"));
       setFormData({ name: "", email: "", subject: "", message: "" });
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Failed to send message. Please try again.");
+      toast.error(t("message_send_failed"));
     } finally {
       setLoading(false);
     }
   };
 
-  // Navigation links (same as homepage)
+  // Navigation links
   const navItems = [
-    { to: "/", label: "Home", icon: FiHome },
-    { to: "/about", label: "About", icon: FiUserCheck },
-    { to: "/contact", label: "Contact", icon: FiMail },
+    { to: "/", label: t("home"), icon: FiHome },
+    { to: "/about", label: t("about"), icon: FiUserCheck },
+    { to: "/contact", label: t("contact"), icon: FiMail },
   ];
 
   return (
     <div style={styles.container}>
-      {/* Navigation Bar - Dark, same as homepage */}
+      {/* Navigation Bar */}
       <nav style={{ ...styles.nav, ...(scrolled ? styles.navScrolled : {}) }}>
         <div style={styles.navContent}>
           <motion.div
@@ -86,7 +87,7 @@ const ContactUs = () => {
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              ParentTeacher Portal
+              {t("app_name")}
             </motion.span>
           </motion.div>
           <div style={styles.navLinks}>
@@ -110,7 +111,7 @@ const ContactUs = () => {
         </div>
       </nav>
 
-      {/* Background Wrapper (same as homepage) */}
+      {/* Background Wrapper */}
       <div style={styles.backgroundWrapper}>
         <div style={styles.globalOverlay}></div>
         <div style={styles.contentWrapper}>
@@ -122,14 +123,11 @@ const ContactUs = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <div style={styles.badge}>📬 Get in Touch</div>
+                <div style={styles.badge}>{t("contact_badge")}</div>
                 <h1 style={styles.lightTitle}>
-                  <span style={styles.gradientText}>Contact Us</span>
+                  <span style={styles.gradientText}>{t("contact_title")}</span>
                 </h1>
-                <p style={styles.lightSubtitle}>
-                  Have questions, feedback, or suggestions? We'd love to hear
-                  from you!
-                </p>
+                <p style={styles.lightSubtitle}>{t("contact_hero_text")}</p>
               </motion.div>
             </div>
           </div>
@@ -143,13 +141,13 @@ const ContactUs = () => {
               viewport={{ once: true }}
             >
               <div style={styles.contactGrid}>
-                {/* Contact Info Cards (glassmorphic) */}
+                {/* Contact Info Cards */}
                 <div style={styles.contactInfo}>
                   <div style={styles.infoCard}>
                     <div style={styles.infoIcon}>
                       <FiMailIcon size={32} />
                     </div>
-                    <h3 style={styles.infoTitle}>Email Us</h3>
+                    <h3 style={styles.infoTitle}>{t("email_us")}</h3>
                     <p style={styles.infoDetail}>support@parentteacher.com</p>
                     <p style={styles.infoSub}>info@parentteacher.com</p>
                   </div>
@@ -157,28 +155,28 @@ const ContactUs = () => {
                     <div style={styles.infoIcon}>
                       <FiPhone size={32} />
                     </div>
-                    <h3 style={styles.infoTitle}>Call Us</h3>
+                    <h3 style={styles.infoTitle}>{t("call_us")}</h3>
                     <p style={styles.infoDetail}>+251 962690648</p>
-                    <p style={styles.infoSub}>Mon-Fri, 9am-6pm</p>
+                    <p style={styles.infoSub}>{t("support_hours")}</p>
                   </div>
                   <div style={styles.infoCard}>
                     <div style={styles.infoIcon}>
                       <FiMapPin size={32} />
                     </div>
-                    <h3 style={styles.infoTitle}>Visit Us</h3>
+                    <h3 style={styles.infoTitle}>{t("visit_us")}</h3>
                     <p style={styles.infoDetail}>123 Education Way</p>
                     <p style={styles.infoSub}>Mekelle, Tigray Region</p>
                   </div>
                 </div>
 
-                {/* Contact Form (glassmorphic) */}
+                {/* Contact Form */}
                 <div style={styles.contactForm}>
-                  <h3 style={styles.formTitle}>Send Us a Message</h3>
+                  <h3 style={styles.formTitle}>{t("send_message")}</h3>
                   <form onSubmit={handleSubmit}>
                     <input
                       type="text"
                       name="name"
-                      placeholder="Your Name"
+                      placeholder={t("your_name")}
                       value={formData.name}
                       onChange={handleChange}
                       style={styles.input}
@@ -187,7 +185,7 @@ const ContactUs = () => {
                     <input
                       type="email"
                       name="email"
-                      placeholder="Your Email"
+                      placeholder={t("your_email")}
                       value={formData.email}
                       onChange={handleChange}
                       style={styles.input}
@@ -196,7 +194,7 @@ const ContactUs = () => {
                     <input
                       type="text"
                       name="subject"
-                      placeholder="Subject"
+                      placeholder={t("subject_label")}
                       value={formData.subject}
                       onChange={handleChange}
                       style={styles.input}
@@ -204,7 +202,7 @@ const ContactUs = () => {
                     />
                     <textarea
                       name="message"
-                      placeholder="Your Message"
+                      placeholder={t("your_message")}
                       rows="5"
                       value={formData.message}
                       onChange={handleChange}
@@ -216,7 +214,7 @@ const ContactUs = () => {
                       style={styles.submitBtn}
                       disabled={loading}
                     >
-                      {loading ? "Sending..." : "Send Message →"}
+                      {loading ? t("sending") : t("send_message_button")}
                     </button>
                   </form>
                 </div>
@@ -224,7 +222,7 @@ const ContactUs = () => {
             </motion.div>
           </div>
 
-          {/* Map Section (glass container) */}
+          {/* Map Section */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -245,7 +243,7 @@ const ContactUs = () => {
             </div>
           </motion.div>
 
-          {/* FAQ Section (glass cards) */}
+          {/* FAQ Section */}
           <div style={styles.section}>
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -253,50 +251,30 @@ const ContactUs = () => {
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h2 style={styles.lightTitle}>Frequently Asked Questions</h2>
-              <p style={styles.lightSubtitle}>Find answers to common queries</p>
+              <h2 style={styles.lightTitle}>{t("faq_title")}</h2>
+              <p style={styles.lightSubtitle}>{t("faq_subtitle")}</p>
               <div style={styles.faqGrid}>
                 <details style={styles.faqItem}>
-                  <summary style={styles.faqQuestion}>
-                    How long does it take to get a response?
-                  </summary>
-                  <p style={styles.faqAnswer}>
-                    We aim to respond to all inquiries within 24-48 hours during
-                    business days.
-                  </p>
+                  <summary style={styles.faqQuestion}>{t("faq_q1")}</summary>
+                  <p style={styles.faqAnswer}>{t("faq_a1")}</p>
                 </details>
                 <details style={styles.faqItem}>
-                  <summary style={styles.faqQuestion}>
-                    Can I suggest a feature for the platform?
-                  </summary>
-                  <p style={styles.faqAnswer}>
-                    Absolutely! We welcome all suggestions to improve our
-                    platform. Just let us know in your message!
-                  </p>
+                  <summary style={styles.faqQuestion}>{t("faq_q2")}</summary>
+                  <p style={styles.faqAnswer}>{t("faq_a2")}</p>
                 </details>
                 <details style={styles.faqItem}>
-                  <summary style={styles.faqQuestion}>
-                    Do you offer technical support?
-                  </summary>
-                  <p style={styles.faqAnswer}>
-                    Yes, we provide technical support for all users. Our support
-                    team is available via email and phone.
-                  </p>
+                  <summary style={styles.faqQuestion}>{t("faq_q3")}</summary>
+                  <p style={styles.faqAnswer}>{t("faq_a3")}</p>
                 </details>
                 <details style={styles.faqItem}>
-                  <summary style={styles.faqQuestion}>
-                    Is there a cost for support?
-                  </summary>
-                  <p style={styles.faqAnswer}>
-                    Basic support is free for all users. Premium support plans
-                    are available for schools and institutions.
-                  </p>
+                  <summary style={styles.faqQuestion}>{t("faq_q4")}</summary>
+                  <p style={styles.faqAnswer}>{t("faq_a4")}</p>
                 </details>
               </div>
             </motion.div>
           </div>
 
-          {/* Call to Action (glass style) */}
+          {/* Call to Action */}
           <div style={styles.section}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -305,60 +283,52 @@ const ContactUs = () => {
               viewport={{ once: true }}
               style={styles.ctaInner}
             >
-              <h2 style={styles.ctaTitle}>Ready to Get Started?</h2>
-              <p style={styles.ctaText}>
-                Join thousands of parents and teachers already using our
-                platform
-              </p>
+              <h2 style={styles.ctaTitle}>{t("cta_title")}</h2>
+              <p style={styles.ctaText}>{t("cta_text")}</p>
               <Link to="/register">
-                <button style={styles.ctaButton}>Sign Up Now →</button>
+                <button style={styles.ctaButton}>{t("cta_button")}</button>
               </Link>
             </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Footer (same as homepage) */}
+      {/* Footer */}
       <footer style={styles.footer}>
         <div style={styles.footerContent}>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>ParentTeacher Portal</h4>
-            <p style={styles.footerText}>
-              Bridging the gap between parents and teachers for better
-              education.
-            </p>
+            <h4 style={styles.footerTitle}>{t("app_name")}</h4>
+            <p style={styles.footerText}>{t("footer_desc")}</p>
           </div>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>Quick Links</h4>
+            <h4 style={styles.footerTitle}>{t("quick_links")}</h4>
             <Link to="/" style={styles.footerLink}>
-              Home
+              {t("home")}
             </Link>
             <Link to="/about" style={styles.footerLink}>
-              About Us
+              {t("about_us")}
             </Link>
             <Link to="/contact" style={styles.footerLink}>
-              Contact Us
+              {t("contact_us")}
             </Link>
           </div>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>Legal</h4>
+            <h4 style={styles.footerTitle}>{t("legal")}</h4>
             <a href="/privacy-policy" style={styles.footerLink}>
-              Privacy Policy
+              {t("privacy_policy")}
             </a>
             <a href="/terms-of-service" style={styles.footerLink}>
-              Terms of Service
+              {t("terms_of_service")}
             </a>
           </div>
           <div style={styles.footerSection}>
-            <h4 style={styles.footerTitle}>Contact</h4>
+            <h4 style={styles.footerTitle}>{t("contact")}</h4>
             <p style={styles.footerText}>📧 support@parentteacher.com</p>
             <p style={styles.footerText}>📞 +251 (9) 62690648</p>
           </div>
         </div>
         <div style={styles.footerBottom}>
-          <p>
-            &copy; 2026 Parent-Teacher Relationship Portal. All rights reserved.
-          </p>
+          <p>{t("copyright")}</p>
         </div>
       </footer>
 
@@ -367,28 +337,14 @@ const ContactUs = () => {
         .info-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .nav-link:hover svg { transform: translateY(-2px); }
         .nav-link:hover { background: rgba(255,255,255,0.1); color: #c084fc; }
-        input:focus, textarea:focus { 
-          border-color: #667eea; 
-          outline: none; 
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-        }
+        input:focus, textarea:focus { border-color: #667eea; outline: none; box-shadow: 0 0 0 3px rgba(102,126,234,0.2); }
         details summary::-webkit-details-marker { display: none; }
-        details summary {
-          list-style: none;
-          cursor: pointer;
-        }
+        details summary { list-style: none; cursor: pointer; }
         @media (max-width: 768px) {
           .nav-links { display: none; }
           .contact-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
           .contact-info { grid-template-columns: 1fr !important; gap: 16px !important; }
-          .info-card { 
-            display: flex !important; 
-            flex-direction: row !important; 
-            align-items: center !important; 
-            gap: 16px !important; 
-            text-align: left !important; 
-            padding: 20px !important; 
-          }
+          .info-card { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 16px !important; text-align: left !important; padding: 20px !important; }
           .info-icon { margin-bottom: 0 !important; flex-shrink: 0 !important; }
           .info-title { margin-bottom: 4px !important; font-size: 18px !important; }
           .info-detail { font-size: 14px !important; }
@@ -420,21 +376,19 @@ const ContactUs = () => {
 
 const styles = {
   container: { fontFamily: "'Inter', sans-serif" },
-
-  // Navigation - Dark background (same as homepage)
   nav: {
     position: "fixed",
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    backgroundColor: "rgba(0,0,0,0.75)",
     backdropFilter: "blur(12px)",
     borderBottom: "1px solid rgba(255,255,255,0.1)",
     zIndex: 1000,
     transition: "all 0.3s ease",
   },
   navScrolled: {
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backgroundColor: "rgba(0,0,0,0.9)",
     backdropFilter: "blur(12px)",
     boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
     borderBottom: "1px solid rgba(255,255,255,0.15)",
@@ -461,7 +415,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
+    boxShadow: "0 4px 15px rgba(102,126,234,0.3)",
   },
   logoName: {
     fontSize: "20px",
@@ -485,8 +439,6 @@ const styles = {
     transition: "all 0.2s ease",
   },
   navIcon: { transition: "transform 0.2s ease" },
-
-  // Background and overlay (matching homepage)
   backgroundWrapper: {
     position: "relative",
     backgroundImage: "url('/images/cuss.jpg')",
@@ -501,11 +453,10 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0,0,0,0.7)",
     zIndex: 1,
   },
   contentWrapper: { position: "relative", zIndex: 2 },
-
   section: { padding: "80px 24px" },
   heroContent: { maxWidth: "800px", margin: "0 auto", textAlign: "center" },
   badge: {
@@ -539,8 +490,6 @@ const styles = {
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
   },
-
-  // Contact Grid
   contactGrid: {
     maxWidth: "1200px",
     margin: "0 auto",
@@ -555,10 +504,10 @@ const styles = {
   },
   infoCard: {
     padding: "32px",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255,255,255,0.2)",
     transition: "transform 0.3s ease, box-shadow 0.3s ease",
     textAlign: "center",
   },
@@ -581,12 +530,11 @@ const styles = {
   },
   infoDetail: { fontSize: "16px", color: "#c084fc", marginBottom: "4px" },
   infoSub: { fontSize: "14px", color: "#e0e0e0" },
-
   contactForm: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255,255,255,0.2)",
     padding: "32px",
   },
   formTitle: {
@@ -634,21 +582,17 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.3s ease",
   },
-
-  // Map Section
   mapContainer: { padding: "0 24px 40px" },
   mapCard: {
     maxWidth: "1200px",
     margin: "0 auto",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255,255,255,0.2)",
     overflow: "hidden",
   },
   map: { border: 0, display: "block" },
-
-  // FAQ Section
   faqGrid: {
     maxWidth: "800px",
     margin: "0 auto",
@@ -657,10 +601,10 @@ const styles = {
     gap: "16px",
   },
   faqItem: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     borderRadius: "16px",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255,255,255,0.2)",
     overflow: "hidden",
   },
   faqQuestion: {
@@ -677,8 +621,6 @@ const styles = {
     fontSize: "14px",
     lineHeight: "1.6",
   },
-
-  // CTA
   ctaInner: {
     maxWidth: "800px",
     margin: "0 auto",
@@ -709,8 +651,6 @@ const styles = {
     alignItems: "center",
     transition: "all 0.3s ease",
   },
-
-  // Footer
   footer: {
     backgroundColor: "#1a1a2e",
     color: "white",

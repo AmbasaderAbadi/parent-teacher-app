@@ -10,11 +10,13 @@ import {
   FiPhone,
 } from "react-icons/fi";
 import { FaChalkboardTeacher, FaUserGraduate, FaUsers } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
 import "../../../assets/styles/auth-pages.css";
 import toast from "react-hot-toast";
 import { authAPI } from "../../../services/api";
 
 const LoginPage = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     role: "",
@@ -64,11 +66,12 @@ const LoginPage = () => {
 
       navigate(`/${user.role}-dashboard`, { replace: true });
 
-      toast.success(`Welcome back, ${user.firstName || user.phoneNumber}!`);
+      toast.success(
+        t("welcome_back", { name: user.firstName || user.phoneNumber }),
+      );
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        "Login failed. Please check your credentials.";
+      // Use the translated fallback message instead of the backend's English
+      const message = t("login_failed_default");
       setErrorMessage(message);
       toast.error(message);
     } finally {
@@ -81,7 +84,7 @@ const LoginPage = () => {
     e.stopPropagation();
 
     if (!formData.password || !formData.role || !formData.phoneNumber) {
-      const msg = "Please fill in all login fields";
+      const msg = t("fill_all_login_fields");
       setErrorMessage(msg);
       toast.error(msg);
       return;
@@ -98,6 +101,14 @@ const LoginPage = () => {
     admin: <FiBarChart2 size={20} />,
   };
 
+  // Role display names for buttons
+  const roleNames = {
+    parent: t("parent"),
+    teacher: t("teacher"),
+    student: t("student"),
+    admin: t("admin"),
+  };
+
   return (
     <div className="login-container">
       <div className="bg-decoration">
@@ -106,7 +117,11 @@ const LoginPage = () => {
         <div className="bg-circle bg-circle-3"></div>
       </div>
 
-      <button onClick={handleClose} className="close-button" aria-label="Close">
+      <button
+        onClick={handleClose}
+        className="close-button"
+        aria-label={t("close")}
+      >
         <FiX size={24} />
       </button>
 
@@ -119,25 +134,22 @@ const LoginPage = () => {
         >
           <div className="logo">
             <span className="logo-icon">PT</span>
-            <span className="logo-text">ParentTeacher Portal</span>
+            <span className="logo-text">{t("app_name")}</span>
           </div>
-          <h2 className="info-title">Welcome Back!</h2>
-          <p className="info-desc">
-            Sign in to access your dashboard and stay connected with your
-            educational community.
-          </p>
+          <h2 className="info-title">{t("welcome_back_title")}</h2>
+          <p className="info-desc">{t("sign_in_desc")}</p>
           <div className="info-features">
             <div className="info-feature">
               <FiCheckCircle className="info-icon" />
-              <span>Real-time communication</span>
+              <span>{t("feature_realtime")}</span>
             </div>
             <div className="info-feature">
               <FiCheckCircle className="info-icon" />
-              <span>Track student progress</span>
+              <span>{t("feature_progress")}</span>
             </div>
             <div className="info-feature">
               <FiCheckCircle className="info-icon" />
-              <span>Get instant notifications</span>
+              <span>{t("feature_notifications")}</span>
             </div>
           </div>
         </motion.div>
@@ -149,10 +161,8 @@ const LoginPage = () => {
           className="form-panel"
         >
           <div className="form-header">
-            <h2 className="form-title">Sign In</h2>
-            <p className="form-subtitle">
-              Enter your credentials to access your account
-            </p>
+            <h2 className="form-title">{t("sign_in")}</h2>
+            <p className="form-subtitle">{t("enter_credentials")}</p>
           </div>
 
           <div className="role-container">
@@ -166,37 +176,40 @@ const LoginPage = () => {
                 type="button"
               >
                 <span className="role-icon">{roleIcons[r]}</span>
-                <span>{r.charAt(0).toUpperCase() + r.slice(1)}</span>
+                <span>{roleNames[r]}</span>
               </motion.button>
             ))}
           </div>
 
           <form onSubmit={handleSubmit} className="form">
             <Input
-              label={`${role ? role.charAt(0).toUpperCase() + role.slice(1) : "User"} Phone Number`}
+              label={t("phone_number_label", {
+                role: role ? roleNames[role] : t("user"),
+              })}
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleChange}
-              placeholder={`Enter your ${role || "user"} phone number`}
+              placeholder={t("phone_number_placeholder", {
+                role: role ? roleNames[role] : t("user"),
+              })}
               icon={<FiPhone />}
             />
             <Input
-              label="Password"
+              label={t("password_label")}
               name="password"
               type="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter your password"
+              placeholder={t("password_placeholder")}
               icon={<FiLock />}
             />
 
-            {/* Forgot Password Link */}
             <div className="text-right mb-4">
               <Link
                 to="/forgot-password"
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
-                Forgot Password?
+                {t("forgot_password")}
               </Link>
             </div>
 
@@ -227,7 +240,7 @@ const LoginPage = () => {
                 <span className="loading-spinner"></span>
               ) : (
                 <>
-                  Sign In <FiArrowRight className="button-icon" />
+                  {t("sign_in")} <FiArrowRight className="button-icon" />
                 </>
               )}
             </motion.button>
@@ -235,13 +248,13 @@ const LoginPage = () => {
 
           <div className="toggle-container">
             <p className="toggle-text">
-              Don't have an account?{" "}
+              {t("no_account")}{" "}
               <button
                 type="button"
                 onClick={() => navigate("/register")}
                 className="toggle-link"
               >
-                Sign up here
+                {t("sign_up_here")}
               </button>
             </p>
           </div>
@@ -259,7 +272,7 @@ const Input = ({
   type = "text",
   placeholder,
   icon,
-  required,
+  required = true,
 }) => (
   <div className="input-wrapper">
     <label className="input-label">

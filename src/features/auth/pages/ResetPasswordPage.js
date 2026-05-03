@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiLock, FiEye, FiEyeOff, FiArrowRight } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { authAPI } from "../../../services/api";
 import "../../../assets/styles/auth-pages.css";
 
 export const ResetPasswordPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -21,29 +23,29 @@ export const ResetPasswordPage = () => {
   // ensure user came from forgot password page
   useEffect(() => {
     if (!location.state?.phoneNumber) {
-      toast.error("Start from forgot password");
+      toast.error(t("start_from_forgot"));
       navigate("/forgot-password");
     } else {
       setPhoneNumber(location.state.phoneNumber);
     }
-  }, [location, navigate]);
+  }, [location, navigate, t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // validation
     if (!code || !newPassword || !confirmPassword) {
-      toast.error("All fields are required");
+      toast.error(t("all_fields_required"));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("password_mismatch"));
       return;
     }
 
     if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error(t("password_min_length"));
       return;
     }
 
@@ -56,10 +58,10 @@ export const ResetPasswordPage = () => {
         confirmPassword: confirmPassword.trim(),
       });
 
-      toast.success("Password reset successful!");
+      toast.success(t("reset_success"));
       navigate("/login");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Reset failed");
+      toast.error(error.response?.data?.message || t("reset_failed"));
     } finally {
       setLoading(false);
     }
@@ -70,22 +72,20 @@ export const ResetPasswordPage = () => {
       <div className="login-wrapper">
         <div className="form-panel">
           <div className="form-header">
-            <h2 className="form-title">Reset Password</h2>
-            <p className="form-subtitle">
-              Enter verification code and new password
-            </p>
+            <h2 className="form-title">{t("reset_password")}</h2>
+            <p className="form-subtitle">{t("reset_password_instruction")}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="form">
             {/* CODE */}
             <div className="input-wrapper">
-              <label className="input-label">Verification Code</label>
+              <label className="input-label">{t("verification_code")}</label>
               <div className="input-container">
                 <input
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Enter code"
+                  placeholder={t("enter_code")}
                   className="input-field"
                 />
               </div>
@@ -93,13 +93,9 @@ export const ResetPasswordPage = () => {
 
             {/* NEW PASSWORD */}
             <div className="input-wrapper">
-              <label className="input-label">New Password</label>
+              <label className="input-label">{t("new_password")}</label>
               <div className="input-container">
-                <span
-                  className="input-icon"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ cursor: "pointer" }}
-                >
+                <span className="input-icon">
                   <FiLock />
                 </span>
 
@@ -107,7 +103,7 @@ export const ResetPasswordPage = () => {
                   type={showPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
+                  placeholder={t("new_password_placeholder")}
                   className="input-field"
                 />
 
@@ -123,7 +119,7 @@ export const ResetPasswordPage = () => {
 
             {/* CONFIRM PASSWORD */}
             <div className="input-wrapper">
-              <label className="input-label">Confirm Password</label>
+              <label className="input-label">{t("confirm_password")}</label>
               <div className="input-container">
                 <span className="input-icon">
                   <FiLock />
@@ -133,7 +129,7 @@ export const ResetPasswordPage = () => {
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
+                  placeholder={t("confirm_password_placeholder")}
                   className="input-field"
                 />
 
@@ -153,7 +149,7 @@ export const ResetPasswordPage = () => {
                 <span className="loading-spinner"></span>
               ) : (
                 <>
-                  Reset Password <FiArrowRight />
+                  {t("reset_password")} <FiArrowRight />
                 </>
               )}
             </button>

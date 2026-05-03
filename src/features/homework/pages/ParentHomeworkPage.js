@@ -5,11 +5,13 @@ import {
   FiAlertCircle,
   FiCalendar,
 } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../../store/authStore";
 import { homeworkAPI } from "../../../services/api";
 import toast from "react-hot-toast";
 
 const ParentHomeworkPage = () => {
+  const { t } = useTranslation();
   const { user: storeUser } = useAuthStore();
   const [homeworks, setHomeworks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ const ParentHomeworkPage = () => {
       setHomeworks(formattedHomeworks);
     } catch (error) {
       console.error("Error fetching homeworks:", error);
-      toast.error("Failed to load homework");
+      toast.error(t("failed_load_homework"));
       setHomeworks([]);
     } finally {
       setLoading(false);
@@ -92,21 +94,21 @@ const ParentHomeworkPage = () => {
         return {
           bg: "#dbeafe",
           color: "#2563eb",
-          text: "Submitted",
+          text: t("submitted_status"),
           icon: <FiClock size={12} />,
         };
       case "graded":
         return {
           bg: "#d1fae5",
           color: "#065f46",
-          text: "Graded",
+          text: t("graded_status"),
           icon: <FiCheckCircle size={12} />,
         };
       default:
         return {
           bg: "#fed7aa",
           color: "#92400e",
-          text: "Pending",
+          text: t("pending_status"),
           icon: <FiAlertCircle size={12} />,
         };
     }
@@ -120,7 +122,7 @@ const ParentHomeworkPage = () => {
     return (
       <div style={styles.loadingContainer}>
         <div className="loading-spinner"></div>
-        <p>Loading homework...</p>
+        <p>{t("loading_homework")}</p>
         <style>{`
           .loading-spinner {
             width: 40px;
@@ -143,15 +145,15 @@ const ParentHomeworkPage = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>📝 Homework</h1>
-          <p style={styles.subtitle}>Track your children's assignments</p>
+          <h1 style={styles.title}>{t("homework")}</h1>
+          <p style={styles.subtitle}>{t("track_assignments")}</p>
         </div>
       </div>
 
       {/* Child Selector */}
       {children.length > 1 && (
         <div style={styles.childSelector}>
-          <label style={styles.childLabel}>Select Child:</label>
+          <label style={styles.childLabel}>{t("select_child")}:</label>
           <select
             value={selectedChild?.id}
             onChange={(e) => {
@@ -165,7 +167,7 @@ const ParentHomeworkPage = () => {
           >
             {children.map((child) => (
               <option key={child.id} value={child.id}>
-                {child.name} - {child.grade} Section {child.section}
+                {child.name} - {child.grade} {t("section")} {child.section}
               </option>
             ))}
           </select>
@@ -175,8 +177,8 @@ const ParentHomeworkPage = () => {
       {selectedChild && (
         <div style={styles.childInfo}>
           <p>
-            Showing homework for: <strong>{selectedChild.name}</strong> (
-            {selectedChild.grade} - Section {selectedChild.section})
+            {t("showing_homework_for")} <strong>{selectedChild.name}</strong> (
+            {selectedChild.grade} - {t("section")} {selectedChild.section})
           </p>
         </div>
       )}
@@ -184,7 +186,7 @@ const ParentHomeworkPage = () => {
       <div style={styles.homeworkList}>
         {homeworks.length === 0 ? (
           <div style={styles.emptyState}>
-            <p>No homework assignments found for this child.</p>
+            <p>{t("no_homework_found_child")}</p>
           </div>
         ) : (
           homeworks.map((hw) => {
@@ -199,11 +201,11 @@ const ParentHomeworkPage = () => {
                     <div style={styles.homeworkMeta}>
                       <span style={styles.subjectBadge}>{hw.subject}</span>
                       <span>
-                        <FiCalendar size={12} /> Due: {hw.dueDate} by{" "}
-                        {hw.dueTime}
+                        <FiCalendar size={12} /> {t("due")}: {hw.dueDate}{" "}
+                        {t("by")} {hw.dueTime}
                       </span>
                       {overdue && (
-                        <span style={styles.overdueBadge}>Overdue!</span>
+                        <span style={styles.overdueBadge}>{t("overdue")}</span>
                       )}
                     </div>
                   </div>
@@ -217,7 +219,9 @@ const ParentHomeworkPage = () => {
                     {statusBadge.icon}
                     <span>{statusBadge.text}</span>
                     {hw.marks && (
-                      <span style={styles.marksBadge}>Score: {hw.marks}%</span>
+                      <span style={styles.marksBadge}>
+                        {t("score_percent", { marks: hw.marks })}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -227,12 +231,15 @@ const ParentHomeworkPage = () => {
                 <div style={styles.homeworkFooter}>
                   <div style={styles.metaInfo}>
                     <p style={styles.meta}>
-                      <FiClock size={12} /> Posted by: {hw.postedBy} on{" "}
-                      {hw.postedDate}
+                      <FiClock size={12} />{" "}
+                      {t("posted_by_on", {
+                        postedBy: hw.postedBy,
+                        date: hw.postedDate,
+                      })}
                     </p>
                     {hw.submittedDate && (
                       <p style={styles.submittedDate}>
-                        Submitted on: {hw.submittedDate}
+                        {t("submitted_on", { date: hw.submittedDate })}
                       </p>
                     )}
                   </div>
@@ -392,11 +399,7 @@ const styles = {
     gap: "12px",
     marginTop: "8px",
   },
-  metaInfo: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
+  metaInfo: { display: "flex", flexDirection: "column", gap: "4px" },
   meta: {
     fontSize: "12px",
     color: "#6b7280",
@@ -405,11 +408,7 @@ const styles = {
     gap: "4px",
     margin: 0,
   },
-  submittedDate: {
-    fontSize: "12px",
-    color: "#10b981",
-    margin: 0,
-  },
+  submittedDate: { fontSize: "12px", color: "#10b981", margin: 0 },
   emptyState: {
     textAlign: "center",
     padding: "40px",
