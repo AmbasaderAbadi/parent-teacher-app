@@ -25,6 +25,7 @@
     "zustand": "^4.5.7"
   },
   "scripts": {
+    "preinstall": "npm config set legacy-peer-deps true",
     "start": "react-scripts start",
     "build": "CI=false react-scripts build",
     "test": "react-scripts test",
