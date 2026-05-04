@@ -3,70 +3,84 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { FiMessageSquare, FiLoader, FiX } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { aiAPI } from "../../../services/api"; // adjust path as needed
 
-const MessageSummarizer = ({ conversationId, teacherName, onClose }) => {
+const MessageSummarizer = ({ studentId, teacherName, onClose }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState("");
 
   const handleSummarize = async () => {
+    if (!studentId) {
+      toast.error(t("missing_student_id"));
+      return;
+    }
     setLoading(true);
     try {
-      // TODO: Replace with real API call
-      // const response = await messagingAPI.summarizeConversation(conversationId);
-      // setSummary(response.data.summary);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setSummary(
-        `This is a mock summary of the conversation with ${teacherName}. The teacher mentioned that your child is improving in mathematics and has perfect attendance.`,
-      );
+      const response = await aiAPI.summarizeTeacherConversations(studentId);
+      // Assumes response.data.summary contains the text
+      const summaryText =
+        response.data?.summary ||
+        response.data?.data?.summary ||
+        t("summary_unavailable");
+      setSummary(summaryText);
     } catch (error) {
-      toast.error(t("summary_failed"));
+      console.error("Summarization error:", error);
+      toast.error(error.response?.data?.message || t("summary_failed"));
+      setSummary(t("summary_failed_message"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={styles.overlay}
-    >
+    <AnimatePresence>
       <motion.div
-        initial={{ scale: 0.9 }}
-        animate={{ scale: 1 }}
-        style={styles.modal}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        style={styles.overlay}
+        onClick={onClose}
       >
-        <div style={styles.header}>
-          <h3>{t("message_summary")}</h3>
-          <button onClick={onClose} style={styles.closeBtn}>
-            <FiX size={20} />
-          </button>
-        </div>
-        <div style={styles.body}>
-          {!summary ? (
-            <button
-              onClick={handleSummarize}
-              disabled={loading}
-              style={styles.summarizeBtn}
-            >
-              {loading ? (
-                <FiLoader className="spin" size={20} />
-              ) : (
-                <FiMessageSquare size={20} />
-              )}
-              {loading ? t("summarizing") : t("generate_summary")}
+        <motion.div
+          initial={{ scale: 0.9 }}
+          animate={{ scale: 1 }}
+          style={styles.modal}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={styles.header}>
+            <h3>{t("message_summary")}</h3>
+            <button onClick={onClose} style={styles.closeBtn}>
+              <FiX size={20} />
             </button>
-          ) : (
-            <div style={styles.summaryBox}>
-              <p>{summary}</p>
-            </div>
-          )}
-        </div>
+          </div>
+          <div style={styles.body}>
+            {!summary ? (
+              <button
+                onClick={handleSummarize}
+                disabled={loading}
+                style={styles.summarizeBtn}
+              >
+                {loading ? (
+                  <FiLoader className="spin" size={20} />
+                ) : (
+                  <FiMessageSquare size={20} />
+                )}
+                {loading ? t("summarizing") : t("generate_summary")}
+              </button>
+            ) : (
+              <div style={styles.summaryBox}>
+                <p>{summary}</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
       </motion.div>
-      <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </motion.div>
+      <style>{`
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </AnimatePresence>
   );
 };
 
@@ -119,6 +133,7 @@ const styles = {
     border: "none",
     borderRadius: 8,
     cursor: "pointer",
+    fontSize: 14,
   },
   summaryBox: {
     backgroundColor: "#f3f4f6",
@@ -127,6 +142,8 @@ const styles = {
     fontSize: 14,
     lineHeight: 1.5,
     color: "#1f2937",
+    maxHeight: 300,
+    overflowY: "auto",
   },
 };
 

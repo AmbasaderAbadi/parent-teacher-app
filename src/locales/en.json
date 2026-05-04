@@ -748,5 +748,6 @@
   "no_quiz_data_to_export": "No quiz data to export",
   "no_questions_to_export": "No questions to export",
   "material_exported_pdf": "Material details exported as PDF",
-  "export_pdf": "Export PDF"
+  "export_pdf": "Export PDF",
+  "no_materials_class": "no materials found "
 }

@@ -304,6 +304,7 @@ const MessagesPage = () => {
               subject: student.subject,
               role: "parent",
               online: false,
+              studentId: student.studentId, // ✅ store studentId for teacher summarization
             });
           } else {
             const existing = parentMap.get(id);
@@ -563,23 +564,43 @@ const MessagesPage = () => {
   };
 
   const summarizeConversation = async () => {
-    if (!selectedConversation || !selectedConversation.id) return;
+    if (!selectedConversation) return;
     setSummarizing(true);
     try {
-      let payload;
-      if (user?.role === "parent") {
+      let response;
+      if (user?.role === "teacher") {
+        const studentId = selectedConversation.studentId;
+        if (!studentId) {
+          toast.error(t("missing_student_id"));
+          setSummarizing(false);
+          return;
+        }
+        // ✅ Use the new teacher-specific endpoint
+        response = await aiAPI.summarizeTeacherConversations(studentId);
+      } else if (user?.role === "parent") {
         const childId = selectedConversation.studentId;
         if (!childId) {
           toast.error(t("missing_child_id"));
           setSummarizing(false);
           return;
         }
-        payload = { childId };
+        response = await aiAPI.summarizeConversations({ childId });
       } else {
-        payload = { conversationId: selectedConversation.id };
+        // Fallback for other roles (admin, etc.)
+        if (!selectedConversation.id) {
+          toast.error(t("missing_conversation_id"));
+          setSummarizing(false);
+          return;
+        }
+        response = await aiAPI.summarizeConversations({
+          conversationId: selectedConversation.id,
+        });
       }
-      const response = await aiAPI.summarizeConversations(payload);
-      setSummaryText(response.data?.summary || t("no_summary_available"));
+      const summary =
+        response.data?.summary ||
+        response.data?.data?.summary ||
+        t("no_summary_available");
+      setSummaryText(summary);
       setShowSummaryModal(true);
     } catch (error) {
       console.error("Error summarizing conversation:", error);

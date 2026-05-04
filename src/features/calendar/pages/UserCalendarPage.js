@@ -50,19 +50,46 @@ const UserCalendarPage = () => {
 
       const filteredEvents = filterEventsByUser(allEvents, currentUser);
 
-      const formattedEvents = filteredEvents.map((event) => ({
-        id: event.id || event._id,
-        title: event.title,
-        description: event.description,
-        date: event.date?.split("T")[0] || event.date,
-        type: event.type || "event",
-        targetType: event.targetType || event.targetAudience || "all",
-        targetRole: event.targetRole,
-        targetGrade: event.targetGrade,
-        targetSection: event.targetSection,
-        time: event.time,
-        location: event.location,
-      }));
+      const formattedEvents = filteredEvents.map((event) => {
+        // Robust date parsing: handle various formats
+        let eventDate = null;
+        const dateStr = event.date || event.startDate;
+        if (dateStr) {
+          // Try parsing ISO string or simple YYYY-MM-DD
+          try {
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) {
+              eventDate = parsed;
+            } else if (dateStr.includes("-")) {
+              // Assume YYYY-MM-DD
+              const [year, month, day] = dateStr.split("-");
+              eventDate = new Date(year, month - 1, day);
+            }
+          } catch {
+            eventDate = null;
+          }
+        }
+        // Fallback to current date if invalid
+        if (!eventDate || isNaN(eventDate.getTime())) {
+          eventDate = new Date();
+          console.warn("Invalid date for event:", event.title);
+        }
+
+        return {
+          id: event.id || event._id,
+          title: event.title,
+          description: event.description,
+          date: eventDate,
+          originalDateStr: event.date || event.startDate,
+          type: event.type || "event",
+          targetType: event.targetType || event.targetAudience || "all",
+          targetRole: event.targetRole,
+          targetGrade: event.targetGrade,
+          targetSection: event.targetSection,
+          time: event.time,
+          location: event.location,
+        };
+      });
 
       setEvents(formattedEvents);
     } catch (error) {
@@ -133,18 +160,20 @@ const UserCalendarPage = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
+  const formatDate = (dateObj) => {
+    if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+      return t("invalid_date");
+    }
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (date.toDateString() === today.toDateString()) {
+    if (dateObj.toDateString() === today.toDateString()) {
       return t("today");
-    } else if (date.toDateString() === tomorrow.toDateString()) {
+    } else if (dateObj.toDateString() === tomorrow.toDateString()) {
       return t("tomorrow");
     } else {
-      return date.toLocaleDateString(i18n.language, {
+      return dateObj.toLocaleDateString(i18n.language, {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -153,7 +182,7 @@ const UserCalendarPage = () => {
   };
 
   const sortEventsByDate = (eventsList) => {
-    return [...eventsList].sort((a, b) => new Date(a.date) - new Date(b.date));
+    return [...eventsList].sort((a, b) => a.date - b.date);
   };
 
   if (loading) {
@@ -213,8 +242,7 @@ const UserCalendarPage = () => {
         <div style={styles.eventsList}>
           {sortedEvents.map((event) => {
             const typeStyle = getTypeColor(event.type);
-            // Get month name in current language
-            const eventDate = new Date(event.date);
+            const eventDate = event.date;
             const monthName = eventDate.toLocaleString(i18n.language, {
               month: "short",
             });
@@ -227,7 +255,7 @@ const UserCalendarPage = () => {
                 <div style={styles.eventInfo}>
                   <h3 style={styles.eventTitle}>{event.title}</h3>
                   <p style={styles.eventDate}>
-                    {formatDate(event.date)}
+                    {formatDate(eventDate)}
                     {event.time && ` ${t("at")} ${event.time}`}
                   </p>
                   {event.description && (

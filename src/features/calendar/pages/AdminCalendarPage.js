@@ -606,7 +606,6 @@ const AdminCalendarPage = () => {
 };
 
 const styles = {
-  // All styles remain unchanged (same as in your original file)
   container: {
     padding: "24px",
     maxWidth: "1200px",

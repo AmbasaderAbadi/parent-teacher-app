@@ -12,6 +12,8 @@ import {
   FiHome,
   FiUserCheck,
   FiMail,
+  FiChevronDown,
+  FiGlobe,
 } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { adminAPI } from "../../../services/api";
@@ -26,6 +28,7 @@ const HomePage = () => {
     satisfactionRate: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,6 +36,16 @@ const HomePage = () => {
     };
     window.addEventListener("scroll", handleScroll);
     fetchStats();
+    // Load saved language from localStorage
+    const savedPrefs = localStorage.getItem("userPreferences");
+    if (savedPrefs) {
+      try {
+        const { language } = JSON.parse(savedPrefs);
+        if (language && language !== i18n.language) {
+          i18n.changeLanguage(language);
+        }
+      } catch (e) {}
+    }
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -79,6 +92,26 @@ const HomePage = () => {
   const formatNumber = (num) => {
     if (!num && num !== 0) return "0";
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  const changeLanguage = (lang) => {
+    i18n.changeLanguage(lang);
+    // Save to localStorage preferences
+    const prefs = JSON.parse(localStorage.getItem("userPreferences") || "{}");
+    prefs.language = lang;
+    localStorage.setItem("userPreferences", JSON.stringify(prefs));
+    setLangMenuOpen(false);
+  };
+
+  const getLanguageLabel = () => {
+    switch (i18n.language) {
+      case "am":
+        return "አማርኛ";
+      case "ti":
+        return "ትግርኛ";
+      default:
+        return "English";
+    }
   };
 
   // Navigation links
@@ -408,58 +441,56 @@ const HomePage = () => {
               );
             })}
           </div>
-          <div style={styles.languageSwitcher}>
+          {/* Language Dropdown */}
+          <div style={styles.langDropdown}>
             <button
-              onClick={() => {
-                i18n.changeLanguage("en");
-                const prefs = JSON.parse(
-                  localStorage.getItem("userPreferences") || "{}",
-                );
-                prefs.language = "en";
-                localStorage.setItem("userPreferences", JSON.stringify(prefs));
-              }}
-              style={{
-                ...styles.langBtn,
-                ...(i18n.language === "en" ? styles.langBtnActive : {}),
-              }}
+              onClick={() => setLangMenuOpen(!langMenuOpen)}
+              style={styles.langSelector}
             >
-              EN
+              <FiGlobe size={16} style={styles.langIcon} />
+              <span>{getLanguageLabel()}</span>
+              <FiChevronDown
+                size={14}
+                style={{
+                  ...styles.chevron,
+                  transform: langMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
             </button>
-            <button
-              onClick={() => {
-                i18n.changeLanguage("am");
-                const prefs = JSON.parse(
-                  localStorage.getItem("userPreferences") || "{}",
-                );
-                prefs.language = "am";
-                localStorage.setItem("userPreferences", JSON.stringify(prefs));
-              }}
-              style={{
-                ...styles.langBtn,
-                ...(i18n.language === "am" ? styles.langBtnActive : {}),
-              }}
-            >
-              አማ
-            </button>
-            <button
-              onClick={() => {
-                i18n.changeLanguage("ti");
-                const prefs = JSON.parse(
-                  localStorage.getItem("userPreferences") || "{}",
-                );
-                prefs.language = "ti";
-                localStorage.setItem("userPreferences", JSON.stringify(prefs));
-              }}
-              style={{
-                ...styles.langBtn,
-                ...(i18n.language === "ti" ? styles.langBtnActive : {}),
-              }}
-            >
-              ትግ
-            </button>
+            {langMenuOpen && (
+              <div style={styles.langMenu}>
+                <button
+                  onClick={() => changeLanguage("en")}
+                  style={styles.langOption}
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => changeLanguage("am")}
+                  style={styles.langOption}
+                >
+                  አማርኛ
+                </button>
+                <button
+                  onClick={() => changeLanguage("ti")}
+                  style={styles.langOption}
+                >
+                  ትግርኛ
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
+
+      {/* Close dropdown when clicking outside */}
+      {langMenuOpen && (
+        <div
+          style={styles.dropdownBackdrop}
+          onClick={() => setLangMenuOpen(false)}
+        />
+      )}
+
       <div style={styles.backgroundWrapper}>
         <div style={styles.globalOverlay}></div>
         <div style={styles.contentWrapper}>
@@ -884,19 +915,55 @@ const styles = {
     transition: "all 0.2s ease",
   },
   navIcon: { transition: "transform 0.2s ease" },
-  languageSwitcher: { display: "flex", gap: "8px", alignItems: "center" },
-  langBtn: {
-    padding: "6px 10px",
+  langDropdown: { position: "relative" },
+  langSelector: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 12px",
     backgroundColor: "rgba(255,255,255,0.1)",
     border: "1px solid rgba(255,255,255,0.2)",
-    borderRadius: "6px",
+    borderRadius: "8px",
     color: "#fff",
     cursor: "pointer",
-    fontSize: "13px",
+    fontSize: "14px",
     fontWeight: "500",
     transition: "all 0.2s ease",
   },
-  langBtnActive: { backgroundColor: "#4f46e5", borderColor: "#4f46e5" },
+  langIcon: { color: "#c084fc" },
+  chevron: { transition: "transform 0.2s ease" },
+  langMenu: {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    backdropFilter: "blur(12px)",
+    border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: "12px",
+    overflow: "hidden",
+    minWidth: "140px",
+    zIndex: 1001,
+  },
+  langOption: {
+    width: "100%",
+    padding: "10px 16px",
+    backgroundColor: "transparent",
+    border: "none",
+    color: "#fff",
+    cursor: "pointer",
+    textAlign: "left",
+    fontSize: "14px",
+    transition: "all 0.2s ease",
+    "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" },
+  },
+  dropdownBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+  },
   backgroundWrapper: {
     position: "relative",
     backgroundImage: "url('/images/ptot.jpg')",
