@@ -14,6 +14,8 @@ import {
   FiMail,
   FiChevronDown,
   FiGlobe,
+  FiMenu,
+  FiX,
 } from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 import { adminAPI } from "../../../services/api";
@@ -29,6 +31,8 @@ const HomePage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileLangOpen, setMobileLangOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -36,7 +40,6 @@ const HomePage = () => {
     };
     window.addEventListener("scroll", handleScroll);
     fetchStats();
-    // Load saved language from localStorage
     const savedPrefs = localStorage.getItem("userPreferences");
     if (savedPrefs) {
       try {
@@ -96,11 +99,12 @@ const HomePage = () => {
 
   const changeLanguage = (lang) => {
     i18n.changeLanguage(lang);
-    // Save to localStorage preferences
     const prefs = JSON.parse(localStorage.getItem("userPreferences") || "{}");
     prefs.language = lang;
     localStorage.setItem("userPreferences", JSON.stringify(prefs));
     setLangMenuOpen(false);
+    setMobileLangOpen(false);
+    setMobileMenuOpen(false);
   };
 
   const getLanguageLabel = () => {
@@ -114,7 +118,6 @@ const HomePage = () => {
     }
   };
 
-  // Navigation links
   const navItems = [
     { to: "/", label: t("home"), icon: FiHome },
     { to: "/about", label: t("about"), icon: FiUserCheck },
@@ -123,7 +126,7 @@ const HomePage = () => {
 
   return (
     <div style={styles.container}>
-      {/* Navigation Bar - Dark background */}
+      {/* Navigation Bar */}
       <nav style={{ ...styles.nav, ...(scrolled ? styles.navScrolled : {}) }}>
         <div style={styles.navContent}>
           <motion.div
@@ -212,7 +215,6 @@ const HomePage = () => {
                     <stop offset="100%" stopColor="#e0d7ff" />
                   </linearGradient>
                 </defs>
-                {/* Outer ring */}
                 <circle
                   cx="340"
                   cy="240"
@@ -220,9 +222,7 @@ const HomePage = () => {
                   fill="url(#bgMain)"
                   opacity="0.9"
                 />
-                {/* Inner background */}
                 <circle cx="340" cy="240" r="200" fill="url(#bgCircle)" />
-                {/* Soft rings */}
                 <circle
                   cx="340"
                   cy="240"
@@ -241,7 +241,6 @@ const HomePage = () => {
                   strokeWidth="0.5"
                   opacity="0.04"
                 />
-                {/* Left glow */}
                 <circle
                   cx="210"
                   cy="210"
@@ -249,7 +248,6 @@ const HomePage = () => {
                   fill="#667eea"
                   opacity="0.12"
                 />
-                {/* Left head */}
                 <circle cx="210" cy="195" r="36" fill="url(#leftP)" />
                 <circle cx="175" cy="198" r="9" fill="url(#leftP)" />
                 <circle cx="245" cy="198" r="9" fill="url(#leftP)" />
@@ -261,7 +259,6 @@ const HomePage = () => {
                   fill="white"
                   opacity="0.18"
                 />
-                {/* Left neck + body */}
                 <rect
                   x="200"
                   y="228"
@@ -282,7 +279,6 @@ const HomePage = () => {
                   strokeLinejoin="round"
                   opacity="0.4"
                 />
-                {/* Child */}
                 <circle
                   cx="155"
                   cy="255"
@@ -303,7 +299,6 @@ const HomePage = () => {
                   strokeLinecap="round"
                   opacity="0.5"
                 />
-                {/* Right glow */}
                 <circle
                   cx="470"
                   cy="210"
@@ -311,7 +306,6 @@ const HomePage = () => {
                   fill="#9333ea"
                   opacity="0.12"
                 />
-                {/* Right head */}
                 <circle cx="470" cy="195" r="36" fill="url(#rightP)" />
                 <circle cx="435" cy="198" r="9" fill="url(#rightP)" />
                 <circle cx="505" cy="198" r="9" fill="url(#rightP)" />
@@ -323,7 +317,6 @@ const HomePage = () => {
                   fill="white"
                   opacity="0.18"
                 />
-                {/* Right neck + body */}
                 <rect
                   x="460"
                   y="228"
@@ -344,7 +337,6 @@ const HomePage = () => {
                   strokeLinejoin="round"
                   opacity="0.4"
                 />
-                {/* Graduation cap */}
                 <rect
                   x="447"
                   y="163"
@@ -370,7 +362,6 @@ const HomePage = () => {
                   opacity="0.9"
                 />
                 <circle cx="501" cy="182" r="4" fill="white" opacity="0.9" />
-                {/* Left bubble */}
                 <rect
                   x="262"
                   y="168"
@@ -386,7 +377,6 @@ const HomePage = () => {
                 <circle cx="282" cy="194" r="5.5" fill="white" opacity="0.95" />
                 <circle cx="298" cy="194" r="5.5" fill="white" opacity="0.95" />
                 <circle cx="314" cy="194" r="5.5" fill="white" opacity="0.95" />
-                {/* Right bubble */}
                 <rect
                   x="346"
                   y="168"
@@ -402,7 +392,6 @@ const HomePage = () => {
                 <circle cx="366" cy="194" r="5.5" fill="white" opacity="0.95" />
                 <circle cx="382" cy="194" r="5.5" fill="white" opacity="0.95" />
                 <circle cx="398" cy="194" r="5.5" fill="white" opacity="0.95" />
-                {/* Center dot */}
                 <circle
                   cx="340"
                   cy="194"
@@ -423,7 +412,9 @@ const HomePage = () => {
               {t("app_name")}
             </motion.span>
           </motion.div>
-          <div style={styles.navLinks}>
+
+          {/* Desktop Navigation Links */}
+          <div className="desktop-nav" style={styles.desktopNav}>
             {navItems.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -441,8 +432,9 @@ const HomePage = () => {
               );
             })}
           </div>
-          {/* Language Dropdown */}
-          <div style={styles.langDropdown}>
+
+          {/* Desktop Language Dropdown */}
+          <div className="desktop-lang" style={styles.langDropdownDesktop}>
             <button
               onClick={() => setLangMenuOpen(!langMenuOpen)}
               style={styles.langSelector}
@@ -480,10 +472,99 @@ const HomePage = () => {
               </div>
             )}
           </div>
+
+          {/* Hamburger (mobile only) */}
+          <button
+            className="hamburger"
+            onClick={() => setMobileMenuOpen(true)}
+            style={styles.hamburger}
+          >
+            <FiMenu size={24} color="#fff" />
+          </button>
         </div>
       </nav>
 
-      {/* Close dropdown when clicking outside */}
+      {/* Mobile Menu Slide-out (from left) */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="mobile-backdrop"
+            style={styles.mobileBackdrop}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="mobile-menu" style={styles.mobileMenu}>
+            <div style={styles.mobileMenuHeader}>
+              <span style={styles.mobileMenuTitle}>Menu</span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                style={styles.mobileMenuClose}
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            <div style={styles.mobileMenuLinks}>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    style={styles.mobileNavLink}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon size={20} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+
+              {/* Mobile Language Dropdown */}
+              <div style={styles.mobileLangSection}>
+                <button
+                  onClick={() => setMobileLangOpen(!mobileLangOpen)}
+                  style={styles.mobileLangSelector}
+                >
+                  <FiGlobe size={16} style={styles.mobileLangIcon} />
+                  <span>{getLanguageLabel()}</span>
+                  <FiChevronDown
+                    size={14}
+                    style={{
+                      ...styles.mobileChevron,
+                      transform: mobileLangOpen
+                        ? "rotate(180deg)"
+                        : "rotate(0deg)",
+                    }}
+                  />
+                </button>
+                {mobileLangOpen && (
+                  <div style={styles.mobileLangMenu}>
+                    <button
+                      onClick={() => changeLanguage("en")}
+                      style={styles.mobileLangOption}
+                    >
+                      English
+                    </button>
+                    <button
+                      onClick={() => changeLanguage("am")}
+                      style={styles.mobileLangOption}
+                    >
+                      አማርኛ
+                    </button>
+                    <button
+                      onClick={() => changeLanguage("ti")}
+                      style={styles.mobileLangOption}
+                    >
+                      ትግርኛ
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Click outside to close desktop language dropdown */}
       {langMenuOpen && (
         <div
           style={styles.dropdownBackdrop}
@@ -581,7 +662,6 @@ const HomePage = () => {
               </h2>
               <p style={styles.lightSubtitle}>{t("features_subtitle")}</p>
               <div style={styles.cardsGrid}>
-                {/* Card 1 */}
                 <div style={styles.card}>
                   <div style={styles.cardIcon}>
                     <FiMessageSquare size={28} />
@@ -598,7 +678,6 @@ const HomePage = () => {
                     <li>✓ {t("file_sharing")}</li>
                   </ul>
                 </div>
-                {/* Card 2 */}
                 <div style={styles.card}>
                   <div style={styles.cardIcon}>
                     <FiBarChart2 size={28} />
@@ -613,7 +692,6 @@ const HomePage = () => {
                     <li>✓ {t("subject_breakdown")}</li>
                   </ul>
                 </div>
-                {/* Card 3 */}
                 <div style={styles.card}>
                   <div style={styles.cardIcon}>
                     <FiBell size={28} />
@@ -833,14 +911,25 @@ const HomePage = () => {
           background: rgba(255,255,255,0.1);
           color: #c084fc;
         }
+
         @media (max-width: 768px) {
-          .nav-links { display: none; }
+          .desktop-nav, .desktop-lang {
+            display: none !important;
+          }
+          .hamburger {
+            display: flex !important;
+          }
           .light-title { font-size: 32px !important; }
           .cards-grid { grid-template-columns: 1fr !important; }
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .cta-inner { padding: 40px 20px !important; margin: 40px 16px !important; }
           .cta-title { font-size: 24px !important; }
           .main-title { font-size: 32px !important; }
+        }
+        @media (min-width: 769px) {
+          .hamburger {
+            display: none !important;
+          }
         }
       `}</style>
     </div>
@@ -901,7 +990,11 @@ const styles = {
     WebkitTextFillColor: "transparent",
     letterSpacing: "-0.3px",
   },
-  navLinks: { display: "flex", gap: "28px", alignItems: "center" },
+  desktopNav: {
+    display: "flex",
+    gap: "28px",
+    alignItems: "center",
+  },
   navLink: {
     display: "flex",
     alignItems: "center",
@@ -915,7 +1008,9 @@ const styles = {
     transition: "all 0.2s ease",
   },
   navIcon: { transition: "transform 0.2s ease" },
-  langDropdown: { position: "relative" },
+  langDropdownDesktop: {
+    position: "relative",
+  },
   langSelector: {
     display: "flex",
     alignItems: "center",
@@ -963,6 +1058,115 @@ const styles = {
     right: 0,
     bottom: 0,
     zIndex: 999,
+  },
+  hamburger: {
+    display: "none",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: "8px",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mobileBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 2000,
+  },
+  mobileMenu: {
+    position: "fixed",
+    top: 0,
+    left: 0, // ← slide from left
+    width: "280px",
+    height: "100%",
+    backgroundColor: "#1a1a2e",
+    zIndex: 2001,
+    padding: "20px",
+    boxShadow: "2px 0 20px rgba(0,0,0,0.3)",
+    display: "flex",
+    flexDirection: "column",
+    transform: "translateX(0)",
+    transition: "transform 0.3s ease",
+  },
+  mobileMenuHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "32px",
+    paddingBottom: "16px",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+  },
+  mobileMenuTitle: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#fff",
+  },
+  mobileMenuClose: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#fff",
+  },
+  mobileMenuLinks: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+  mobileNavLink: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 0",
+    color: "#f0f0f0",
+    textDecoration: "none",
+    fontSize: "16px",
+    fontWeight: "500",
+    borderBottom: "1px solid rgba(255,255,255,0.05)",
+  },
+  mobileLangSection: {
+    marginTop: "24px",
+    paddingTop: "16px",
+    borderTop: "1px solid rgba(255,255,255,0.1)",
+  },
+  mobileLangSelector: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 12px",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    borderRadius: "8px",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    width: "100%",
+    transition: "all 0.2s ease",
+  },
+  mobileLangIcon: { color: "#c084fc" },
+  mobileChevron: { transition: "transform 0.2s ease", marginLeft: "auto" },
+  mobileLangMenu: {
+    marginTop: "8px",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: "8px",
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.1)",
+  },
+  mobileLangOption: {
+    width: "100%",
+    padding: "10px 16px",
+    backgroundColor: "transparent",
+    border: "none",
+    color: "#fff",
+    cursor: "pointer",
+    textAlign: "left",
+    fontSize: "14px",
+    transition: "all 0.2s ease",
+    "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" },
   },
   backgroundWrapper: {
     position: "relative",
