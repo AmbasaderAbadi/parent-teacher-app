@@ -18,7 +18,7 @@ import QuizGenerator from "../components/QuizGenerator";
 import { exportQuizToPDF } from "../../../shared/utils/pdfExport";
 
 const TeacherQuizzesPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
@@ -26,6 +26,98 @@ const TeacherQuizzesPage = () => {
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [fullQuiz, setFullQuiz] = useState(null);
   const [showGenerator, setShowGenerator] = useState(false);
+
+  // Helper: Convert stored subject string to translation key
+  const getSubjectKey = (subject) => {
+    if (!subject) return "";
+    const s = subject.toLowerCase();
+    // Map possible stored values (English, Amharic, Tigrinya) to translation keys
+    const map = {
+      mathematics: "mathematics",
+      math: "mathematics",
+      physics: "physics",
+      chemistry: "chemistry",
+      biology: "biology",
+      english: "english",
+      history: "history",
+      geography: "geography",
+      // Amharic
+      ሂሳብ: "mathematics",
+      ፊዚክስ: "physics",
+      ኬሚስትሪ: "chemistry",
+      ባዮሎጂ: "biology",
+      እንግሊዘኛ: "english",
+      ታሪክ: "history",
+      "ሥነ-ምድር": "geography",
+      // Tigrinya
+      ሒሳብ: "mathematics",
+      ፊዚክስ: "physics",
+      ኬሚስትሪ: "chemistry",
+      ባዮሎጂ: "biology",
+      እንግሊዘኛ: "english",
+      ታሪኽ: "history",
+      ጂኦግራፊ: "geography",
+    };
+    return map[subject] || map[s] || subject;
+  };
+
+  // Helper: Convert stored grade string to translation key
+  const getGradeKey = (grade) => {
+    if (!grade) return "";
+    const map = {
+      "Grade 9": "grade_9",
+      "Grade 10": "grade_10",
+      "Grade 11": "grade_11",
+      "Grade 12": "grade_12",
+      "9ይ ክፍሊ": "grade_9",
+      "10ይ ክፍሊ": "grade_10",
+      "11ይ ክፍሊ": "grade_11",
+      "12ይ ክፍሊ": "grade_12",
+      "ክፍል 9": "grade_9",
+      "ክፍል 10": "grade_10",
+      "ክፍል 11": "grade_11",
+      "ክፍል 12": "grade_12",
+      "9ኛ ክፍሊ": "grade_9",
+      "10ኛ ክፍሊ": "grade_10",
+      "11ኛ ክፍሊ": "grade_11",
+      "12ኛ ክፍሊ": "grade_12",
+    };
+    return map[grade] || grade;
+  };
+
+  // Helper: Convert stored difficulty string to translation key
+  const getDifficultyKey = (difficulty) => {
+    if (!difficulty) return "";
+    const d = difficulty.toLowerCase();
+    const map = {
+      easy: "easy",
+      medium: "medium",
+      hard: "hard",
+      ቀሊል: "easy",
+      መካከለኛ: "medium",
+      ከባድ: "hard",
+      ቀሊል: "easy",
+      ማእከላይ: "medium",
+      ከቢድ: "hard",
+    };
+    return map[difficulty] || map[d] || difficulty;
+  };
+
+  // Format date according to current language
+  const formatLocalizedDate = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
+      return date.toLocaleDateString(i18n.language, {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      });
+    } catch {
+      return "";
+    }
+  };
 
   useEffect(() => {
     fetchQuizzes();
@@ -101,15 +193,6 @@ const TeacherQuizzesPage = () => {
     toast.success(t("quiz_downloaded_pdf"));
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return "";
-    }
-  };
-
   const handleQuizGenerated = () => {
     fetchQuizzes();
     setShowGenerator(false);
@@ -170,9 +253,13 @@ const TeacherQuizzesPage = () => {
               <div style={styles.quizInfo}>
                 <h3>{quiz.title}</h3>
                 <p style={styles.quizMeta}>
-                  {quiz.subject} • {quiz.grade} • {quiz.difficulty}
+                  {t(getSubjectKey(quiz.subject))} •{" "}
+                  {t(getGradeKey(quiz.grade))} •{" "}
+                  {t(getDifficultyKey(quiz.difficulty))}
                 </p>
-                <p style={styles.quizDate}>{formatDate(quiz.createdAt)}</p>
+                <p style={styles.quizDate}>
+                  {formatLocalizedDate(quiz.createdAt)}
+                </p>
               </div>
               <div style={styles.quizActions}>
                 <button
@@ -236,17 +323,19 @@ const TeacherQuizzesPage = () => {
                 ) : (
                   <>
                     <p>
-                      <strong>{t("subject")}:</strong> {selectedQuiz.subject}
+                      <strong>{t("subject")}:</strong>{" "}
+                      {t(getSubjectKey(selectedQuiz.subject))}
                     </p>
                     <p>
-                      <strong>{t("grade")}:</strong> {selectedQuiz.grade}
+                      <strong>{t("grade")}:</strong>{" "}
+                      {t(getGradeKey(selectedQuiz.grade))}
                     </p>
                     <p>
                       <strong>{t("topic")}:</strong> {selectedQuiz.topic || "—"}
                     </p>
                     <p>
                       <strong>{t("difficulty")}:</strong>{" "}
-                      {selectedQuiz.difficulty}
+                      {t(getDifficultyKey(selectedQuiz.difficulty))}
                     </p>
                     <h4 style={{ marginTop: "16px" }}>{t("questions")}</h4>
                     {fullQuiz?.questions &&

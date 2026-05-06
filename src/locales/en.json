@@ -749,5 +749,20 @@
   "no_questions_to_export": "No questions to export",
   "material_exported_pdf": "Material details exported as PDF",
   "export_pdf": "Export PDF",
-  "no_materials_class": "no materials found "
+  "no_materials_class": "no materials found ",
+  "team_member_ambasador": "Ambasador Abadi",
+  "team_role_frontend_dev": "Web Frontend Developer",
+  "team_bio_ambasador": "Frontend specialist focused on responsive UI and seamless user interaction.",
+  "team_member_hayelom": "Hayelom Hailay",
+  "team_bio_hayelom": "Ensures cross-browser compatibility and smooth navigation across all modules.",
+  "team_member_tedros": "Tedros Welu",
+  "team_role_backend_lead": "Backend Developer",
+  "team_bio_tedros": "Leads server-side logic, API design, and system scalability.",
+  "team_member_chrwel": "Chrwel G/hiwet",
+  "team_bio_chrwel": "Focuses on data processing, system reliability, and core integrations.",
+  "team_member_biniam": "Biniam Amene",
+  "team_bio_biniam": "Coordinates deployment and user acceptance testing for real-world readiness.",
+  "team_member_sirak": "Sirak Kibrom",
+  "team_role_ux": "User Experience Oversight",
+  "team_bio_sirak": "Oversees system adoption, user feedback, and operational workflow."
 }

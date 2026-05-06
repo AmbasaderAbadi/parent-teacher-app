@@ -164,8 +164,8 @@ const ContactUs = () => {
                       <FiMapPin size={32} />
                     </div>
                     <h3 style={styles.infoTitle}>{t("visit_us")}</h3>
-                    <p style={styles.infoDetail}>123 Education Way</p>
-                    <p style={styles.infoSub}>Mekelle, Tigray Region</p>
+                    <p style={styles.infoDetail}>Mekelle, Tigray Region</p>
+                    <p style={styles.infoSub}>Ethiopia, Postal Code: 7000</p>
                   </div>
                 </div>
 
@@ -222,7 +222,7 @@ const ContactUs = () => {
             </motion.div>
           </div>
 
-          {/* Map Section */}
+          {/* Map Section - Accurate map pointing to Mekelle, Tigray, Ethiopia */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -232,13 +232,14 @@ const ContactUs = () => {
           >
             <div style={styles.mapCard}>
               <iframe
-                title="Location Map"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.8354345095626!2d144.95373531531553!3d-37.81720997975165!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6ad642af0f1c4eab%3A0x5045675218ceed30!2s123%20Education%20Way%2C%20Mekelle%2C%20Tigray%20Region!5e0!3m2!1sen!2set!4v1616151395517!5m2!1sen!2set"
+                title="Mekelle, Tigray, Ethiopia Map"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d60047.58114850043!2d39.40524271923012!3d13.51329473100728!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x161233d8d340e469%3A0x3f2cbadac806973e!2sMekelle%2C%20Ethiopia!5e0!3m2!1sen!2set!4v1700000000000!5m2!1sen!2set"
                 width="100%"
                 height="300"
                 style={styles.map}
                 allowFullScreen=""
                 loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
               />
             </div>
           </motion.div>
@@ -324,7 +325,7 @@ const ContactUs = () => {
           <div style={styles.footerSection}>
             <h4 style={styles.footerTitle}>{t("contact")}</h4>
             <p style={styles.footerText}>📧 support@parentteacher.com</p>
-            <p style={styles.footerText}>📞 +251 (9) 62690648</p>
+            <p style={styles.footerText}>📞 +251 962690648</p>
           </div>
         </div>
         <div style={styles.footerBottom}>

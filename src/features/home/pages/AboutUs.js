@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiHome, FiUserCheck, FiMail, FiCompass } from "react-icons/fi";
+import {
+  FiHome,
+  FiUserCheck,
+  FiMail,
+  FiCompass,
+  FiMenu,
+  FiX,
+} from "react-icons/fi";
 import { useTranslation } from "react-i18next";
 
 const AboutUs = () => {
   const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -16,16 +24,55 @@ const AboutUs = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Navigation links (same as homepage)
   const navItems = [
     { to: "/", label: t("home"), icon: FiHome },
     { to: "/about", label: t("about"), icon: FiUserCheck },
     { to: "/contact", label: t("contact"), icon: FiMail },
   ];
 
+  // Team data – now using translation keys
+  const teamMembers = [
+    {
+      nameKey: "team_member_ambasador",
+      roleKey: "team_role_frontend_dev",
+      bioKey: "team_bio_ambasador",
+      icon: "👨‍💻",
+    },
+    {
+      nameKey: "team_member_hayelom",
+      roleKey: "team_role_frontend_dev",
+      bioKey: "team_bio_hayelom",
+      icon: "👨‍💻",
+    },
+    {
+      nameKey: "team_member_tedros",
+      roleKey: "team_role_backend_lead",
+      bioKey: "team_bio_tedros",
+      icon: "👨‍🔧",
+    },
+    {
+      nameKey: "team_member_chrwel",
+      roleKey: "team_role_backend_lead",
+      bioKey: "team_bio_chrwel",
+      icon: "👨‍🔧",
+    },
+    {
+      nameKey: "team_member_biniam",
+      roleKey: "team_role_coordinator",
+      bioKey: "team_bio_biniam",
+      icon: "👨‍🏫",
+    },
+    {
+      nameKey: "team_member_sirak",
+      roleKey: "team_role_ux",
+      bioKey: "team_bio_sirak",
+      icon: "👨‍🏫",
+    },
+  ];
+
   return (
     <div style={styles.container}>
-      {/* Navigation Bar - Dark, same as homepage */}
+      {/* Navigation Bar */}
       <nav style={{ ...styles.nav, ...(scrolled ? styles.navScrolled : {}) }}>
         <div style={styles.navContent}>
           <motion.div
@@ -45,7 +92,9 @@ const AboutUs = () => {
               {t("app_name")}
             </motion.span>
           </motion.div>
-          <div style={styles.navLinks}>
+
+          {/* Desktop Navigation */}
+          <div className="desktop-nav" style={styles.desktopNav}>
             {navItems.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -63,10 +112,55 @@ const AboutUs = () => {
               );
             })}
           </div>
+
+          {/* Hamburger (mobile) */}
+          <button
+            className="hamburger"
+            onClick={() => setMobileMenuOpen(true)}
+            style={styles.hamburger}
+          >
+            <FiMenu size={24} color="#fff" />
+          </button>
         </div>
       </nav>
 
-      {/* Background Wrapper (same as homepage) */}
+      {/* Mobile Slide-out Menu */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            style={styles.mobileBackdrop}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div style={styles.mobileMenu}>
+            <div style={styles.mobileMenuHeader}>
+              <span style={styles.mobileMenuTitle}>Menu</span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                style={styles.mobileMenuClose}
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            <div style={styles.mobileMenuLinks}>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    style={styles.mobileNavLink}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon size={20} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
       <div style={styles.backgroundWrapper}>
         <div style={styles.globalOverlay}></div>
         <div style={styles.contentWrapper}>
@@ -126,42 +220,14 @@ const AboutUs = () => {
               <h2 style={styles.lightTitle}>{t("team_title")}</h2>
               <p style={styles.lightSubtitle}>{t("team_subtitle")}</p>
               <div style={styles.teamGrid}>
-                <div style={styles.teamCard}>
-                  <div style={styles.teamAvatar}>👩‍🏫</div>
-                  <h5 style={styles.teamName}>Ambasador Abadi</h5>
-                  <p style={styles.teamRole}>{t("team_role_founder")}</p>
-                  <p style={styles.teamBio}>{t("team_bio_founder")}</p>
-                </div>
-                <div style={styles.teamCard}>
-                  <div style={styles.teamAvatar}>👨‍💻</div>
-                  <h5 style={styles.teamName}>Hayelom Hailay</h5>
-                  <p style={styles.teamRole}>{t("team_role_frontend")}</p>
-                  <p style={styles.teamBio}>{t("team_bio_frontend")}</p>
-                </div>
-                <div style={styles.teamCard}>
-                  <div style={styles.teamAvatar}>👩‍🎨</div>
-                  <h5 style={styles.teamName}>Tedros Welu</h5>
-                  <p style={styles.teamRole}>{t("team_role_backend")}</p>
-                  <p style={styles.teamBio}>{t("team_bio_backend")}</p>
-                </div>
-                <div style={styles.teamCard}>
-                  <div style={styles.teamAvatar}>👨‍🏫</div>
-                  <h5 style={styles.teamName}>Chrwel G/hiwet</h5>
-                  <p style={styles.teamRole}>{t("team_role_backend2")}</p>
-                  <p style={styles.teamBio}>{t("team_bio_backend2")}</p>
-                </div>
-                <div style={styles.teamCard}>
-                  <div style={styles.teamAvatar}>👨‍🏫</div>
-                  <h5 style={styles.teamName}>Biniam Amene</h5>
-                  <p style={styles.teamRole}>{t("team_role_advisor")}</p>
-                  <p style={styles.teamBio}>{t("team_bio_advisor")}</p>
-                </div>
-                <div style={styles.teamCard}>
-                  <div style={styles.teamAvatar}>👨‍🏫</div>
-                  <h5 style={styles.teamName}>Sirak Kibrom</h5>
-                  <p style={styles.teamRole}>{t("team_role_coordinator")}</p>
-                  <p style={styles.teamBio}>{t("team_bio_coordinator")}</p>
-                </div>
+                {teamMembers.map((member, idx) => (
+                  <div key={idx} style={styles.teamCard}>
+                    <div style={styles.teamAvatar}>{member.icon}</div>
+                    <h5 style={styles.teamName}>{t(member.nameKey)}</h5>
+                    <p style={styles.teamRole}>{t(member.roleKey)}</p>
+                    <p style={styles.teamBio}>{t(member.bioKey)}</p>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
@@ -185,7 +251,7 @@ const AboutUs = () => {
         </div>
       </div>
 
-      {/* Footer (same as homepage) */}
+      {/* Footer */}
       <footer style={styles.footer}>
         <div style={styles.footerContent}>
           <div style={styles.footerSection}>
@@ -216,7 +282,7 @@ const AboutUs = () => {
           <div style={styles.footerSection}>
             <h4 style={styles.footerTitle}>{t("contact")}</h4>
             <p style={styles.footerText}>📧 support@parentteacher.com</p>
-            <p style={styles.footerText}>📞 +1 (555) 123-4567</p>
+            <p style={styles.footerText}>📞 +251 962690648</p>
           </div>
         </div>
         <div style={styles.footerBottom}>
@@ -230,15 +296,16 @@ const AboutUs = () => {
         .nav-link:hover svg { transform: translateY(-2px); }
         .nav-link:hover { background: rgba(255,255,255,0.1); color: #c084fc; }
         @media (max-width: 768px) {
-          .nav-links { display: none; }
+          .desktop-nav { display: none; }
+          .hamburger { display: flex !important; }
           .light-title { font-size: 32px !important; }
           .light-subtitle { font-size: 16px !important; }
           .mission-grid, .team-grid { grid-template-columns: 1fr !important; }
           .cta-inner { padding: 40px 20px !important; margin: 0 16px 40px !important; }
           .cta-title { font-size: 24px !important; }
-          .footer-content { grid-template-columns: 1fr !important; text-align: center; }
-          .footer-section { align-items: center !important; }
-          .mission-card, .team-card { padding: 24px !important; }
+        }
+        @media (min-width: 769px) {
+          .hamburger { display: none !important; }
         }
         @media (max-width: 480px) {
           .light-title { font-size: 28px !important; }
@@ -251,6 +318,8 @@ const AboutUs = () => {
 };
 
 const styles = {
+  // All styles remain identical to your existing AboutUs styles – omitted for brevity
+  // (keep your existing styles object exactly as it was)
   container: { fontFamily: "'Inter', sans-serif" },
   nav: {
     position: "fixed",
@@ -301,7 +370,11 @@ const styles = {
     WebkitTextFillColor: "transparent",
     letterSpacing: "-0.3px",
   },
-  navLinks: { display: "flex", gap: "28px", alignItems: "center" },
+  desktopNav: {
+    display: "flex",
+    gap: "28px",
+    alignItems: "center",
+  },
   navLink: {
     display: "flex",
     alignItems: "center",
@@ -315,9 +388,75 @@ const styles = {
     transition: "all 0.2s ease",
   },
   navIcon: { transition: "transform 0.2s ease" },
+  hamburger: {
+    display: "none",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: "8px",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mobileBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 2000,
+  },
+  mobileMenu: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "280px",
+    height: "100%",
+    backgroundColor: "#1a1a2e",
+    zIndex: 2001,
+    padding: "20px",
+    boxShadow: "2px 0 20px rgba(0,0,0,0.3)",
+    display: "flex",
+    flexDirection: "column",
+  },
+  mobileMenuHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "32px",
+    paddingBottom: "16px",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+  },
+  mobileMenuTitle: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#fff",
+  },
+  mobileMenuClose: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#fff",
+  },
+  mobileMenuLinks: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+  mobileNavLink: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 0",
+    color: "#f0f0f0",
+    textDecoration: "none",
+    fontSize: "16px",
+    fontWeight: "500",
+    borderBottom: "1px solid rgba(255,255,255,0.05)",
+  },
   backgroundWrapper: {
     position: "relative",
-    backgroundImage: "url('/images/event2.jpg')",
+    backgroundImage: "url('/images/us1.jpg')",
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundAttachment: "fixed",
@@ -394,7 +533,7 @@ const styles = {
     maxWidth: "1200px",
     margin: "0 auto",
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
     gap: "32px",
   },
   teamCard: {
@@ -413,8 +552,18 @@ const styles = {
     marginBottom: "8px",
     color: "#ffffff",
   },
-  teamRole: { fontSize: "14px", color: "#c084fc", marginBottom: "8px" },
-  teamBio: { fontSize: "13px", color: "#e0e0e0" },
+  teamRole: {
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#c084fc",
+    marginBottom: "12px",
+  },
+  teamBio: {
+    fontSize: "13px",
+    color: "#e0e0e0",
+    lineHeight: "1.5",
+    marginTop: "8px",
+  },
   ctaInner: {
     maxWidth: "800px",
     margin: "0 auto",
